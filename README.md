@@ -8,7 +8,34 @@ A comprehensive Home Assistant integration for real-time electricity pricing fro
 
 ## Features
 
-### 🏠 Unified Service Architecture
+### 🏠 Unified Se### Common Issues
+
+#### Integration Won't Load
+```bash
+# Check logs for import errors
+grep -i "real_electricity_price" /config/home-assistant.log
+```
+
+#### Only One Entity Visible
+If you see only one entity instead of 10 (9 sensors + 1 button):
+
+1. **Check Entity List**: Go to Settings → Devices & Services → Entities, search for "real_electricity_price"
+2. **Check Device View**: Go to Settings → Devices & Services → Real Electricity Price → Click the device
+3. **Check Developer Tools**: Go to Developer Tools → States, search for "real_electricity_price"
+4. **Verify All Entities**:
+   - `sensor.real_electricity_price_current_price`
+   - `sensor.real_electricity_price_hourly_prices_today`
+   - `sensor.real_electricity_price_hourly_prices_tomorrow`
+   - `sensor.real_electricity_price_max_today`
+   - `sensor.real_electricity_price_min_today`
+   - `sensor.real_electricity_price_max_tomorrow`
+   - `sensor.real_electricity_price_min_tomorrow`
+   - `sensor.real_electricity_price_last_sync`
+   - `sensor.real_electricity_price_current_tariff`
+   - `button.real_electricity_price_refresh_data`
+5. **Force Refresh**: Try restarting Home Assistant or reloading the integration
+
+#### No Data Availablehitecture
 - **Single device** with multiple sensors grouped together
 - **Professional branding** as a real electricity price service
 - **Device-level information** including manufacturer and model
@@ -37,18 +64,18 @@ A comprehensive Home Assistant integration for real-time electricity pricing fro
 
 The integration creates the following sensors under a single device:
 
-| Sensor | Description | Unit | Update Frequency |
-|--------|-------------|------|------------------|
-| **Current Price** | Real-time electricity price for current hour | EUR/kWh | Hourly (automatic) |
-| **Hourly Prices Today** | Complete price array for today (24 hours) | EUR/kWh | Daily at midnight |
-| **Hourly Prices Tomorrow** | Complete price array for tomorrow (24 hours) | EUR/kWh | Daily at ~14:00 CET |
-| **Max Price Today** | Highest price for today | EUR/kWh | Daily at midnight |
-| **Min Price Today** | Lowest price for today | EUR/kWh | Daily at midnight |
-| **Max Price Tomorrow** | Highest price for tomorrow | EUR/kWh | Daily at ~14:00 CET |
-| **Min Price Tomorrow** | Lowest price for tomorrow | EUR/kWh | Daily at ~14:00 CET |
-| **Last Data Sync** | Timestamp of last successful data update | Timestamp | On each update |
-| **Current Tariff** | Current pricing period (day/night) | Text | Real-time |
-| **Refresh Data** | Manual refresh button | Button | Manual |
+| Sensor | Entity ID | Description | Unit | Update Frequency |
+|--------|-----------|-------------|------|------------------|
+| **Current Price** | `sensor.real_electricity_price_current_price` | Real-time electricity price for current hour | EUR/kWh | Hourly (automatic) |
+| **Hourly Prices Today** | `sensor.real_electricity_price_hourly_prices_today` | Complete price array for today (24 hours) | EUR/kWh | Daily at midnight |
+| **Hourly Prices Tomorrow** | `sensor.real_electricity_price_hourly_prices_tomorrow` | Complete price array for tomorrow (24 hours) | EUR/kWh | Daily at ~14:00 CET |
+| **Max Price Today** | `sensor.real_electricity_price_max_today` | Highest price for today | EUR/kWh | Daily at midnight |
+| **Min Price Today** | `sensor.real_electricity_price_min_today` | Lowest price for today | EUR/kWh | Daily at midnight |
+| **Max Price Tomorrow** | `sensor.real_electricity_price_max_tomorrow` | Highest price for tomorrow | EUR/kWh | Daily at ~14:00 CET |
+| **Min Price Tomorrow** | `sensor.real_electricity_price_min_tomorrow` | Lowest price for tomorrow | EUR/kWh | Daily at ~14:00 CET |
+| **Last Data Sync** | `sensor.real_electricity_price_last_sync` | Timestamp of last successful data update | Timestamp | On each update |
+| **Current Tariff** | `sensor.real_electricity_price_current_tariff` | Current pricing period (day/night) | Text | Real-time |
+| **Refresh Data** | `button.real_electricity_price_refresh_data` | Manual refresh button | Button | Manual |
 
 ### Current Price Sensor
 
