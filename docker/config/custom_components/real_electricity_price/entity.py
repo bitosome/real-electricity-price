@@ -32,6 +32,6 @@ class RealElectricityPriceEntity(
             identifiers={(DOMAIN, coordinator.config_entry.entry_id)},
             name=device_name,
             manufacturer="Real Electricity Price",
-            model="Nord Pool Day-Ahead",
+            model="Real Electricity Price by bitosome",
             entry_type=DeviceEntryType.SERVICE,
         )

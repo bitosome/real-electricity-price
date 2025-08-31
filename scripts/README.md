@@ -1,57 +1,217 @@
-# Version Management
+# Development Scripts
 
-This directory contains scripts for managing versions and releases.
+This directory contains all development and utility scripts for the Real Electricity Price integration.
 
-## Version Bump Script
+## 🚀 Quick Start
 
-The `bump_version.py` script automates the process of bumping versions and creating GitHub releases for HACS.
-
-### Usage
-
+### One-Click Development Setup
 ```bash
-# Patch version (0.1.0 → 0.1.1) - for bug fixes
-python scripts/bump_version.py patch -m "Fixed critical bug in sensor"
+./scripts/dev-setup.sh
+```
+This script sets up the complete development environment with Home Assistant running in Docker.
 
-# Minor version (0.1.0 → 0.2.0) - for new features
-python scripts/bump_version.py minor -m "Added new sensor for tomorrow's prices"
+## 📋 Available Scripts
 
-# Major version (0.1.0 → 1.0.0) - for breaking changes
-python scripts/bump_version.py major -m "Complete rewrite with breaking changes"
+### 🏗️ Environment Setup
+- **`setup.sh`** - Install all development dependencies and tools
+- **`dev-setup.sh`** - Complete one-click development environment setup with Docker
+
+### 🔄 Development Workflow
+- **`sync-integration.sh`** - Sync integration files to Docker container
+- **`develop.sh`** - Run Home Assistant Core locally (alternative to Docker)
+- **`test.sh`** - Run comprehensive integration tests
+- **`lint.sh`** - Code formatting and quality checks
+
+### 🎨 Utilities
+- **`prepare_brand_assets.sh`** - Prepare branding assets for submission
+
+## 📖 Script Details
+
+### dev-setup.sh
+**One-click development environment setup**
+
+Features:
+- ✅ Checks Docker availability
+- ✅ Syncs integration files
+- ✅ Stops existing containers
+- ✅ Starts Home Assistant in Docker
+- ✅ Waits for startup completion
+- ✅ Shows access information and commands
+
+Usage:
+```bash
+./scripts/dev-setup.sh
 ```
 
-### What it does
+After running, access Home Assistant at http://localhost:8123 (admin/admin)
 
-1. **Updates `manifest.json`** with the new version number
-2. **Commits all changes** to git
-3. **Creates and pushes a git tag** (e.g., `v0.1.1`)
-4. **Provides a GitHub release URL** for manual completion
-5. **Shows suggested changelog** text
+### sync-integration.sh
+**Sync integration files to Docker container**
 
-### HACS Integration
-
-After running the script:
-
-1. **Go to the provided GitHub URL** to create the release
-2. **Add the suggested changelog** as the release description
-3. **Publish the release**
-4. **HACS will automatically detect** the new version within a few minutes
-5. **Users will get update notifications** in Home Assistant
-
-### Version Numbering
-
-Follow semantic versioning:
-- **Patch** (x.x.1): Bug fixes, small improvements
-- **Minor** (x.1.x): New features, backward compatible
-- **Major** (1.x.x): Breaking changes, major rewrites
-
-### Example Workflow
+Use this when you make changes to integration files and want to test them:
 
 ```bash
-# After fixing a bug
+./scripts/sync-integration.sh
+```
+
+Automatically restarts Home Assistant container after syncing.
+
+### test.sh
+**Comprehensive testing suite**
+
+Run all tests:
+```bash
+./scripts/test.sh
+```
+
+Run specific tests:
+```bash
+./scripts/test.sh syntax   # Syntax check only
+./scripts/test.sh import   # Import test only
+./scripts/test.sh config   # Configuration validation
+./scripts/test.sh docker   # Docker integration test
+./scripts/test.sh quality  # Code quality check
+```
+
+### lint.sh
+**Code formatting and quality**
+
+```bash
+./scripts/lint.sh
+```
+
+Features:
+- ✅ Code formatting with Ruff
+- ✅ Linting with automatic fixes
+- ✅ Syntax validation
+- ✅ Integration file checks
+
+### setup.sh
+**Development environment setup**
+
+```bash
+./scripts/setup.sh
+```
+
+Features:
+- ✅ Installs Python requirements
+- ✅ Installs development tools (ruff, black, mypy)
+- ✅ Sets up pre-commit hooks
+
+### develop.sh
+**Local Home Assistant Core development**
+
+For development without Docker:
+
+```bash
+./scripts/develop.sh
+```
+
+Requirements:
+- Home Assistant Core installed locally
+- Python 3.11+ environment
+
+## 🔧 Development Workflow
+
+### First Time Setup
+1. **Install dependencies:**
+   ```bash
+   ./scripts/setup.sh
+   ```
+
+2. **Start development environment:**
+   ```bash
+   ./scripts/dev-setup.sh
+   ```
+
+3. **Access Home Assistant at http://localhost:8123**
+
+### Daily Development
+1. **Make changes to integration files**
+2. **Sync and test:**
+   ```bash
+   ./scripts/sync-integration.sh
+   ./scripts/test.sh
+   ```
+3. **Check code quality:**
+   ```bash
+   ./scripts/lint.sh
+   ```
+
+### Before Committing
+```bash
+./scripts/lint.sh      # Format and lint code
+./scripts/test.sh      # Run all tests
 git add .
-git commit -m "Fix sensor initialization bug"
-python scripts/bump_version.py patch -m "Fixed sensor initialization issue"
-
-# Go to GitHub and create the release
-# HACS users will get update notification
+git commit -m "Your commit message"
 ```
+
+## 🐳 Docker Commands
+
+The development environment provides these useful commands:
+
+```bash
+# View logs
+docker logs hass-real-electricity-price-test --tail 50 -f
+
+# Restart Home Assistant
+docker restart hass-real-electricity-price-test
+
+# Stop environment
+docker compose down
+
+# Access container shell
+docker exec -it hass-real-electricity-price-test bash
+```
+
+## 🔍 Troubleshooting
+
+### Script Not Executable
+```bash
+chmod +x scripts/*.sh
+```
+
+### Docker Issues
+```bash
+# Check Docker status
+docker ps
+
+# Check container logs
+docker logs hass-real-electricity-price-test
+
+# Restart Docker
+docker restart hass-real-electricity-price-test
+```
+
+### Import Errors
+```bash
+# Check Python path
+./scripts/test.sh import
+
+# Validate syntax
+./scripts/test.sh syntax
+```
+
+## 📁 File Structure
+
+```
+scripts/
+├── README.md                 # This file
+├── dev-setup.sh             # One-click development setup
+├── setup.sh                 # Install dependencies
+├── sync-integration.sh      # Sync files to Docker
+├── develop.sh               # Local HA Core development
+├── test.sh                  # Testing suite
+├── lint.sh                  # Code quality
+└── prepare_brand_assets.sh  # Branding utilities
+```
+
+## 🎯 Tips
+
+- **Always run `./scripts/dev-setup.sh` for new development sessions**
+- **Use `./scripts/sync-integration.sh` after making changes**
+- **Run `./scripts/test.sh` before committing**
+- **Keep Docker running for faster development cycles**
+- **Use `./scripts/lint.sh` to maintain code quality**
+
+Happy coding! 🚀

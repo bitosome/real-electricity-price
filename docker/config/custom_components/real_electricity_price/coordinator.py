@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import datetime
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
@@ -21,6 +22,10 @@ class RealElectricityPriceDataUpdateCoordinator(DataUpdateCoordinator):
     async def _async_update_data(self) -> Any:
         """Update data via library."""
         try:
-            return await self.config_entry.runtime_data.client.async_get_data()
+            data = await self.config_entry.runtime_data.client.async_get_data()
+            # Add the current timestamp to the data
+            if data is not None:
+                data["last_sync"] = datetime.datetime.now(datetime.UTC)
+            return data
         except RealElectricityPriceApiClientError as exception:
             raise UpdateFailed(exception) from exception
