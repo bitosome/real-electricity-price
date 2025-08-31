@@ -1,0 +1,6 @@
+logger:
+  default: info
+  logs:
+    custom_components.real_electricity_price: debug
+    homeassistant.components.sensor: debug
+    homeassistant.helpers.entity: debug

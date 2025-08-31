@@ -1,0 +1,54 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Get version from tag
+      id: get_version
+      run: |
+        VERSION=${GITHUB_REF#refs/tags/v}
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "tag=v$VERSION" >> $GITHUB_OUTPUT
+
+    - name: Create Release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.get_version.outputs.tag }}
+        release_name: Release ${{ steps.get_version.outputs.tag }}
+        body: |
+          ## What's Changed
+
+          ### Version ${{ steps.get_version.outputs.version }}
+
+          This release includes updates and improvements to the Real Electricity Price integration.
+
+          ### Installation
+
+          **HACS Users**: The update should appear automatically in HACS within a few hours.
+
+          **Manual Installation**: Download the latest release and copy to your `custom_components` directory.
+
+          ### Features
+          - Real-time electricity pricing from Nord Pool
+          - Comprehensive cost calculations (grid fees, supplier margins, VAT)
+          - Time-based pricing with holiday support
+          - Dual date support (today + tomorrow)
+          - Configurable update intervals
+
+          ### Links
+          - [Documentation](https://github.com/bitosome/real-electricity-price)
+          - [Issues](https://github.com/bitosome/real-electricity-price/issues)
+        draft: false
+        prerelease: false

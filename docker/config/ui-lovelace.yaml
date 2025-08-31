@@ -1,0 +1,113 @@
+# Real Electricity Price Test Dashboard
+title: Real Electricity Price Test
+path: electricity-price-test
+
+# Show badges for current status
+badges:
+  - entity: sensor.real_electricity_prices_today
+  - entity: sensor.real_electricity_prices_tomorrow
+  - entity: sensor.electricity_price_status
+
+cards:
+  # Current Price Overview
+  - type: entities
+    title: "Current Electricity Prices"
+    entities:
+      - entity: sensor.real_electricity_prices_today
+        name: "Current Hour Price"
+        icon: mdi:flash
+      - entity: sensor.real_electricity_prices_tomorrow
+        name: "Tomorrow First Hour"
+        icon: mdi:calendar-clock
+      - entity: sensor.daily_average_price
+        name: "Today Average"
+        icon: mdi:chart-line
+      - entity: sensor.tomorrow_average_price
+        name: "Tomorrow Average"
+        icon: mdi:chart-line-variant
+
+  # Price Status Card
+  - type: glance
+    title: "Price Status"
+    entities:
+      - entity: sensor.electricity_price_status
+        name: "Status"
+      - entity: input_number.price_threshold
+        name: "Threshold"
+      - entity: input_boolean.test_mode
+        name: "Test Mode"
+
+  # Price Chart (if available)
+  - type: conditional
+    conditions:
+      - entity: sensor.real_electricity_prices_today
+        state_not: "unavailable"
+    card:
+      type: custom:apexcharts-card
+      header:
+        title: "24h Electricity Prices"
+        show: true
+      span:
+        start: day
+      now:
+        show: true
+        label: "Now"
+      yaxis:
+        - min: 0
+          apex_config:
+            tickAmount: 4
+      series:
+        - entity: sensor.real_electricity_prices_today
+          name: "Today"
+          type: line
+          stroke_width: 2
+          data_generator: |
+            return entity.attributes.hourly_prices?.map(price => {
+              return [new Date(price.start_time).getTime(), price.actual_price];
+            }) || [];
+
+  # Integration Configuration Info
+  - type: markdown
+    title: "Integration Info"
+    content: |
+      ## Real Electricity Price Integration
+
+      **Version:** {{ state_attr('sensor.real_electricity_prices_today', 'attribution') }}
+
+      **Today's Date:** {{ state_attr('sensor.real_electricity_prices_today', 'date') }}
+
+      **Tomorrow's Date:** {{ state_attr('sensor.real_electricity_prices_tomorrow', 'date') }}
+
+      **Last Update:** {{ as_timestamp(states.sensor.real_electricity_prices_today.last_updated) | timestamp_custom('%Y-%m-%d %H:%M:%S') }}
+
+      **Status:**
+      - Today Sensor: {{ states('sensor.real_electricity_prices_today') }} EUR/kWh
+      - Tomorrow Sensor: {{ states('sensor.real_electricity_prices_tomorrow') }} EUR/kWh
+
+  # Quick Actions
+  - type: entities
+    title: "Quick Actions"
+    entities:
+      - entity: input_number.price_threshold
+        name: "Adjust Price Threshold"
+      - entity: input_boolean.test_mode
+        name: "Toggle Test Mode"
+
+  # Debug Information
+  - type: conditional
+    conditions:
+      - entity: input_boolean.test_mode
+        state: "on"
+    card:
+      type: markdown
+      title: "Debug Information"
+      content: |
+        ## Debug Info
+
+        **Today's Hourly Prices Count:** {{ state_attr('sensor.real_electricity_prices_today', 'hourly_prices') | length if state_attr('sensor.real_electricity_prices_today', 'hourly_prices') else 'N/A' }}
+
+        **Tomorrow's Hourly Prices Count:** {{ state_attr('sensor.real_electricity_prices_tomorrow', 'hourly_prices') | length if state_attr('sensor.real_electricity_prices_tomorrow', 'hourly_prices') else 'N/A' }}
+
+        **First Today Price:** {{ state_attr('sensor.real_electricity_prices_today', 'hourly_prices')[0].actual_price if state_attr('sensor.real_electricity_prices_today', 'hourly_prices') else 'N/A' }} EUR/kWh
+
+        **Last Today Price:** {{ state_attr('sensor.real_electricity_prices_today', 'hourly_prices')[-1].actual_price if state_attr('sensor.real_electricity_prices_today', 'hourly_prices') else 'N/A' }} EUR/kWh

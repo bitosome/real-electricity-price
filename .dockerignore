@@ -1,0 +1,15 @@
+# Docker Test Environment
+
+# Ignore all docker runtime data
+docker/config/.storage/
+docker/config/home-assistant.log*
+docker/config/home-assistant_v2.db*
+docker/config/.cloud/
+docker/config/deps/
+docker/config/tts/
+docker/config/blueprints/
+docker/config/custom_components/*/
+!docker/config/custom_components/real_electricity_price/
+
+# But keep our integration files for development
+!custom_components/real_electricity_price/

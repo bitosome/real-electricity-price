@@ -1,0 +1,159 @@
+# Home Assistant Configuration for Testing Real Electricity Price Integration
+
+# Configure Home Assistant
+homeassistant:
+  name: "Test Home"
+  latitude: 59.4370
+  longitude: 24.7536
+  elevation: 9
+  unit_system: metric
+  currency: EUR
+  country: EE
+  time_zone: "Europe/Tallinn"
+
+# Enable the frontend
+frontend:
+  themes: !include_dir_merge_named themes
+
+# Enable configuration UI
+config:
+
+# Enable Home Assistant Cloud
+cloud:
+
+# Enable HACS
+hacs:
+  token: !env_var GITHUB_TOKEN ""
+
+# Enable the iOS app
+mobile_app:
+
+# Enable person tracking
+person:
+
+# Enable zone tracking
+zone:
+
+# Enable system health
+system_health:
+
+# Enable my component
+my:
+
+# Enable energy monitoring
+energy:
+
+# Enable history
+history:
+
+# Enable logbook
+logbook:
+
+# Enable map
+map:
+
+# Enable the sun integration
+sun:
+
+# Text to speech
+tts:
+  - platform: google_translate
+
+# Example automation
+automation: !include automations.yaml
+
+# Example scenes
+scene: !include scenes.yaml
+
+# Example scripts
+script: !include scripts.yaml
+
+# Enable logging for debugging
+logger:
+  default: info
+  logs:
+    custom_components.real_electricity_price: debug
+    homeassistant.components.config_flow: debug
+
+# Enable recorder with SQLite
+recorder:
+  db_url: sqlite:////config/home-assistant_v2.db
+  purge_keep_days: 7
+
+# Enable HTTP with development settings
+http:
+  server_port: 8123
+  # Uncomment for external access (use with caution)
+  # server_host: 0.0.0.0
+  # trusted_proxies:
+  #   - 172.17.0.0/16
+
+# Enable device tracker for testing
+device_tracker:
+
+# Enable input helpers for testing
+input_boolean:
+  test_mode:
+    name: "Test Mode"
+    initial: true
+
+input_number:
+  price_threshold:
+    name: "Price Threshold"
+    min: 0.05
+    max: 0.50
+    step: 0.01
+    unit_of_measurement: "EUR/kWh"
+    initial: 0.25
+
+# Template sensors for testing price calculations
+template:
+  - sensor:
+      - name: "Electricity Price Status"
+        state: >
+          {% set price = states('sensor.real_electricity_prices_today') | float(0) %}
+          {% set threshold = states('input_number.price_threshold') | float(0.25) %}
+          {% if price == 0 %}
+            unavailable
+          {% elif price > threshold %}
+            high
+          {% elif price < threshold * 0.6 %}
+            low
+          {% else %}
+            normal
+          {% endif %}
+        icon: >
+          {% set status = states('sensor.electricity_price_status') %}
+          {% if status == 'high' %}
+            mdi:trending-up
+          {% elif status == 'low' %}
+            mdi:trending-down
+          {% else %}
+            mdi:trending-neutral
+          {% endif %}
+
+      - name: "Daily Average Price"
+        state: >
+          {% set prices = state_attr('sensor.real_electricity_prices_today', 'hourly_prices') %}
+          {% if prices %}
+            {{ (prices | map(attribute='actual_price') | list | sum / prices | length) | round(4) }}
+          {% else %}
+            {{ none }}
+          {% endif %}
+        unit_of_measurement: "EUR/kWh"
+        device_class: monetary
+        availability: >
+          {{ state_attr('sensor.real_electricity_prices_today', 'hourly_prices') is not none }}
+
+      - name: "Tomorrow Average Price"
+        state: >
+          {% set prices = state_attr('sensor.real_electricity_prices_tomorrow', 'hourly_prices') %}
+          {% if prices %}
+            {{ (prices | map(attribute='actual_price') | list | sum / prices | length) | round(4) }}
+          {% else %}
+            {{ none }}
+          {% endif %}
+        unit_of_measurement: "EUR/kWh"
+        device_class: monetary
+        availability: >
+          {{ state_attr('sensor.real_electricity_prices_tomorrow', 'hourly_prices') is not none }}

@@ -1,0 +1,33 @@
+# Home Assistant Test Environment with Real Electricity Price Integration
+#
+# This setup provides a complete development environment with:
+# - Home Assistant running in Docker
+# - Integration files automatically synced
+# - Development-friendly configuration
+#
+# Usage: docker compose up -d
+
+services:
+  homeassistant:
+    container_name: hass-real-electricity-price-test
+    image: ghcr.io/home-assistant/home-assistant:stable
+    volumes:
+      # Home Assistant configuration
+      - ./docker/config:/config
+      # Timezone
+      - /etc/localtime:/etc/localtime:ro
+    restart: unless-stopped
+    privileged: true
+    ports:
+      - "8123:8123"
+    environment:
+      - TZ=Europe/Tallinn
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8123"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    labels:
+      - "dev.project=real-electricity-price"
+      - "dev.environment=development"
