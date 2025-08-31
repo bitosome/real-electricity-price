@@ -48,7 +48,7 @@ Use [black](https://github.com/ambv/black) to make sure the code follows the sty
 
 ## Test your code modification
 
-This custom component is based on [integration_blueprint template](https://github.com/ludeeus/integration_blueprint).
+This custom component was bootstrapped from the [integration_blueprint template](https://github.com/ludeeus/integration_blueprint) and has been adapted for the `real-electricity-price` integration. The active code is located in `custom_components/real_electricity_price/`.
 
 It comes with development environment in a container, easy to launch
 if you use Visual Studio Code. With this container you will have a stand alone

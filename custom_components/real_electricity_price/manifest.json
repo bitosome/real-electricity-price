@@ -1,0 +1,15 @@
+{
+  "domain": "real_electricity_price",
+  "name": "Real Electricity Price",
+  "codeowners": [
+    "@bitosome"
+  ],
+  "config_flow": true,
+  "documentation": "https://github.com/bitosome/real-electricity-price",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/bitosome/real-electricity-price/issues",
+  "requirements": [
+    "holidays>=0.21"
+  ],
+  "version": "0.1.0"
+}
