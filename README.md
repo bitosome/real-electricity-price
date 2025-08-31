@@ -16,6 +16,16 @@ A comprehensive Home Assistant integration for real-time electricity pricing fro
 grep -i "real_electricity_price" /config/home-assistant.log
 ```
 
+#### Integration Logo/Icon Not Displaying
+The integration includes icon and logo files locally, but for official display in Home Assistant:
+
+1. **Local Display**: Icon/logo files are included in the integration directory
+2. **Official Branding**: Submit to [Home Assistant brands repository](https://github.com/home-assistant/brands)
+3. **Submission Guide**: See `BRAND_SUBMISSION.md` for complete instructions
+4. **Timeline**: 1-7 days for review, automatic display after merge
+
+The integration works perfectly without custom branding - icons are cosmetic improvements only.
+
 #### Only One Entity Visible
 If you see only one entity instead of 10 (9 sensors + 1 button):
 
