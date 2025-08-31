@@ -1,0 +1,7 @@
+{
+    "name": "Real Electricity Price",
+    "content_in_root": false,
+    "country": ["EE"],
+    "homeassistant": "2024.1.0",
+    "hacs": "1.32.0"
+}

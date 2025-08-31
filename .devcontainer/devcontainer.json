@@ -1,0 +1,78 @@
+{
+    "name": "Real Electricity Price Development",
+    "image": "ghcr.io/home-assistant/devcontainer:stable",
+    
+    "features": {
+        "ghcr.io/devcontainers/features/common-utils:2": {
+            "installZsh": true,
+            "configureZshAsDefaultShell": true,
+            "installOhMyZsh": true,
+            "upgradePackages": true,
+            "username": "vscode",
+            "userUid": "1000",
+            "userGid": "1000"
+        },
+        "ghcr.io/devcontainers/features/python:1": {
+            "version": "3.12",
+            "installTools": true,
+            "optimize": true
+        },
+        "ghcr.io/devcontainers/features/git:1": {
+            "ppa": true,
+            "version": "latest"
+        }
+    },
+
+    "forwardPorts": [8123],
+    "portsAttributes": {
+        "8123": {
+            "label": "Home Assistant",
+            "onAutoForward": "notify"
+        }
+    },
+
+    "mounts": [
+        "source=${localWorkspaceFolder}/custom_components,target=/workspaces/real-electricity-price/custom_components,type=bind,consistency=cached",
+        "source=${localWorkspaceFolder}/.devcontainer/config,target=/config,type=bind,consistency=cached"
+    ],
+
+    "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/real-electricity-price,type=bind,consistency=cached",
+    "workspaceFolder": "/workspaces/real-electricity-price",
+
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-python.python",
+                "ms-python.isort",
+                "ms-python.black-formatter",
+                "ms-python.flake8",
+                "charliermarsh.ruff",
+                "redhat.vscode-yaml",
+                "esbenp.prettier-vscode",
+                "ms-vscode.vscode-json",
+                "streetsidesoftware.code-spell-checker"
+            ],
+            "settings": {
+                "python.defaultInterpreterPath": "/usr/local/bin/python",
+                "python.linting.enabled": true,
+                "python.linting.pylintEnabled": false,
+                "python.linting.flake8Enabled": true,
+                "python.formatting.provider": "black",
+                "python.sortImports.provider": "isort",
+                "editor.formatOnSave": true,
+                "editor.codeActionsOnSave": {
+                    "source.organizeImports": "explicit"
+                },
+                "files.associations": {
+                    "*.yaml": "yaml",
+                    "*.yml": "yaml"
+                }
+            }
+        }
+    },
+
+    "postCreateCommand": "bash .devcontainer/setup.sh",
+    "postStartCommand": "bash .devcontainer/start-hass.sh",
+
+    "remoteUser": "vscode"
+}

@@ -1,0 +1,135 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# pyenv
+.python-version
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Home Assistant configuration
+config/*
+!config/configuration.yaml
+
+# Docker Test Environment - Exclude runtime data and secrets
+docker/config/.storage/
+docker/config/home-assistant.log*
+docker/config/home-assistant_v2.db*
+docker/config/.cloud/
+docker/config/deps/
+docker/config/tts/
+docker/config/blueprints/
+docker/config/custom_components/hacs/
+docker/config/.HA_VERSION
+docker/config/.*
+!docker/config/configuration.yaml
+!docker/config/automations.yaml
+!docker/config/scenes.yaml
+!docker/config/scripts.yaml
+!docker/config/ui-lovelace.yaml
+
+# Dev Container - Exclude all runtime and storage data
+.devcontainer/config/.storage/
+.devcontainer/config/home-assistant.log*
+.devcontainer/config/home-assistant_v2.db*
+.devcontainer/config/.cloud/
+.devcontainer/config/deps/
+.devcontainer/config/tts/
+.devcontainer/config/.HA_VERSION
+.devcontainer/config/.*
+!.devcontainer/config/configuration.yaml
+!.devcontainer/config/debug_logger.yaml
+
+# Custom components backup
+custom_components/hacs/
+
+# Test files
+test_*.py
+*_test.py
+
+# Backup files
+*.bak
+*.backup
+*_backup.*
+*_old.*
+
+# Archive files
+*.zip
+*.tar.gz
+*.rar
+
+# Development
+.ruff_cache
+__MACOSX/

@@ -1,0 +1,20 @@
+# Home Assistant Test Environment with Real Electricity Price Integration
+
+services:
+  homeassistant:
+    container_name: hass-real-electricity-price-test
+    image: ghcr.io/home-assistant/home-assistant:stable
+    volumes:
+      - ./docker/config:/config
+      - /etc/localtime:/etc/localtime:ro
+    restart: unless-stopped
+    privileged: true
+    ports:
+      - "8123:8123"
+    environment:
+      - TZ=Europe/Tallinn
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8123"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
