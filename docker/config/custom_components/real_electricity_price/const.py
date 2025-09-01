@@ -65,6 +65,10 @@ VAT_SUPPLIER_MARGIN_DEFAULT = False
 # Decimal precision for price calculations
 PRICE_DECIMAL_PRECISION = 6  # Number of decimal places for all price calculations
 
+# Cheap price analysis
+CONF_CHEAP_PRICE_THRESHOLD = "cheap_price_threshold"
+CHEAP_PRICE_THRESHOLD_DEFAULT = 10.0  # percent above minimum price
+
 # Scan interval
 DEFAULT_SCAN_INTERVAL = 3600  # 1 hour in seconds
 CONF_SCAN_INTERVAL = "scan_interval"

@@ -8,7 +8,7 @@ A comprehensive Home Assistant integration for real-time electricity pricing fro
 
 ## Version
 
-Current version: v1.0.0
+Current version: v1.1.0
 
 ## Highlights
 - Unified hourly refresh at hh:00 for all sensors, in sync with manual refresh
@@ -134,6 +134,39 @@ The tariff determination follows this logic:
    - "Peak" blocks → "day" tariff
    - All other blocks → "night" tariff
 
+### Cheapest Prices Sensor
+
+Analyzes all available hourly price data to identify the cheapest time periods:
+
+- **State**: Nearest cheap price (current if in a cheap period, or next upcoming cheap price)
+- **Attributes**:
+  - `cheap_price_ranges`: Array of cheap time periods with detailed information
+  - `threshold_percent`: Configured percentage threshold (default 10%)
+  - `min_price`: Absolute minimum price found in the data
+  - `max_cheap_price`: Maximum price considered "cheap" (min_price + threshold%)
+  - `total_cheap_hours`: Number of cheap hour periods found
+  - `analysis_period`: Time period analyzed (e.g., "3 days")
+  - `data_sources`: Information about data sources used
+
+#### Cheap Price Definition
+
+- **Cheapest price**: The absolute minimum price in all available data
+- **Other cheap prices**: Prices within X% of the minimum price, where X is configurable (default 10%)
+- **Example**: If minimum price is 0.10 EUR/kWh and threshold is 10%, then all prices ≤ 0.11 EUR/kWh are considered cheap
+
+Each cheap price range contains:
+```json
+{
+  "start_time": "2025-09-01T02:00:00Z",
+  "end_time": "2025-09-01T06:00:00Z", 
+  "price": 0.105,
+  "min_price": 0.100,
+  "max_price": 0.110,
+  "avg_price": 0.106,
+  "hour_count": 4
+}
+```
+
 ## Installation
 
 ### HACS (Recommended)
@@ -205,6 +238,11 @@ The integration can be configured entirely through the Home Assistant UI:
 - **VAT**: Value Added Tax percentage (default: 24.0%)
 - **Night Start Hour**: When night tariff begins (default: 22)
 - **Night End Hour**: When night tariff ends (default: 7)
+
+#### Cheap Price Analysis
+- **Cheap Price Threshold**: Percentage above minimum price to consider "cheap" (default: 10.0%)
+  - Example: If minimum price is 0.10 EUR/kWh and threshold is 10%, then prices ≤ 0.11 EUR/kWh are considered cheap
+  - Used by the Cheapest Prices sensor to identify optimal time periods
 
 ### Configuration Example
 
@@ -456,8 +494,8 @@ This provides accurate electricity pricing according to local tariff rules for t
 
 ### Requirements
 - Python 3.11+
-- Home Assistant 2025.8+
-- Dependencies: `aiohttp`, `holidays`
+- Home Assistant 2025.1+
+- Dependencies: `aiohttp`, `holidays`, `pandas`
 
 ### Development Setup
 

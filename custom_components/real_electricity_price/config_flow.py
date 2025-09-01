@@ -29,6 +29,7 @@ from .const import (
     CONF_VAT_NORD_POOL,
     CONF_VAT_SUPPLIER_MARGIN,
     CONF_VAT_SUPPLIER_RENEWABLE_ENERGY_CHARGE,
+    CONF_CHEAP_PRICE_THRESHOLD,
     COUNTRY_CODE_DEFAULT,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
@@ -50,6 +51,7 @@ from .const import (
     VAT_NORD_POOL_DEFAULT,
     VAT_SUPPLIER_MARGIN_DEFAULT,
     VAT_SUPPLIER_RENEWABLE_ENERGY_CHARGE_DEFAULT,
+    CHEAP_PRICE_THRESHOLD_DEFAULT,
 )
 
 
@@ -231,6 +233,15 @@ class RealElectricityPriceFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                         selector.NumberSelectorConfig(
                             min=300, max=86400, step=300, mode="box"
                         )  # 5 min to 24 hours
+                    ),
+                    # Cheap price analysis
+                    vol.Optional(
+                        CONF_CHEAP_PRICE_THRESHOLD,
+                        default=(user_input or {}).get(
+                            CONF_CHEAP_PRICE_THRESHOLD, CHEAP_PRICE_THRESHOLD_DEFAULT
+                        ),
+                    ): selector.NumberSelector(
+                        selector.NumberSelectorConfig(min=0, max=100, step=0.1, mode="box")
                     ),
                 },
             ),
@@ -450,6 +461,16 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                         selector.NumberSelectorConfig(
                             min=300, max=86400, step=300, mode="box"
                         )  # 5 min to 24 hours
+                    ),
+                    # Cheap price analysis
+                    vol.Optional(
+                        CONF_CHEAP_PRICE_THRESHOLD,
+                        default=options_data.get(
+                            CONF_CHEAP_PRICE_THRESHOLD,
+                            current_data.get(CONF_CHEAP_PRICE_THRESHOLD, CHEAP_PRICE_THRESHOLD_DEFAULT),
+                        ),
+                    ): selector.NumberSelector(
+                        selector.NumberSelectorConfig(min=0, max=100, step=0.1, mode="box")
                     ),
                 },
             ),

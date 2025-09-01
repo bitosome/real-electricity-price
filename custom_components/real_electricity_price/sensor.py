@@ -6,6 +6,7 @@ import logging
 from datetime import datetime, timezone, timedelta
 from typing import TYPE_CHECKING, Any
 
+import pandas as pd
 from homeassistant.components.sensor import SensorEntity, SensorEntityDescription, SensorDeviceClass
 from homeassistant.const import CONF_NAME
 from homeassistant.util import dt as dt_util
@@ -26,6 +27,7 @@ from .const import (
     CONF_VAT_NORD_POOL,
     CONF_VAT_SUPPLIER_MARGIN,
     CONF_VAT_SUPPLIER_RENEWABLE_ENERGY_CHARGE,
+    CONF_CHEAP_PRICE_THRESHOLD,
     GRID_ELECTRICITY_EXCISE_DUTY_DEFAULT,
     GRID_RENEWABLE_ENERGY_CHARGE_DEFAULT,
     GRID_ELECTRICITY_TRANSMISSION_PRICE_NIGHT_DEFAULT,
@@ -40,6 +42,7 @@ from .const import (
     VAT_NORD_POOL_DEFAULT,
     VAT_SUPPLIER_MARGIN_DEFAULT,
     VAT_SUPPLIER_RENEWABLE_ENERGY_CHARGE_DEFAULT,
+    CHEAP_PRICE_THRESHOLD_DEFAULT,
 )
 from .entity import RealElectricityPriceEntity
 
@@ -57,6 +60,7 @@ SENSOR_TYPE_CURRENT_PRICE = "current_price"
 SENSOR_TYPE_HOURLY_PRICES = "hourly_prices"
 SENSOR_TYPE_LAST_SYNC = "last_sync"
 SENSOR_TYPE_CURRENT_TARIFF = "current_tariff"
+SENSOR_TYPE_CHEAP_PRICES = "cheap_prices"
 
 ENTITY_DESCRIPTIONS = (
     SensorEntityDescription(
@@ -82,6 +86,13 @@ ENTITY_DESCRIPTIONS = (
         name="Current Tariff",
         icon="mdi:weather-night",
     ),
+    SensorEntityDescription(
+        key="real_electricity_price_cheap_prices",
+        name="Cheapest Prices",
+        icon="mdi:currency-eur-off",
+        device_class=SensorDeviceClass.MONETARY,
+        native_unit_of_measurement="EUR/kWh",
+    ),
 )
 
 
@@ -91,13 +102,32 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the sensor platform."""
-    async_add_entities(
-        RealElectricityPriceSensor(
-            coordinator=entry.runtime_data.coordinator,
-            entity_description=entity_description,
+    coordinator = entry.runtime_data.coordinator
+
+    entities = []
+    for entity_description in ENTITY_DESCRIPTIONS:
+        if entity_description.key == "real_electricity_price":
+            sensor_type = SENSOR_TYPE_CURRENT_PRICE
+        elif entity_description.key == "real_electricity_prices":
+            sensor_type = SENSOR_TYPE_HOURLY_PRICES
+        elif entity_description.key == "real_electricity_price_last_sync":
+            sensor_type = SENSOR_TYPE_LAST_SYNC
+        elif entity_description.key == "real_electricity_price_current_tariff":
+            sensor_type = SENSOR_TYPE_CURRENT_TARIFF
+        elif entity_description.key == "real_electricity_price_cheap_prices":
+            sensor_type = SENSOR_TYPE_CHEAP_PRICES
+        else:
+            continue
+
+        entities.append(
+            RealElectricityPriceSensor(
+                coordinator=coordinator,
+                entity_description=entity_description,
+                sensor_type=sensor_type,
+            )
         )
-        for entity_description in ENTITY_DESCRIPTIONS
-    )
+
+    async_add_entities(entities)
 
 
 class RealElectricityPriceSensor(RealElectricityPriceEntity, SensorEntity):
@@ -107,66 +137,22 @@ class RealElectricityPriceSensor(RealElectricityPriceEntity, SensorEntity):
         self,
         coordinator: RealElectricityPriceDataUpdateCoordinator,
         entity_description: SensorEntityDescription,
+        sensor_type: str,
     ) -> None:
         """Initialize the sensor class."""
         super().__init__(coordinator)
         self.entity_description = entity_description
         self._attr_unique_id = f"{coordinator.config_entry.entry_id}_{entity_description.key}"
+        self._sensor_type = sensor_type
         
-        _LOGGER.debug("Initializing sensor: %s", entity_description.key)
+        _LOGGER.debug("Initializing sensor: %s (type: %s)", entity_description.key, sensor_type)
         
         # Get device name from config (options override data)
         config = {**coordinator.config_entry.data, **coordinator.config_entry.options}
         device_name = config.get(CONF_NAME, "Real Electricity Price")
         
-        # Configure sensor properties based on key
-        self._configure_sensor_properties(entity_description.key, device_name)
-
-    def _configure_sensor_properties(self, key: str, device_name: str) -> None:
-        """Configure sensor properties based on entity key."""
-        # Map entity keys to sensor types and properties
-        sensor_config = {
-            "real_electricity_price": {
-                "suffix": "current_price",
-                "sensor_type": SENSOR_TYPE_CURRENT_PRICE,
-                "data_key": None,
-                "aggregate_mode": None,
-            },
-            "real_electricity_prices": {
-                "suffix": "hourly prices",
-                "sensor_type": SENSOR_TYPE_HOURLY_PRICES,
-                "data_key": None,
-                "aggregate_mode": None,
-            },
-            "real_electricity_price_last_sync": {
-                "suffix": "last sync",
-                "sensor_type": SENSOR_TYPE_LAST_SYNC,
-                "data_key": None,
-                "aggregate_mode": None,
-            },
-            "real_electricity_price_current_tariff": {
-                "suffix": "current tariff",
-                "sensor_type": SENSOR_TYPE_CURRENT_TARIFF,
-                "data_key": None,
-                "aggregate_mode": None,
-            },
-        }
-        
-        config = sensor_config.get(key, {
-            "suffix": key,
-            "sensor_type": SENSOR_TYPE_CURRENT_PRICE,
-            "data_key": None,
-            "aggregate_mode": None,
-        })
-        
-        # Set sensor properties
-        self._sensor_type = config["sensor_type"]
-        self._data_key = config["data_key"]
-        self._aggregate_mode = config["aggregate_mode"]
-        
         # Set entity name
-        entity_suffix = config["suffix"]
-        self._attr_name = f"{device_name} {entity_suffix.replace('_', ' ').title()}"
+        self._attr_name = f"{device_name} {entity_description.name}"
 
     async def async_added_to_hass(self) -> None:
         """Call when entity is added to hass."""
@@ -196,6 +182,8 @@ class RealElectricityPriceSensor(RealElectricityPriceEntity, SensorEntity):
             return self._get_current_price_value()
         elif self._sensor_type == SENSOR_TYPE_HOURLY_PRICES:
             return self._get_current_price_value()
+        elif self._sensor_type == SENSOR_TYPE_CHEAP_PRICES:
+            return self._get_cheap_prices_value()
         
         return None
 
@@ -322,6 +310,8 @@ class RealElectricityPriceSensor(RealElectricityPriceEntity, SensorEntity):
             return self._get_current_price_attributes()
         elif self._sensor_type == SENSOR_TYPE_HOURLY_PRICES:
             return self._get_hourly_prices_attributes()
+        elif self._sensor_type == SENSOR_TYPE_CHEAP_PRICES:
+            return self._get_cheap_prices_attributes()
         
         return {}
 
@@ -444,6 +434,232 @@ class RealElectricityPriceSensor(RealElectricityPriceEntity, SensorEntity):
             "data_sources": list(self.coordinator.data.keys()),
             "data_sources_info": data_sources_info,
         }
+
+    def _get_cheap_prices_value(self) -> float | None:
+        """Get nearest cheap price value based on current time."""
+        cheap_ranges = self._analyze_cheap_prices()
+        if not cheap_ranges:
+            return None
+            
+        now = datetime.now(timezone.utc)
+        
+        # Find the nearest cheap price (current or next upcoming)
+        nearest_price = None
+        min_time_diff = None
+        
+        for range_data in cheap_ranges:
+            start_time = datetime.fromisoformat(range_data["start_time"].replace("Z", "+00:00"))
+            end_time = datetime.fromisoformat(range_data["end_time"].replace("Z", "+00:00"))
+            
+            # If we're currently in this range, return its price
+            if start_time <= now < end_time:
+                return round(range_data["price"], PRICE_DECIMAL_PRECISION)
+            
+            # Calculate time difference to this range
+            if start_time > now:  # Future range
+                time_diff = (start_time - now).total_seconds()
+            else:  # Past range
+                time_diff = float('inf')  # Don't consider past ranges for "nearest"
+            
+            if min_time_diff is None or time_diff < min_time_diff:
+                min_time_diff = time_diff
+                nearest_price = range_data["price"]
+        
+        return round(nearest_price, PRICE_DECIMAL_PRECISION) if nearest_price is not None else None
+
+    def _get_cheap_prices_attributes(self) -> dict[str, Any]:
+        """Get attributes for cheap prices sensor."""
+        cheap_ranges = self._analyze_cheap_prices()
+        
+        # Get configuration
+        config = {**self.coordinator.config_entry.data, **self.coordinator.config_entry.options}
+        threshold = config.get(CONF_CHEAP_PRICE_THRESHOLD, CHEAP_PRICE_THRESHOLD_DEFAULT)
+        
+        # Get analysis info
+        analysis_info = self._get_price_analysis_info()
+        
+        return {
+            "cheap_price_ranges": cheap_ranges,
+            "threshold_percent": threshold,
+            "min_price": analysis_info.get("min_price"),
+            "max_cheap_price": analysis_info.get("max_cheap_price"),
+            "total_cheap_hours": len(cheap_ranges),
+            "analysis_period": analysis_info.get("analysis_period"),
+            "data_sources": analysis_info.get("data_sources", []),
+        }
+
+    def _analyze_cheap_prices(self) -> list[dict[str, Any]]:
+        """Analyze price data with pandas to find cheap price ranges."""
+        if not self.coordinator.data:
+            return []
+        
+        try:
+            # Collect all hourly prices with valid data
+            all_prices = []
+            for data_key in self.coordinator.data:
+                day_data = self.coordinator.data[data_key]
+                if not isinstance(day_data, dict):
+                    continue
+                    
+                hourly_prices = day_data.get("hourly_prices", [])
+                for price_entry in hourly_prices:
+                    # Only include entries with valid price data
+                    if price_entry.get("actual_price") is not None:
+                        all_prices.append({
+                            "start_time": price_entry["start_time"],
+                            "end_time": price_entry["end_time"],
+                            "price": price_entry["actual_price"],
+                            "date": day_data.get("date"),
+                        })
+            
+            if not all_prices:
+                _LOGGER.debug("No valid price data available for cheap price analysis")
+                return []
+            
+            # Create pandas DataFrame for analysis
+            df = pd.DataFrame(all_prices)
+            df["start_time_dt"] = pd.to_datetime(df["start_time"])
+            df = df.sort_values("start_time_dt")
+            
+            # Find minimum price
+            min_price = df["price"].min()
+            
+            # Get threshold from configuration
+            config = {**self.coordinator.config_entry.data, **self.coordinator.config_entry.options}
+            threshold_percent = config.get(CONF_CHEAP_PRICE_THRESHOLD, CHEAP_PRICE_THRESHOLD_DEFAULT)
+            
+            # Calculate maximum price that's considered "cheap"
+            max_cheap_price = min_price * (1 + threshold_percent / 100)
+            
+            # Filter cheap prices
+            cheap_df = df[df["price"] <= max_cheap_price].copy()
+            
+            if cheap_df.empty:
+                _LOGGER.debug("No cheap prices found with threshold %s%%", threshold_percent)
+                return []
+            
+            # Group consecutive hours into ranges
+            cheap_ranges = self._group_consecutive_hours(cheap_df)
+            
+            _LOGGER.debug(
+                "Found %d cheap price ranges (min: %.6f, max_cheap: %.6f, threshold: %.1f%%)",
+                len(cheap_ranges),
+                min_price,
+                max_cheap_price,
+                threshold_percent
+            )
+            
+            return cheap_ranges
+            
+        except Exception as e:
+            _LOGGER.error("Error analyzing cheap prices: %s", e)
+            return []
+
+    def _group_consecutive_hours(self, cheap_df: pd.DataFrame) -> list[dict[str, Any]]:
+        """Group consecutive cheap hours into time ranges."""
+        if cheap_df.empty:
+            return []
+        
+        ranges = []
+        current_range = None
+        
+        for _, row in cheap_df.iterrows():
+            start_time = pd.to_datetime(row["start_time"])
+            end_time = pd.to_datetime(row["end_time"])
+            price = row["price"]
+            
+            if current_range is None:
+                # Start new range
+                current_range = {
+                    "start_time": row["start_time"],
+                    "end_time": row["end_time"],
+                    "price": price,  # Use first price in range
+                    "min_price": price,
+                    "max_price": price,
+                    "avg_price": price,
+                    "hour_count": 1,
+                    "prices": [price],
+                }
+            else:
+                # Check if this hour is consecutive to the current range
+                current_end = pd.to_datetime(current_range["end_time"])
+                if start_time == current_end:
+                    # Extend current range
+                    current_range["end_time"] = row["end_time"]
+                    current_range["hour_count"] += 1
+                    current_range["prices"].append(price)
+                    current_range["min_price"] = min(current_range["min_price"], price)
+                    current_range["max_price"] = max(current_range["max_price"], price)
+                    current_range["avg_price"] = sum(current_range["prices"]) / len(current_range["prices"])
+                else:
+                    # Finish current range and start new one
+                    # Remove the prices list before adding to results (too verbose for attributes)
+                    current_range.pop("prices", None)
+                    ranges.append(current_range)
+                    
+                    current_range = {
+                        "start_time": row["start_time"],
+                        "end_time": row["end_time"],
+                        "price": price,
+                        "min_price": price,
+                        "max_price": price,
+                        "avg_price": price,
+                        "hour_count": 1,
+                        "prices": [price],
+                    }
+        
+        # Add the last range
+        if current_range is not None:
+            current_range.pop("prices", None)
+            ranges.append(current_range)
+        
+        return ranges
+
+    def _get_price_analysis_info(self) -> dict[str, Any]:
+        """Get general information about the price analysis."""
+        if not self.coordinator.data:
+            return {}
+        
+        try:
+            # Collect all valid prices
+            all_prices = []
+            data_sources = []
+            
+            for data_key in self.coordinator.data:
+                day_data = self.coordinator.data[data_key]
+                if not isinstance(day_data, dict):
+                    continue
+                    
+                hourly_prices = day_data.get("hourly_prices", [])
+                valid_prices = [p["actual_price"] for p in hourly_prices if p.get("actual_price") is not None]
+                
+                if valid_prices:
+                    all_prices.extend(valid_prices)
+                    data_sources.append({
+                        "source": data_key,
+                        "date": day_data.get("date"),
+                        "hours_count": len(valid_prices),
+                    })
+            
+            if not all_prices:
+                return {"data_sources": data_sources}
+            
+            # Calculate statistics
+            min_price = min(all_prices)
+            config = {**self.coordinator.config_entry.data, **self.coordinator.config_entry.options}
+            threshold_percent = config.get(CONF_CHEAP_PRICE_THRESHOLD, CHEAP_PRICE_THRESHOLD_DEFAULT)
+            max_cheap_price = min_price * (1 + threshold_percent / 100)
+            
+            return {
+                "min_price": round(min_price, PRICE_DECIMAL_PRECISION),
+                "max_cheap_price": round(max_cheap_price, PRICE_DECIMAL_PRECISION),
+                "analysis_period": f"{len(data_sources)} days",
+                "data_sources": data_sources,
+            }
+            
+        except Exception as e:
+            _LOGGER.error("Error getting price analysis info: %s", e)
+            return {}
 
     @property
     def icon(self) -> str | None:
