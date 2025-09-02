@@ -41,6 +41,58 @@ SERVICE_REFRESH_DATA = "refresh_data"
 SERVICE_RECALCULATE_CHEAP_PRICES = "recalculate_cheap_prices"
 
 
+async def async_setup(hass: HomeAssistant, config: dict) -> bool:
+    """Set up this integration using configuration.yaml."""
+    LOGGER.info("async_setup called with config: %s", config)
+    
+    if DOMAIN not in config:
+        LOGGER.info("DOMAIN not in config, returning True")
+        return True
+    
+    LOGGER.info("DOMAIN found in config, proceeding with setup")
+    
+    # Create a config entry from configuration.yaml
+    config_data = config[DOMAIN]
+    LOGGER.info("Config data: %s", config_data)
+    
+    # Check if config entry already exists
+    existing_entries = hass.config_entries.async_entries(DOMAIN)
+    LOGGER.info("Existing entries: %s", len(existing_entries))
+    
+    if existing_entries:
+        LOGGER.info("Config entry already exists, skipping configuration.yaml setup")
+        return True
+    
+    # Create config entry data
+    entry_data = {
+        "grid": config_data.get("grid", "EE"),
+        "supplier": config_data.get("supplier", "Eesti Energia"),
+        "night_price_start": config_data.get("night_price_start", "22:00"),
+        "night_price_end": config_data.get("night_price_end", "07:00"),
+        "scan_interval": config_data.get("scan_interval", 300),
+        "cheap_price_update_trigger": config_data.get("cheap_price_update_trigger", "manual"),
+    }
+    
+    LOGGER.info("Creating config entry with data: %s", entry_data)
+    
+    # Create the config entry
+    try:
+        hass.async_create_task(
+            hass.config_entries.flow.async_init(
+                DOMAIN,
+                context={"source": "import"},
+                data=entry_data,
+            )
+        )
+        LOGGER.info("Config entry creation initiated successfully")
+    except Exception as e:
+        LOGGER.error("Error creating config entry: %s", e)
+        return False
+    
+    LOGGER.info("Created config entry from configuration.yaml")
+    return True
+
+
 # https://developers.home-assistant.io/docs/config_entries_index/#setting-up-an-entry
 async def async_setup_entry(
     hass: HomeAssistant,

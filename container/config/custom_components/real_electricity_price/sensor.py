@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from datetime import datetime, timezone, timedelta
 from typing import TYPE_CHECKING, Any
@@ -13,10 +14,12 @@ from homeassistant.util import dt as dt_util
 
 from .const import (
     PRICE_DECIMAL_PRECISION,
+    CONF_GRID,
     CONF_GRID_ELECTRICITY_EXCISE_DUTY,
     CONF_GRID_RENEWABLE_ENERGY_CHARGE,
     CONF_GRID_ELECTRICITY_TRANSMISSION_PRICE_NIGHT,
     CONF_GRID_ELECTRICITY_TRANSMISSION_PRICE_DAY,
+    CONF_SUPPLIER,
     CONF_SUPPLIER_RENEWABLE_ENERGY_CHARGE,
     CONF_SUPPLIER_MARGIN,
     CONF_VAT,
@@ -55,6 +58,21 @@ if TYPE_CHECKING:
     from .data import RealElectricityPriceConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def datetime_serializer(obj):
+    """Convert datetime objects to ISO format strings for JSON serialization recursively."""
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    elif isinstance(obj, dict):
+        return {k: datetime_serializer(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [datetime_serializer(item) for item in obj]
+    elif isinstance(obj, tuple):
+        return tuple(datetime_serializer(item) for item in obj)
+    else:
+        return obj
+
 
 # Sensor type constants for better maintainability
 SENSOR_TYPE_CURRENT_PRICE = "current_price"
@@ -160,6 +178,12 @@ class RealElectricityPriceSensor(RealElectricityPriceEntity, SensorEntity):
         
         # Set entity name
         self._attr_name = f"{device_name} {entity_description.name}"
+
+    def _round_price(self, value: float | None) -> float | None:
+        """Round price values to consistent precision across all sensors."""
+        if value is None:
+            return None
+        return round(value, PRICE_DECIMAL_PRECISION)
 
     async def async_added_to_hass(self) -> None:
         """Call when entity is added to hass."""
@@ -295,7 +319,7 @@ class RealElectricityPriceSensor(RealElectricityPriceEntity, SensorEntity):
                             _LOGGER.debug(f"Skipping unavailable price entry for time {now} in {data_key} data")
                             continue
                         _LOGGER.debug(f"Found current price: {price_value} for time {now} in {data_key} data")
-                        return round(price_value, PRICE_DECIMAL_PRECISION)
+                        return self._round_price(price_value)
                 except (ValueError, KeyError) as e:
                     _LOGGER.warning(f"Invalid price entry in {data_key}: {e}")
                     continue
@@ -325,19 +349,26 @@ class RealElectricityPriceSensor(RealElectricityPriceEntity, SensorEntity):
     def _get_special_sensor_attributes(self) -> dict[str, Any]:
         """Get attributes for special sensors (last_sync, current_tariff)."""
         if self._sensor_type == SENSOR_TYPE_LAST_SYNC:
-            return {
+            sync_info = {
                 "last_update_time": self.coordinator.last_update_success,
                 "coordinator_available": self.coordinator.last_update_success,
+            }
+            return {
+                "sync_info": json.dumps(sync_info, indent=2, default=str),
             }
         elif self._sensor_type == SENSOR_TYPE_CURRENT_TARIFF:
             config = {**self.coordinator.config_entry.data, **self.coordinator.config_entry.options}
             night_start = config.get("night_price_start_hour", 22)
             night_end = config.get("night_price_end_hour", 7)
             tz_name = getattr(self.hass.config, "time_zone", None)
-            return {
+            
+            tariff_config = {
                 "night_price_start_hour": night_start,
                 "night_price_end_hour": night_end,
                 "time_zone": tz_name,
+            }
+            return {
+                "tariff_config": json.dumps(tariff_config, indent=2),
             }
         return {}
 
@@ -372,40 +403,56 @@ class RealElectricityPriceSensor(RealElectricityPriceEntity, SensorEntity):
             if current_hour_data:
                 break
         
-        attributes = {
+        # Get configuration for price components
+        config = {**self.coordinator.config_entry.data, **self.coordinator.config_entry.options}
+        
+        # Build current hour info object
+        current_hour_info = {
             "date": current_date,
             "hour_start": current_hour_data["start_time"] if current_hour_data else None,
             "hour_end": current_hour_data["end_time"] if current_hour_data else None,
-            "nord_pool_price": current_hour_data["nord_pool_price"] if current_hour_data else None,
+            "nord_pool_price": self._round_price(current_hour_data["nord_pool_price"]) if current_hour_data and current_hour_data["nord_pool_price"] is not None else None,
+            "tariff": current_hour_data.get("tariff") if current_hour_data else None,
+            "is_holiday": current_hour_data.get("is_holiday") if current_hour_data else None,
+            "is_weekend": current_hour_data.get("is_weekend") if current_hour_data else None,
         }
         
-        # Add all additional cost components
+        # Build price components object
         if current_hour_data:
-            config = {**self.coordinator.config_entry.data, **self.coordinator.config_entry.options}
-            attributes.update({
-                # Price components with human-readable names
-                "Grid electricity excise duty": config.get(CONF_GRID_ELECTRICITY_EXCISE_DUTY, GRID_ELECTRICITY_EXCISE_DUTY_DEFAULT),
-                "Grid renewable energy charge": config.get(CONF_GRID_RENEWABLE_ENERGY_CHARGE, GRID_RENEWABLE_ENERGY_CHARGE_DEFAULT),
-                "Grid transmission price - night": config.get(CONF_GRID_ELECTRICITY_TRANSMISSION_PRICE_NIGHT, GRID_ELECTRICITY_TRANSMISSION_PRICE_NIGHT_DEFAULT),
-                "Grid transmission price - day": config.get(CONF_GRID_ELECTRICITY_TRANSMISSION_PRICE_DAY, GRID_ELECTRICITY_TRANSMISSION_PRICE_DAY_DEFAULT),
-                "Supplier renewable energy charge": config.get(CONF_SUPPLIER_RENEWABLE_ENERGY_CHARGE, SUPPLIER_RENEWABLE_ENERGY_CHARGE_DEFAULT),
-                "Supplier margin": config.get(CONF_SUPPLIER_MARGIN, SUPPLIER_MARGIN_DEFAULT),
-                "VAT percentage": config.get(CONF_VAT, VAT_DEFAULT),
-                # Individual VAT configuration flags
-                "VAT on Nord Pool price": config.get(CONF_VAT_NORD_POOL, VAT_NORD_POOL_DEFAULT),
-                "VAT on grid electricity excise duty": config.get(CONF_VAT_GRID_ELECTRICITY_EXCISE_DUTY, VAT_GRID_ELECTRICITY_EXCISE_DUTY_DEFAULT),
-                "VAT on grid renewable energy charge": config.get(CONF_VAT_GRID_RENEWABLE_ENERGY_CHARGE, VAT_GRID_RENEWABLE_ENERGY_CHARGE_DEFAULT),
-                "VAT on grid transmission (night)": config.get(CONF_VAT_GRID_TRANSMISSION_NIGHT, VAT_GRID_TRANSMISSION_NIGHT_DEFAULT),
-                "VAT on grid transmission (day)": config.get(CONF_VAT_GRID_TRANSMISSION_DAY, VAT_GRID_TRANSMISSION_DAY_DEFAULT),
-                "VAT on supplier renewable energy charge": config.get(CONF_VAT_SUPPLIER_RENEWABLE_ENERGY_CHARGE, VAT_SUPPLIER_RENEWABLE_ENERGY_CHARGE_DEFAULT),
-                "VAT on supplier margin": config.get(CONF_VAT_SUPPLIER_MARGIN, VAT_SUPPLIER_MARGIN_DEFAULT),
-                # Tariff and time information
-                "tariff": current_hour_data.get("tariff"),
-                "is_holiday": current_hour_data.get("is_holiday"),
-                "is_weekend": current_hour_data.get("is_weekend"),
-            })
+            supplier_name = config.get(CONF_SUPPLIER, "Supplier").replace("_", " ").title()
+            grid_name = config.get(CONF_GRID, "Grid").replace("_", " ").title()
             
-        return attributes
+            price_components = {
+                "grid_costs": {
+                    f"{grid_name.lower()}_electricity_excise_duty": self._round_price(config.get(CONF_GRID_ELECTRICITY_EXCISE_DUTY, GRID_ELECTRICITY_EXCISE_DUTY_DEFAULT)),
+                    f"{grid_name.lower()}_renewable_energy_charge": self._round_price(config.get(CONF_GRID_RENEWABLE_ENERGY_CHARGE, GRID_RENEWABLE_ENERGY_CHARGE_DEFAULT)),
+                    f"{grid_name.lower()}_transmission_price_night": self._round_price(config.get(CONF_GRID_ELECTRICITY_TRANSMISSION_PRICE_NIGHT, GRID_ELECTRICITY_TRANSMISSION_PRICE_NIGHT_DEFAULT)),
+                    f"{grid_name.lower()}_transmission_price_day": self._round_price(config.get(CONF_GRID_ELECTRICITY_TRANSMISSION_PRICE_DAY, GRID_ELECTRICITY_TRANSMISSION_PRICE_DAY_DEFAULT)),
+                },
+                "supplier_costs": {
+                    f"{supplier_name.lower()}_renewable_energy_charge": self._round_price(config.get(CONF_SUPPLIER_RENEWABLE_ENERGY_CHARGE, SUPPLIER_RENEWABLE_ENERGY_CHARGE_DEFAULT)),
+                    f"{supplier_name.lower()}_margin": self._round_price(config.get(CONF_SUPPLIER_MARGIN, SUPPLIER_MARGIN_DEFAULT)),
+                },
+                "tax_info": {
+                    "vat_percentage": self._round_price(config.get(CONF_VAT, VAT_DEFAULT)),
+                    "vat_applied_to": {
+                        "nord_pool_price": config.get(CONF_VAT_NORD_POOL, VAT_NORD_POOL_DEFAULT),
+                        f"{grid_name.lower()}_electricity_excise_duty": config.get(CONF_VAT_GRID_ELECTRICITY_EXCISE_DUTY, VAT_GRID_ELECTRICITY_EXCISE_DUTY_DEFAULT),
+                        f"{grid_name.lower()}_renewable_energy_charge": config.get(CONF_VAT_GRID_RENEWABLE_ENERGY_CHARGE, VAT_GRID_RENEWABLE_ENERGY_CHARGE_DEFAULT),
+                        f"{grid_name.lower()}_transmission_night": config.get(CONF_VAT_GRID_TRANSMISSION_NIGHT, VAT_GRID_TRANSMISSION_NIGHT_DEFAULT),
+                        f"{grid_name.lower()}_transmission_day": config.get(CONF_VAT_GRID_TRANSMISSION_DAY, VAT_GRID_TRANSMISSION_DAY_DEFAULT),
+                        f"{supplier_name.lower()}_renewable_energy_charge": config.get(CONF_VAT_SUPPLIER_RENEWABLE_ENERGY_CHARGE, VAT_SUPPLIER_RENEWABLE_ENERGY_CHARGE_DEFAULT),
+                        f"{supplier_name.lower()}_margin": config.get(CONF_VAT_SUPPLIER_MARGIN, VAT_SUPPLIER_MARGIN_DEFAULT),
+                    }
+                }
+            }
+        else:
+            price_components = {}
+        
+        return {
+            "current_hour_info": json.dumps(current_hour_info, indent=2),
+            "price_components": json.dumps(price_components, indent=2),
+        }
 
     def _get_hourly_prices_attributes(self) -> dict[str, Any]:
         """Get attributes for hourly prices sensor."""
@@ -437,9 +484,9 @@ class RealElectricityPriceSensor(RealElectricityPriceEntity, SensorEntity):
         
         _LOGGER.debug(f"Total hourly prices collected: {len(all_hourly_prices)}")
         return {
-            "hourly_prices": all_hourly_prices,
-            "data_sources": list(self.coordinator.data.keys()),
-            "data_sources_info": data_sources_info,
+            "hourly_prices": json.dumps(all_hourly_prices, indent=2),
+            "data_sources": json.dumps(list(self.coordinator.data.keys()), indent=2),
+            "data_sources_info": json.dumps(data_sources_info, indent=2),
         }
 
     def _get_cheap_prices_value(self) -> float | None:
@@ -455,7 +502,7 @@ class RealElectricityPriceSensor(RealElectricityPriceEntity, SensorEntity):
                 # If not in a cheap period, get the next upcoming cheap price
                 next_cheap = self.coordinator.get_next_cheap_price()
                 if next_cheap:
-                    return round(next_cheap["price"], PRICE_DECIMAL_PRECISION)
+                    return self._round_price(next_cheap["price"])
                 
                 return None
         
@@ -476,7 +523,7 @@ class RealElectricityPriceSensor(RealElectricityPriceEntity, SensorEntity):
             
             # If we're currently in this range, return its price
             if start_time <= now < end_time:
-                return round(range_data["price"], PRICE_DECIMAL_PRECISION)
+                return self._round_price(range_data["price"])
             
             # Calculate time difference to this range
             if start_time > now:  # Future range
@@ -488,7 +535,7 @@ class RealElectricityPriceSensor(RealElectricityPriceEntity, SensorEntity):
                 min_time_diff = time_diff
                 nearest_price = range_data["price"]
         
-        return round(nearest_price, PRICE_DECIMAL_PRECISION) if nearest_price is not None else None
+        return self._round_price(nearest_price) if nearest_price is not None else None
 
     def _get_cheap_prices_attributes(self) -> dict[str, Any]:
         """Get attributes for cheap prices sensor."""
@@ -525,26 +572,34 @@ class RealElectricityPriceSensor(RealElectricityPriceEntity, SensorEntity):
                                 next_cheap_info = {
                                     "start_time": range_data["start_time"],
                                     "end_time": range_data["end_time"],
-                                    "price": range_data["price"],
-                                    "hours_until": round(time_diff / 3600, 2),
+                                    "average_price": self._round_price(range_data["avg_price"]),
                                 }
                 
-                attributes = {
-                    "cheap_price_ranges": cheap_ranges,
+                # Build comprehensive status info
+                last_update = cheap_data.get("last_update")
+                trigger_time = cheap_data.get("trigger_time")
+                
+                status_info = {
                     "current_status": current_status,
                     "total_cheap_hours": len(cheap_ranges),
-                    "last_calculation": cheap_data.get("last_update"),
-                    "trigger_time": cheap_data.get("trigger_time"),
+                    "last_calculation": last_update.isoformat() if isinstance(last_update, datetime) else last_update,
+                    "trigger_time": trigger_time.isoformat() if isinstance(trigger_time, datetime) else trigger_time,
                 }
-                
-                # Add analysis info
-                attributes.update(analysis_info)
                 
                 # Add next cheap period info if available
                 if next_cheap_info:
-                    attributes["next_cheap_period"] = next_cheap_info
+                    status_info["next_cheap_period"] = next_cheap_info
                 
-                return attributes
+                # Convert all datetime objects to strings before JSON serialization
+                cheap_ranges_serializable = datetime_serializer(cheap_ranges)
+                status_info_serializable = datetime_serializer(status_info)
+                analysis_info_serializable = datetime_serializer(analysis_info)
+                
+                return {
+                    "cheap_price_ranges": json.dumps(cheap_ranges_serializable, indent=2),
+                    "status_info": json.dumps(status_info_serializable, indent=2),
+                    "analysis_info": json.dumps(analysis_info_serializable, indent=2),
+                }
         
         # Fallback to old method for sensors still using main coordinator
         cheap_ranges = self._analyze_cheap_prices()
@@ -556,24 +611,32 @@ class RealElectricityPriceSensor(RealElectricityPriceEntity, SensorEntity):
         # Get analysis info
         analysis_info = self._get_price_analysis_info()
         
-        return {
-            "cheap_price_ranges": cheap_ranges,
+        # Build summary info
+        summary_info = {
             "threshold_percent": threshold,
             "min_price": analysis_info.get("min_price"),
             "max_cheap_price": analysis_info.get("max_cheap_price"),
             "total_cheap_hours": len(cheap_ranges),
-            "analysis_period": analysis_info.get("analysis_period"),
-            "data_sources": analysis_info.get("data_sources", []),
+            "analysis_period_hours": analysis_info.get("analysis_period_hours"),
+        }
+        
+        return {
+            "cheap_price_ranges": json.dumps(cheap_ranges, indent=2),
+            "summary_info": json.dumps(summary_info, indent=2),
+            "data_sources": json.dumps(analysis_info.get("data_sources", []), indent=2),
         }
 
     def _analyze_cheap_prices(self) -> list[dict[str, Any]]:
-        """Analyze price data with pandas to find cheap price ranges."""
+        """Analyze price data with pandas to find cheap price ranges from NOW onwards."""
         if not self.coordinator.data:
             return []
         
         try:
-            # Collect all hourly prices with valid data
+            # Collect all hourly prices with valid data from current hour onwards
+            now = datetime.now(timezone.utc)
+            current_hour_start = now.replace(minute=0, second=0, microsecond=0)
             all_prices = []
+            
             for data_key in self.coordinator.data:
                 day_data = self.coordinator.data[data_key]
                 if not isinstance(day_data, dict):
@@ -581,14 +644,20 @@ class RealElectricityPriceSensor(RealElectricityPriceEntity, SensorEntity):
                     
                 hourly_prices = day_data.get("hourly_prices", [])
                 for price_entry in hourly_prices:
-                    # Only include entries with valid price data
+                    # Only include entries with valid price data from current hour onwards
                     if price_entry.get("actual_price") is not None:
-                        all_prices.append({
-                            "start_time": price_entry["start_time"],
-                            "end_time": price_entry["end_time"],
-                            "price": price_entry["actual_price"],
-                            "date": day_data.get("date"),
-                        })
+                        try:
+                            start_time = datetime.fromisoformat(price_entry["start_time"].replace("Z", "+00:00"))
+                            # Include current hour and future hours only
+                            if start_time >= current_hour_start:
+                                all_prices.append({
+                                    "start_time": price_entry["start_time"],
+                                    "end_time": price_entry["end_time"],
+                                    "price": price_entry["actual_price"],
+                                    "date": day_data.get("date"),
+                                })
+                        except (ValueError, KeyError):
+                            continue
             
             if not all_prices:
                 _LOGGER.debug("No valid price data available for cheap price analysis")
@@ -651,10 +720,10 @@ class RealElectricityPriceSensor(RealElectricityPriceEntity, SensorEntity):
                 current_range = {
                     "start_time": row["start_time"],
                     "end_time": row["end_time"],
-                    "price": price,  # Use first price in range
-                    "min_price": price,
-                    "max_price": price,
-                    "avg_price": price,
+                    "price": self._round_price(price),  # Use first price in range
+                    "min_price": self._round_price(price),
+                    "max_price": self._round_price(price),
+                    "avg_price": self._round_price(price),
                     "hour_count": 1,
                     "prices": [price],
                 }
@@ -666,9 +735,9 @@ class RealElectricityPriceSensor(RealElectricityPriceEntity, SensorEntity):
                     current_range["end_time"] = row["end_time"]
                     current_range["hour_count"] += 1
                     current_range["prices"].append(price)
-                    current_range["min_price"] = min(current_range["min_price"], price)
-                    current_range["max_price"] = max(current_range["max_price"], price)
-                    current_range["avg_price"] = sum(current_range["prices"]) / len(current_range["prices"])
+                    current_range["min_price"] = self._round_price(min(current_range["min_price"], price))
+                    current_range["max_price"] = self._round_price(max(current_range["max_price"], price))
+                    current_range["avg_price"] = self._round_price(sum(current_range["prices"]) / len(current_range["prices"]))
                 else:
                     # Finish current range and start new one
                     # Remove the prices list before adding to results (too verbose for attributes)
@@ -678,10 +747,10 @@ class RealElectricityPriceSensor(RealElectricityPriceEntity, SensorEntity):
                     current_range = {
                         "start_time": row["start_time"],
                         "end_time": row["end_time"],
-                        "price": price,
-                        "min_price": price,
-                        "max_price": price,
-                        "avg_price": price,
+                        "price": self._round_price(price),
+                        "min_price": self._round_price(price),
+                        "max_price": self._round_price(price),
+                        "avg_price": self._round_price(price),
                         "hour_count": 1,
                         "prices": [price],
                     }
@@ -699,9 +768,10 @@ class RealElectricityPriceSensor(RealElectricityPriceEntity, SensorEntity):
             return {}
         
         try:
-            # Collect all valid prices
+            # Collect all valid prices from NOW onwards only
+            now = datetime.now(timezone.utc)
             all_prices = []
-            data_sources = []
+            future_data_sources = []
             
             for data_key in self.coordinator.data:
                 day_data = self.coordinator.data[data_key]
@@ -709,18 +779,29 @@ class RealElectricityPriceSensor(RealElectricityPriceEntity, SensorEntity):
                     continue
                     
                 hourly_prices = day_data.get("hourly_prices", [])
-                valid_prices = [p["actual_price"] for p in hourly_prices if p.get("actual_price") is not None]
+                future_prices = []
                 
-                if valid_prices:
-                    all_prices.extend(valid_prices)
-                    data_sources.append({
+                # Only include prices from current hour onwards
+                for price_entry in hourly_prices:
+                    if price_entry.get("actual_price") is not None:
+                        try:
+                            start_time = datetime.fromisoformat(price_entry["start_time"].replace("Z", "+00:00"))
+                            # Include current hour and future hours only
+                            if start_time >= now.replace(minute=0, second=0, microsecond=0):
+                                future_prices.append(price_entry["actual_price"])
+                        except (ValueError, KeyError):
+                            continue
+                
+                if future_prices:
+                    all_prices.extend(future_prices)
+                    future_data_sources.append({
                         "source": data_key,
                         "date": day_data.get("date"),
-                        "hours_count": len(valid_prices),
+                        "hours_count": len(future_prices),
                     })
             
             if not all_prices:
-                return {"data_sources": data_sources}
+                return {"data_sources": future_data_sources}
             
             # Calculate statistics
             min_price = min(all_prices)
@@ -728,11 +809,14 @@ class RealElectricityPriceSensor(RealElectricityPriceEntity, SensorEntity):
             threshold_percent = config.get(CONF_CHEAP_PRICE_THRESHOLD, CHEAP_PRICE_THRESHOLD_DEFAULT)
             max_cheap_price = min_price * (1 + threshold_percent / 100)
             
+            # Calculate actual analysis period based on future hours only
+            total_future_hours = sum(source["hours_count"] for source in future_data_sources)
+            
             return {
-                "min_price": round(min_price, PRICE_DECIMAL_PRECISION),
-                "max_cheap_price": round(max_cheap_price, PRICE_DECIMAL_PRECISION),
-                "analysis_period": f"{len(data_sources)} days",
-                "data_sources": data_sources,
+                "min_price": self._round_price(min_price),
+                "max_cheap_price": self._round_price(max_cheap_price),
+                "analysis_period_hours": total_future_hours,
+                "data_sources": future_data_sources,
             }
             
         except Exception as e:

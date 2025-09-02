@@ -16,11 +16,10 @@ services:
     volumes:
       # Home Assistant configuration
       - ./container/config:/config
-      # Timezone
-      - /etc/localtime:/etc/localtime:ro
     restart: unless-stopped
     privileged: true
-    # No direct port exposure - only through proxy
+    ports:
+      - "8123:8123"
     environment:
       - TZ=Europe/Tallinn
     healthcheck:
@@ -34,31 +33,6 @@ services:
       - "dev.environment=development"
     networks:
       - internal
-
-  proxy:
-    container_name: web
-    image: nginx:alpine
-    ports:
-      - "8080:80"
-    volumes:
-      - ./container/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./container/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
-    restart: unless-stopped
-    depends_on:
-      homeassistant:
-        condition: service_healthy
-    labels:
-      - "dev.service=web-proxy"
-      - "dev.environment=development"
-    networks:
-      - internal
-    # Force nginx to restart when Home Assistant restarts
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://dc:8123/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
 
 networks:
   internal:

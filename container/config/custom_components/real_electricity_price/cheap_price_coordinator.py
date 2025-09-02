@@ -11,7 +11,7 @@ from homeassistant.helpers.event import async_track_time_change
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.const import EVENT_HOMEASSISTANT_STOP
 
-from .const import CONF_CHEAP_PRICE_UPDATE_TRIGGER, DEFAULT_CHEAP_PRICE_UPDATE_TRIGGER
+from .const import CONF_CHEAP_PRICE_UPDATE_TRIGGER, DEFAULT_CHEAP_PRICE_UPDATE_TRIGGER, CONF_CHEAP_PRICE_THRESHOLD, CHEAP_PRICE_THRESHOLD_DEFAULT
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -71,9 +71,17 @@ class CheapPriceDataUpdateCoordinator(DataUpdateCoordinator):
             self._trigger_unsub()
             self._trigger_unsub = None
         
-        # Parse trigger time (format: "HH:MM")
+        # Parse trigger time (format: "HH:MM" or {"hour": H, "minute": M})
         try:
-            hour, minute = map(int, trigger_time.split(":"))
+            if isinstance(trigger_time, dict):
+                # Handle TimeSelector format
+                hour = trigger_time.get("hour", 14)
+                minute = trigger_time.get("minute", 30)
+            else:
+                # Handle legacy string format (may include seconds like "HH:MM:SS")
+                time_parts = str(trigger_time).split(":")
+                hour = int(time_parts[0])
+                minute = int(time_parts[1]) if len(time_parts) > 1 else 0
             
             self._trigger_unsub = async_track_time_change(
                 self.hass,
@@ -85,7 +93,7 @@ class CheapPriceDataUpdateCoordinator(DataUpdateCoordinator):
             
             _LOGGER.debug("Cheap price coordinator trigger set for %02d:%02d", hour, minute)
             
-        except (ValueError, AttributeError) as e:
+        except (ValueError, AttributeError, KeyError, IndexError) as e:
             _LOGGER.error("Invalid trigger time format '%s': %s", trigger_time, e)
 
     @callback
@@ -174,12 +182,20 @@ class CheapPriceDataUpdateCoordinator(DataUpdateCoordinator):
             df["start_time_dt"] = pd.to_datetime(df["start_time"])
             df = df.sort_values("start_time_dt")
             
+            # Filter for future prices only (NOW onwards)
+            current_time = datetime.datetime.now(datetime.UTC)
+            df = df[df["start_time_dt"] >= current_time].copy()
+            
+            if df.empty:
+                _LOGGER.debug("No future price data available for cheap price analysis")
+                return {"cheap_ranges": [], "analysis_info": {}}
+            
             # Find minimum price
             min_price = df["price"].min()
             
             # Get threshold from configuration
             config = {**self.config_entry.data, **self.config_entry.options}
-            threshold_percent = config.get("cheap_price_threshold", 10.0)
+            threshold_percent = config.get(CONF_CHEAP_PRICE_THRESHOLD, CHEAP_PRICE_THRESHOLD_DEFAULT)
             
             # Calculate maximum price that's considered "cheap"
             max_cheap_price = min_price * (1 + threshold_percent / 100)
@@ -194,12 +210,19 @@ class CheapPriceDataUpdateCoordinator(DataUpdateCoordinator):
             # Group consecutive hours into ranges
             cheap_ranges = self._group_consecutive_hours(cheap_df)
             
+            # Calculate analysis period based on actual future data analyzed
+            if not df.empty:
+                total_hours = len(df)
+                analysis_period_hours = total_hours
+            else:
+                analysis_period_hours = 0
+            
             analysis_info = {
                 "min_price": round(min_price, 6),
                 "max_cheap_price": round(max_cheap_price, 6),
                 "threshold_percent": threshold_percent,
                 "total_cheap_hours": len(cheap_ranges),
-                "analysis_period": f"{len([k for k in main_data.keys() if isinstance(main_data[k], dict)])} days",
+                "analysis_period_hours": analysis_period_hours,
             }
             
             _LOGGER.debug(

@@ -71,20 +71,16 @@ CONF_CHEAP_PRICE_THRESHOLD = "cheap_price_threshold"
 CHEAP_PRICE_THRESHOLD_DEFAULT = 10.0  # percent above minimum price
 
 # Update triggers - when to recalculate prices
-CONF_UPDATE_TRIGGER = "update_trigger"
 CONF_CHEAP_PRICE_UPDATE_TRIGGER = "cheap_price_update_trigger"
-DEFAULT_UPDATE_TRIGGER = "14:00"  # Default time for main data update
 DEFAULT_CHEAP_PRICE_UPDATE_TRIGGER = "14:30"  # Default time for cheap price calculation
 
 # Time configuration
 CONF_NIGHT_PRICE_START_TIME = "night_price_start_time"
 CONF_NIGHT_PRICE_END_TIME = "night_price_end_time"
-CONF_TIME_FORMAT_24H = "time_format_24h"
 
 # Time defaults
 NIGHT_PRICE_START_TIME_DEFAULT = "22:00"  # Night price start time in HH:MM format
-NIGHT_PRICE_END_TIME_DEFAULT = "07:00"    # Night price end time in HH:MM format  
-TIME_FORMAT_24H_DEFAULT = True            # Use 24-hour time format by default
+NIGHT_PRICE_END_TIME_DEFAULT = "07:00"    # Night price end time in HH:MM format
 
 # Scan interval
 DEFAULT_SCAN_INTERVAL = 3600  # 1 hour in seconds

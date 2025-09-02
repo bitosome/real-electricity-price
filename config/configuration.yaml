@@ -20,3 +20,11 @@ logger:
     homeassistant.components.button: debug
     homeassistant.helpers.entity: debug
     homeassistant.helpers.update_coordinator: debug
+
+# Real Electricity Price integration
+# Removed from configuration.yaml - configure through UI instead
+# real_electricity_price:
+#   grid: "EE"
+#   supplier: "Eesti Energia"
+#   night_price_start: "22:00"
+#   night_price_end: "07:00"
