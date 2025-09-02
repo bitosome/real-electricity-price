@@ -1,3 +1,11 @@
 # Services for Real Electricity Price integration
-# This file is required by Home Assistant to avoid missing services.yaml errors.
-# Currently, no services are provided by this integration.
+
+refresh_data:
+  name: Refresh Data
+  description: Manually refresh electricity price data from Nord Pool API
+  fields: {}
+
+recalculate_cheap_prices:
+  name: Recalculate Cheap Prices
+  description: Manually recalculate cheap price periods based on current configuration
+  fields: {}

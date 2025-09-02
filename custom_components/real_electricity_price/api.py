@@ -84,17 +84,26 @@ def _verify_response_or_raise(response: aiohttp.ClientResponse) -> None:
 def extract_country_code_from_area(area_code: str) -> str:
     """Extract ISO country code from Nord Pool area code.
     
+    Nord Pool uses area codes that may include numbers for sub-regions.
+    This function extracts the two-letter country code prefix.
+    
+    Args:
+        area_code: Nord Pool area code (e.g., "EE", "SE1", "NO2")
+        
+    Returns:
+        Two-letter ISO country code
+        
     Examples:
-    - "EE" -> "EE"
-    - "FI" -> "FI" 
-    - "SE1" -> "SE"
-    - "NO2" -> "NO"
-    - "DK1" -> "DK"
+        - "EE" -> "EE"
+        - "FI" -> "FI" 
+        - "SE1" -> "SE"
+        - "NO2" -> "NO"
+        - "DK1" -> "DK"
     """
     if not area_code or len(area_code) < 2:
         return "EE"  # Default fallback for empty or single character
     
-    # Extract first 2 letters using regex
+    # Extract first 2 letters using regex for better validation
     match = re.match(r'^([A-Z]{2})', area_code.upper())
     if match:
         return match.group(1)

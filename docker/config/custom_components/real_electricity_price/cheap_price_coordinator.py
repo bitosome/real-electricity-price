@@ -6,6 +6,7 @@ import datetime
 import logging
 from typing import TYPE_CHECKING, Any, Callable
 
+import pandas as pd
 from homeassistant.core import callback
 from homeassistant.helpers.event import async_track_time_change
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
@@ -153,8 +154,6 @@ class CheapPriceDataUpdateCoordinator(DataUpdateCoordinator):
             return {"cheap_ranges": [], "analysis_info": {}}
         
         try:
-            import pandas as pd
-            
             # Collect all hourly prices with valid data
             all_prices = []
             for data_key in main_data:
@@ -210,12 +209,19 @@ class CheapPriceDataUpdateCoordinator(DataUpdateCoordinator):
             # Group consecutive hours into ranges
             cheap_ranges = self._group_consecutive_hours(cheap_df)
             
+            # Calculate analysis period based on actual future data analyzed
+            if not df.empty:
+                total_hours = len(df)
+                analysis_period_hours = total_hours
+            else:
+                analysis_period_hours = 0
+            
             analysis_info = {
                 "min_price": round(min_price, 6),
                 "max_cheap_price": round(max_cheap_price, 6),
                 "threshold_percent": threshold_percent,
                 "total_cheap_hours": len(cheap_ranges),
-                "analysis_period": f"{len([k for k in main_data.keys() if isinstance(main_data[k], dict)])} days",
+                "analysis_period_hours": analysis_period_hours,
             }
             
             _LOGGER.debug(
@@ -237,8 +243,6 @@ class CheapPriceDataUpdateCoordinator(DataUpdateCoordinator):
 
     def _group_consecutive_hours(self, cheap_df) -> list[dict[str, Any]]:
         """Group consecutive cheap hours into time ranges."""
-        import pandas as pd
-        
         if cheap_df.empty:
             return []
         

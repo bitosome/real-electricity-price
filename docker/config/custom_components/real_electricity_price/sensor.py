@@ -13,24 +13,35 @@ from homeassistant.const import CONF_NAME
 from homeassistant.util import dt as dt_util
 
 from .const import (
+    # Price precision
     PRICE_DECIMAL_PRECISION,
+    
+    # Configuration keys
     CONF_GRID,
+    CONF_SUPPLIER,
+    CONF_VAT,
+    CONF_CHEAP_PRICE_THRESHOLD,
+    
+    # Grid configuration
     CONF_GRID_ELECTRICITY_EXCISE_DUTY,
     CONF_GRID_RENEWABLE_ENERGY_CHARGE,
     CONF_GRID_ELECTRICITY_TRANSMISSION_PRICE_NIGHT,
     CONF_GRID_ELECTRICITY_TRANSMISSION_PRICE_DAY,
-    CONF_SUPPLIER,
+    
+    # Supplier configuration
     CONF_SUPPLIER_RENEWABLE_ENERGY_CHARGE,
     CONF_SUPPLIER_MARGIN,
-    CONF_VAT,
+    
+    # VAT configuration
+    CONF_VAT_NORD_POOL,
     CONF_VAT_GRID_ELECTRICITY_EXCISE_DUTY,
     CONF_VAT_GRID_RENEWABLE_ENERGY_CHARGE,
     CONF_VAT_GRID_TRANSMISSION_DAY,
     CONF_VAT_GRID_TRANSMISSION_NIGHT,
-    CONF_VAT_NORD_POOL,
     CONF_VAT_SUPPLIER_MARGIN,
     CONF_VAT_SUPPLIER_RENEWABLE_ENERGY_CHARGE,
-    CONF_CHEAP_PRICE_THRESHOLD,
+    
+    # Default values
     GRID_ELECTRICITY_EXCISE_DUTY_DEFAULT,
     GRID_RENEWABLE_ENERGY_CHARGE_DEFAULT,
     GRID_ELECTRICITY_TRANSMISSION_PRICE_NIGHT_DEFAULT,
@@ -58,6 +69,21 @@ if TYPE_CHECKING:
     from .data import RealElectricityPriceConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def datetime_serializer(obj):
+    """Convert datetime objects to ISO format strings for JSON serialization recursively."""
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    elif isinstance(obj, dict):
+        return {k: datetime_serializer(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [datetime_serializer(item) for item in obj]
+    elif isinstance(obj, tuple):
+        return tuple(datetime_serializer(item) for item in obj)
+    else:
+        return obj
+
 
 # Sensor type constants for better maintainability
 SENSOR_TYPE_CURRENT_PRICE = "current_price"
@@ -165,10 +191,56 @@ class RealElectricityPriceSensor(RealElectricityPriceEntity, SensorEntity):
         self._attr_name = f"{device_name} {entity_description.name}"
 
     def _round_price(self, value: float | None) -> float | None:
-        """Round price values to consistent precision across all sensors."""
+        """Round price to configured decimal precision."""
         if value is None:
             return None
         return round(value, PRICE_DECIMAL_PRECISION)
+
+    def _get_price_config_value(self, config: dict, key: str, default: float) -> float:
+        """Get a configuration value and return it rounded."""
+        return self._round_price(config.get(key, default))
+
+    def _create_price_components(self, config: dict) -> dict[str, Any]:
+        """Create price components object for attributes."""
+        supplier_name = config.get(CONF_SUPPLIER, "Supplier").replace("_", " ").title()
+        grid_name = config.get(CONF_GRID, "Grid").replace("_", " ").title()
+        
+        return {
+            "grid_costs": {
+                f"{grid_name.lower()}_electricity_excise_duty": self._get_price_config_value(
+                    config, CONF_GRID_ELECTRICITY_EXCISE_DUTY, GRID_ELECTRICITY_EXCISE_DUTY_DEFAULT
+                ),
+                f"{grid_name.lower()}_renewable_energy_charge": self._get_price_config_value(
+                    config, CONF_GRID_RENEWABLE_ENERGY_CHARGE, GRID_RENEWABLE_ENERGY_CHARGE_DEFAULT
+                ),
+                f"{grid_name.lower()}_transmission_price_night": self._get_price_config_value(
+                    config, CONF_GRID_ELECTRICITY_TRANSMISSION_PRICE_NIGHT, GRID_ELECTRICITY_TRANSMISSION_PRICE_NIGHT_DEFAULT
+                ),
+                f"{grid_name.lower()}_transmission_price_day": self._get_price_config_value(
+                    config, CONF_GRID_ELECTRICITY_TRANSMISSION_PRICE_DAY, GRID_ELECTRICITY_TRANSMISSION_PRICE_DAY_DEFAULT
+                ),
+            },
+            "supplier_costs": {
+                f"{supplier_name.lower()}_renewable_energy_charge": self._get_price_config_value(
+                    config, CONF_SUPPLIER_RENEWABLE_ENERGY_CHARGE, SUPPLIER_RENEWABLE_ENERGY_CHARGE_DEFAULT
+                ),
+                f"{supplier_name.lower()}_margin": self._get_price_config_value(
+                    config, CONF_SUPPLIER_MARGIN, SUPPLIER_MARGIN_DEFAULT
+                ),
+            },
+            "tax_info": {
+                "vat_percentage": self._get_price_config_value(config, CONF_VAT, VAT_DEFAULT),
+                "vat_applied_to": {
+                    "nord_pool_price": config.get(CONF_VAT_NORD_POOL, VAT_NORD_POOL_DEFAULT),
+                    f"{grid_name.lower()}_electricity_excise_duty": config.get(CONF_VAT_GRID_ELECTRICITY_EXCISE_DUTY, VAT_GRID_ELECTRICITY_EXCISE_DUTY_DEFAULT),
+                    f"{grid_name.lower()}_renewable_energy_charge": config.get(CONF_VAT_GRID_RENEWABLE_ENERGY_CHARGE, VAT_GRID_RENEWABLE_ENERGY_CHARGE_DEFAULT),
+                    f"{grid_name.lower()}_transmission_night": config.get(CONF_VAT_GRID_TRANSMISSION_NIGHT, VAT_GRID_TRANSMISSION_NIGHT_DEFAULT),
+                    f"{grid_name.lower()}_transmission_day": config.get(CONF_VAT_GRID_TRANSMISSION_DAY, VAT_GRID_TRANSMISSION_DAY_DEFAULT),
+                    f"{supplier_name.lower()}_renewable_energy_charge": config.get(CONF_VAT_SUPPLIER_RENEWABLE_ENERGY_CHARGE, VAT_SUPPLIER_RENEWABLE_ENERGY_CHARGE_DEFAULT),
+                    f"{supplier_name.lower()}_margin": config.get(CONF_VAT_SUPPLIER_MARGIN, VAT_SUPPLIER_MARGIN_DEFAULT),
+                }
+            }
+        }
 
     async def async_added_to_hass(self) -> None:
         """Call when entity is added to hass."""
@@ -404,33 +476,7 @@ class RealElectricityPriceSensor(RealElectricityPriceEntity, SensorEntity):
         
         # Build price components object
         if current_hour_data:
-            supplier_name = config.get(CONF_SUPPLIER, "Supplier").replace("_", " ").title()
-            grid_name = config.get(CONF_GRID, "Grid").replace("_", " ").title()
-            
-            price_components = {
-                "grid_costs": {
-                    f"{grid_name.lower()}_electricity_excise_duty": self._round_price(config.get(CONF_GRID_ELECTRICITY_EXCISE_DUTY, GRID_ELECTRICITY_EXCISE_DUTY_DEFAULT)),
-                    f"{grid_name.lower()}_renewable_energy_charge": self._round_price(config.get(CONF_GRID_RENEWABLE_ENERGY_CHARGE, GRID_RENEWABLE_ENERGY_CHARGE_DEFAULT)),
-                    f"{grid_name.lower()}_transmission_price_night": self._round_price(config.get(CONF_GRID_ELECTRICITY_TRANSMISSION_PRICE_NIGHT, GRID_ELECTRICITY_TRANSMISSION_PRICE_NIGHT_DEFAULT)),
-                    f"{grid_name.lower()}_transmission_price_day": self._round_price(config.get(CONF_GRID_ELECTRICITY_TRANSMISSION_PRICE_DAY, GRID_ELECTRICITY_TRANSMISSION_PRICE_DAY_DEFAULT)),
-                },
-                "supplier_costs": {
-                    f"{supplier_name.lower()}_renewable_energy_charge": self._round_price(config.get(CONF_SUPPLIER_RENEWABLE_ENERGY_CHARGE, SUPPLIER_RENEWABLE_ENERGY_CHARGE_DEFAULT)),
-                    f"{supplier_name.lower()}_margin": self._round_price(config.get(CONF_SUPPLIER_MARGIN, SUPPLIER_MARGIN_DEFAULT)),
-                },
-                "tax_info": {
-                    "vat_percentage": self._round_price(config.get(CONF_VAT, VAT_DEFAULT)),
-                    "vat_applied_to": {
-                        "nord_pool_price": config.get(CONF_VAT_NORD_POOL, VAT_NORD_POOL_DEFAULT),
-                        f"{grid_name.lower()}_electricity_excise_duty": config.get(CONF_VAT_GRID_ELECTRICITY_EXCISE_DUTY, VAT_GRID_ELECTRICITY_EXCISE_DUTY_DEFAULT),
-                        f"{grid_name.lower()}_renewable_energy_charge": config.get(CONF_VAT_GRID_RENEWABLE_ENERGY_CHARGE, VAT_GRID_RENEWABLE_ENERGY_CHARGE_DEFAULT),
-                        f"{grid_name.lower()}_transmission_night": config.get(CONF_VAT_GRID_TRANSMISSION_NIGHT, VAT_GRID_TRANSMISSION_NIGHT_DEFAULT),
-                        f"{grid_name.lower()}_transmission_day": config.get(CONF_VAT_GRID_TRANSMISSION_DAY, VAT_GRID_TRANSMISSION_DAY_DEFAULT),
-                        f"{supplier_name.lower()}_renewable_energy_charge": config.get(CONF_VAT_SUPPLIER_RENEWABLE_ENERGY_CHARGE, VAT_SUPPLIER_RENEWABLE_ENERGY_CHARGE_DEFAULT),
-                        f"{supplier_name.lower()}_margin": config.get(CONF_VAT_SUPPLIER_MARGIN, VAT_SUPPLIER_MARGIN_DEFAULT),
-                    }
-                }
-            }
+            price_components = self._create_price_components(config)
         else:
             price_components = {}
         
@@ -567,34 +613,23 @@ class RealElectricityPriceSensor(RealElectricityPriceEntity, SensorEntity):
                 status_info = {
                     "current_status": current_status,
                     "total_cheap_hours": len(cheap_ranges),
-                    "last_calculation": last_update.isoformat() if last_update else None,
-                    "trigger_time": trigger_time.isoformat() if trigger_time else None,
+                    "last_calculation": last_update.isoformat() if isinstance(last_update, datetime) else last_update,
+                    "trigger_time": trigger_time.isoformat() if isinstance(trigger_time, datetime) else trigger_time,
                 }
                 
                 # Add next cheap period info if available
                 if next_cheap_info:
                     status_info["next_cheap_period"] = next_cheap_info
                 
-                # Debug JSON serialization issues
-                try:
-                    json.dumps(cheap_ranges, indent=2)
-                except TypeError as e:
-                    _LOGGER.error("JSON error in cheap_ranges: %s, data: %s", e, cheap_ranges)
-                    
-                try:
-                    json.dumps(status_info, indent=2)
-                except TypeError as e:
-                    _LOGGER.error("JSON error in status_info: %s, data: %s", e, status_info)
-                    
-                try:
-                    json.dumps(analysis_info, indent=2)
-                except TypeError as e:
-                    _LOGGER.error("JSON error in analysis_info: %s, data: %s", e, analysis_info)
+                # Convert all datetime objects to strings before JSON serialization
+                cheap_ranges_serializable = datetime_serializer(cheap_ranges)
+                status_info_serializable = datetime_serializer(status_info)
+                analysis_info_serializable = datetime_serializer(analysis_info)
                 
                 return {
-                    "cheap_price_ranges": json.dumps(cheap_ranges, indent=2),
-                    "status_info": json.dumps(status_info, indent=2),
-                    "analysis_info": json.dumps(analysis_info, indent=2),
+                    "cheap_price_ranges": json.dumps(cheap_ranges_serializable, indent=2),
+                    "status_info": json.dumps(status_info_serializable, indent=2),
+                    "analysis_info": json.dumps(analysis_info_serializable, indent=2),
                 }
         
         # Fallback to old method for sensors still using main coordinator
@@ -613,7 +648,7 @@ class RealElectricityPriceSensor(RealElectricityPriceEntity, SensorEntity):
             "min_price": analysis_info.get("min_price"),
             "max_cheap_price": analysis_info.get("max_cheap_price"),
             "total_cheap_hours": len(cheap_ranges),
-            "analysis_period": analysis_info.get("analysis_period"),
+            "analysis_period_hours": analysis_info.get("analysis_period_hours"),
         }
         
         return {
@@ -807,12 +842,11 @@ class RealElectricityPriceSensor(RealElectricityPriceEntity, SensorEntity):
             
             # Calculate actual analysis period based on future hours only
             total_future_hours = sum(source["hours_count"] for source in future_data_sources)
-            analysis_period = f"{total_future_hours} hours" if total_future_hours < 48 else f"{total_future_hours // 24} days"
             
             return {
                 "min_price": self._round_price(min_price),
                 "max_cheap_price": self._round_price(max_cheap_price),
-                "analysis_period": analysis_period,
+                "analysis_period_hours": total_future_hours,
                 "data_sources": future_data_sources,
             }
             
