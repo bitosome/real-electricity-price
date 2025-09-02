@@ -1,0 +1,86 @@
+2025-09-02 15:37:22.674 WARNING (SyncWorker_0) [homeassistant.loader] We found a custom integration real_electricity_price which has not been tested by Home Assistant. This component might cause stability problems, be sure to disable it if you experience issues with Home Assistant
+2025-09-02 15:37:22.675 WARNING (SyncWorker_0) [homeassistant.loader] We found a custom integration hacs which has not been tested by Home Assistant. This component might cause stability problems, be sure to disable it if you experience issues with Home Assistant
+2025-09-02 15:37:23.193 ERROR (MainThread) [homeassistant.setup] Setup failed for custom integration 'hacs': Unable to import component: No module named 'custom_components.hacs.hacs_frontend'
+Traceback (most recent call last):
+  File "/usr/src/homeassistant/homeassistant/setup.py", line 343, in _async_setup_component
+    component = await integration.async_get_component()
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/src/homeassistant/homeassistant/loader.py", line 1023, in async_get_component
+    self._component_future.result()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/usr/src/homeassistant/homeassistant/loader.py", line 1003, in async_get_component
+    comp = await self.hass.async_add_import_executor_job(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        self._get_component, True
+        ^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/usr/local/lib/python3.13/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+  File "/usr/src/homeassistant/homeassistant/loader.py", line 1063, in _get_component
+    ComponentProtocol, importlib.import_module(self.pkg_path)
+                       ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "/usr/src/homeassistant/homeassistant/util/loop.py", line 201, in protected_loop_func
+    return func(*args, **kwargs)
+  File "/usr/local/lib/python3.13/importlib/__init__.py", line 88, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 1026, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "/config/custom_components/hacs/__init__.py", line 27, in <module>
+    from .frontend import async_register_frontend
+  File "/config/custom_components/hacs/frontend.py", line 14, in <module>
+    from .hacs_frontend import VERSION as FE_VERSION, locate_dir
+ModuleNotFoundError: No module named 'custom_components.hacs.hacs_frontend'
+2025-09-02 15:37:25.950 ERROR (MainThread) [homeassistant.components.http.forwarded] A request from a reverse proxy was received from 10.89.0.3, but your HTTP integration is not set-up for reverse proxies
+2025-09-02 15:37:26.047 ERROR (MainThread) [homeassistant.components.http.forwarded] A request from a reverse proxy was received from 10.89.0.3, but your HTTP integration is not set-up for reverse proxies
+2025-09-02 15:37:29.162 ERROR (MainThread) [homeassistant.components.http.forwarded] A request from a reverse proxy was received from 10.89.0.3, but your HTTP integration is not set-up for reverse proxies
+2025-09-02 15:37:29.190 ERROR (MainThread) [homeassistant.components.http.forwarded] A request from a reverse proxy was received from 10.89.0.3, but your HTTP integration is not set-up for reverse proxies
+2025-09-02 15:37:31.341 ERROR (MainThread) [homeassistant.components.http.forwarded] A request from a reverse proxy was received from 10.89.0.3, but your HTTP integration is not set-up for reverse proxies
+2025-09-02 15:37:32.367 ERROR (MainThread) [homeassistant.components.http.forwarded] A request from a reverse proxy was received from 10.89.0.3, but your HTTP integration is not set-up for reverse proxies
+2025-09-02 15:37:33.397 ERROR (MainThread) [homeassistant.components.http.forwarded] A request from a reverse proxy was received from 10.89.0.3, but your HTTP integration is not set-up for reverse proxies
+2025-09-02 15:37:34.432 ERROR (MainThread) [homeassistant.components.http.forwarded] A request from a reverse proxy was received from 10.89.0.3, but your HTTP integration is not set-up for reverse proxies
+2025-09-02 15:37:35.464 ERROR (MainThread) [homeassistant.components.http.forwarded] A request from a reverse proxy was received from 10.89.0.3, but your HTTP integration is not set-up for reverse proxies
+2025-09-02 15:37:36.498 ERROR (MainThread) [homeassistant.components.http.forwarded] A request from a reverse proxy was received from 10.89.0.3, but your HTTP integration is not set-up for reverse proxies
+2025-09-02 15:37:37.525 ERROR (MainThread) [homeassistant.components.http.forwarded] A request from a reverse proxy was received from 10.89.0.3, but your HTTP integration is not set-up for reverse proxies
+2025-09-02 15:37:38.557 ERROR (MainThread) [homeassistant.components.http.forwarded] A request from a reverse proxy was received from 10.89.0.3, but your HTTP integration is not set-up for reverse proxies
+2025-09-02 15:37:39.592 ERROR (MainThread) [homeassistant.components.http.forwarded] A request from a reverse proxy was received from 10.89.0.3, but your HTTP integration is not set-up for reverse proxies
+2025-09-02 15:37:40.624 ERROR (MainThread) [homeassistant.components.http.forwarded] A request from a reverse proxy was received from 10.89.0.3, but your HTTP integration is not set-up for reverse proxies
+2025-09-02 15:37:41.651 ERROR (MainThread) [homeassistant.components.http.forwarded] A request from a reverse proxy was received from 10.89.0.3, but your HTTP integration is not set-up for reverse proxies
+2025-09-02 15:37:42.673 ERROR (MainThread) [homeassistant.components.http.forwarded] A request from a reverse proxy was received from 10.89.0.3, but your HTTP integration is not set-up for reverse proxies
+2025-09-02 15:37:43.707 ERROR (MainThread) [homeassistant.components.http.forwarded] A request from a reverse proxy was received from 10.89.0.3, but your HTTP integration is not set-up for reverse proxies
+2025-09-02 15:37:44.562 ERROR (MainThread) [homeassistant.components.http.forwarded] A request from a reverse proxy was received from 10.89.0.3, but your HTTP integration is not set-up for reverse proxies
+2025-09-02 15:37:44.593 ERROR (MainThread) [homeassistant.components.http.forwarded] A request from a reverse proxy was received from 10.89.0.3, but your HTTP integration is not set-up for reverse proxies
+2025-09-02 15:37:44.734 ERROR (MainThread) [homeassistant.components.http.forwarded] A request from a reverse proxy was received from 10.89.0.3, but your HTTP integration is not set-up for reverse proxies
+2025-09-02 15:37:45.646 ERROR (MainThread) [homeassistant.components.http.forwarded] A request from a reverse proxy was received from 10.89.0.3, but your HTTP integration is not set-up for reverse proxies
+2025-09-02 15:37:45.672 ERROR (MainThread) [homeassistant.components.http.forwarded] A request from a reverse proxy was received from 10.89.0.3, but your HTTP integration is not set-up for reverse proxies
+2025-09-02 15:37:45.764 ERROR (MainThread) [homeassistant.components.http.forwarded] A request from a reverse proxy was received from 10.89.0.3, but your HTTP integration is not set-up for reverse proxies
+2025-09-02 15:37:46.695 ERROR (MainThread) [homeassistant.components.http.forwarded] A request from a reverse proxy was received from 10.89.0.3, but your HTTP integration is not set-up for reverse proxies
+2025-09-02 15:37:46.726 ERROR (MainThread) [homeassistant.components.http.forwarded] A request from a reverse proxy was received from 10.89.0.3, but your HTTP integration is not set-up for reverse proxies
+2025-09-02 15:37:46.791 ERROR (MainThread) [homeassistant.components.http.forwarded] A request from a reverse proxy was received from 10.89.0.3, but your HTTP integration is not set-up for reverse proxies
+2025-09-02 15:37:47.821 ERROR (MainThread) [homeassistant.components.http.forwarded] A request from a reverse proxy was received from 10.89.0.3, but your HTTP integration is not set-up for reverse proxies
+2025-09-02 15:37:48.231 ERROR (MainThread) [homeassistant.components.http.forwarded] A request from a reverse proxy was received from 10.89.0.3, but your HTTP integration is not set-up for reverse proxies
+2025-09-02 15:37:48.263 ERROR (MainThread) [homeassistant.components.http.forwarded] A request from a reverse proxy was received from 10.89.0.3, but your HTTP integration is not set-up for reverse proxies
+2025-09-02 15:37:48.857 ERROR (MainThread) [homeassistant.components.http.forwarded] A request from a reverse proxy was received from 10.89.0.3, but your HTTP integration is not set-up for reverse proxies
+2025-09-02 15:37:49.888 ERROR (MainThread) [homeassistant.components.http.forwarded] A request from a reverse proxy was received from 10.89.0.3, but your HTTP integration is not set-up for reverse proxies
+2025-09-02 15:37:50.920 ERROR (MainThread) [homeassistant.components.http.forwarded] A request from a reverse proxy was received from 10.89.0.3, but your HTTP integration is not set-up for reverse proxies
+2025-09-02 15:37:51.946 ERROR (MainThread) [homeassistant.components.http.forwarded] A request from a reverse proxy was received from 10.89.0.3, but your HTTP integration is not set-up for reverse proxies
+2025-09-02 15:37:52.979 ERROR (MainThread) [homeassistant.components.http.forwarded] A request from a reverse proxy was received from 10.89.0.3, but your HTTP integration is not set-up for reverse proxies
+2025-09-02 15:37:54.011 ERROR (MainThread) [homeassistant.components.http.forwarded] A request from a reverse proxy was received from 10.89.0.3, but your HTTP integration is not set-up for reverse proxies
+2025-09-02 15:37:55.039 ERROR (MainThread) [homeassistant.components.http.forwarded] A request from a reverse proxy was received from 10.89.0.3, but your HTTP integration is not set-up for reverse proxies
+2025-09-02 15:37:56.072 ERROR (MainThread) [homeassistant.components.http.forwarded] A request from a reverse proxy was received from 10.89.0.3, but your HTTP integration is not set-up for reverse proxies
+2025-09-02 15:37:57.101 ERROR (MainThread) [homeassistant.components.http.forwarded] A request from a reverse proxy was received from 10.89.0.3, but your HTTP integration is not set-up for reverse proxies
+2025-09-02 15:37:58.132 ERROR (MainThread) [homeassistant.components.http.forwarded] A request from a reverse proxy was received from 10.89.0.3, but your HTTP integration is not set-up for reverse proxies
+2025-09-02 15:37:59.032 ERROR (MainThread) [homeassistant.components.http.forwarded] A request from a reverse proxy was received from 10.89.0.3, but your HTTP integration is not set-up for reverse proxies
+2025-09-02 15:37:59.069 ERROR (MainThread) [homeassistant.components.http.forwarded] A request from a reverse proxy was received from 10.89.0.3, but your HTTP integration is not set-up for reverse proxies
+2025-09-02 15:37:59.160 ERROR (MainThread) [homeassistant.components.http.forwarded] A request from a reverse proxy was received from 10.89.0.3, but your HTTP integration is not set-up for reverse proxies
+2025-09-02 15:38:00.193 ERROR (MainThread) [homeassistant.components.http.forwarded] A request from a reverse proxy was received from 10.89.0.3, but your HTTP integration is not set-up for reverse proxies
+2025-09-02 15:38:01.227 ERROR (MainThread) [homeassistant.components.http.forwarded] A request from a reverse proxy was received from 10.89.0.3, but your HTTP integration is not set-up for reverse proxies
+2025-09-02 15:38:21.999 ERROR (MainThread) [homeassistant.components.http.forwarded] A request from a reverse proxy was received from 10.89.0.3, but your HTTP integration is not set-up for reverse proxies
+2025-09-02 15:38:22.024 ERROR (MainThread) [homeassistant.components.http.forwarded] A request from a reverse proxy was received from 10.89.0.3, but your HTTP integration is not set-up for reverse proxies
+2025-09-02 15:38:22.681 ERROR (MainThread) [homeassistant.components.http.forwarded] A request from a reverse proxy was received from 10.89.0.3, but your HTTP integration is not set-up for reverse proxies
+2025-09-02 15:38:22.706 ERROR (MainThread) [homeassistant.components.http.forwarded] A request from a reverse proxy was received from 10.89.0.3, but your HTTP integration is not set-up for reverse proxies

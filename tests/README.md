@@ -35,7 +35,7 @@ make test
 ./tests/test.sh syntax    # Syntax validation
 ./tests/test.sh import    # Import tests
 ./tests/test.sh config    # Configuration tests
-./tests/test.sh docker    # Docker integration tests
+./tests/test.sh docker    # Podman integration tests
 ./tests/test.sh quality   # Code quality checks
 ```
 
@@ -57,7 +57,7 @@ make test
 - ✅ HACS installation simulation
 - ✅ Integration loading in Home Assistant
 - ✅ Entity discovery and configuration
-- ✅ Docker environment validation
+- ✅ Podman environment validation
 
 ### Code Quality
 - ✅ Python syntax validation
@@ -68,7 +68,7 @@ make test
 ## 🔧 Test Configuration
 
 Tests use the following configuration:
-- **Docker Image**: Home Assistant stable
+- **Podman Image**: Home Assistant stable
 - **Test Port**: 8123 (or 8124 for parallel tests)
 - **Test Data**: Nord Pool electricity pricing data (defaults to Estonian market)
 - **Mock API**: Nord Pool API simulation when needed
@@ -92,10 +92,10 @@ logging.basicConfig(level=logging.DEBUG)
 ### Container Inspection
 ```bash
 # Check container logs
-docker logs hass-simple-test --tail 50
+podman logs dc --tail 50
 
 # Access container shell
-docker exec -it hass-simple-test bash
+podman exec -it dc bash
 ```
 
 ### Manual Verification

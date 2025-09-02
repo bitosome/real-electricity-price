@@ -21,7 +21,7 @@ setup: ## Install development dependencies
 	@echo "🔧 Setting up development environment..."
 	@./scripts/setup.sh
 
-dev: ## Start complete development environment with Docker
+dev: ## Start complete development environment with Podman
 	@echo "🚀 Starting development environment..."
 	@./scripts/dev-setup.sh
 
@@ -30,7 +30,7 @@ develop: ## Start local Home Assistant Core development
 	@./scripts/develop.sh
 
 # File Management
-sync: ## Sync integration files to Docker container
+sync: ## Sync integration files to Podman container
 	@echo "🔄 Syncing integration files..."
 	@./scripts/sync-integration.sh
 
@@ -48,7 +48,7 @@ test-import: ## Run import test only
 test-config: ## Run configuration validation only
 	@./tests/test.sh config
 
-test-docker: ## Run Docker integration test only
+test-docker: ## Run Podman integration test only
 	@./tests/test.sh docker
 
 test-quality: ## Run code quality check only
@@ -58,22 +58,34 @@ lint: ## Format and lint code
 	@echo "🔍 Running code quality checks..."
 	@./scripts/lint.sh
 
-# Docker Management
-docker-logs: ## View Docker container logs
+# Podman Management
+podman-logs: ## View Podman container logs
 	@echo "📋 Viewing container logs..."
-	@docker logs hass-real-electricity-price-test --tail 50 -f
+	@podman logs dc --tail 50 -f
 
-docker-restart: ## Restart Home Assistant container
+podman-logs-proxy: ## View Nginx proxy logs
+	@echo "📋 Viewing proxy logs..."
+	@podman logs web --tail 50 -f
+
+podman-restart: ## Restart Home Assistant container
 	@echo "🔄 Restarting Home Assistant container..."
-	@docker restart hass-real-electricity-price-test
+	@podman restart dc
 
-docker-stop: ## Stop development environment
+podman-restart-proxy: ## Restart Nginx proxy container
+	@echo "🔄 Restarting proxy container..."
+	@podman restart web
+
+podman-stop: ## Stop development environment
 	@echo "🛑 Stopping development environment..."
-	@docker compose down
+	@podman-compose down
 
-docker-shell: ## Access container shell
+podman-shell: ## Access container shell
 	@echo "🐚 Accessing container shell..."
-	@docker exec -it hass-real-electricity-price-test bash
+	@podman exec -it dc bash
+
+podman-shell-proxy: ## Access proxy container shell
+	@echo "🐚 Accessing proxy container shell..."
+	@podman exec -it web sh
 
 # Utilities
 brand-assets: ## Generate brand assets for Home Assistant brands repository
@@ -104,12 +116,17 @@ status: ## Show development environment status
 	@echo "📊 Development Environment Status"
 	@echo "=================================="
 	@echo ""
-	@echo "🐳 Docker Status:"
-	@if docker ps -q -f name=hass-real-electricity-price-test | grep -q .; then \
-		echo "  ✅ Container is running"; \
-		echo "  🌐 Home Assistant: http://localhost:8123"; \
+	@echo "🐳 Podman Status:"
+	@if podman ps -q -f name=dc | grep -q .; then \
+		echo "  ✅ Home Assistant container (dc) is running"; \
 	else \
-		echo "  ❌ Container is not running"; \
+		echo "  ❌ Home Assistant container (dc) is not running"; \
+	fi
+	@if podman ps -q -f name=web | grep -q .; then \
+		echo "  ✅ Proxy container (web) is running"; \
+		echo "  🌐 Home Assistant: http://localhost:8080 (via proxy)"; \
+	else \
+		echo "  ❌ Proxy container (web) is not running"; \
 		echo "  💡 Run 'make dev' to start"; \
 	fi
 	@echo ""
@@ -134,7 +151,10 @@ full: lint test sync ## Full development cycle: lint + test + sync
 
 # Aliases for convenience
 start: dev ## Alias for 'dev'
-logs: docker-logs ## Alias for 'docker-logs'
-restart: docker-restart ## Alias for 'docker-restart'
-stop: docker-stop ## Alias for 'docker-stop'
-shell: docker-shell ## Alias for 'docker-shell'
+logs: podman-logs ## Alias for 'podman-logs'
+logs-proxy: podman-logs-proxy ## Alias for 'podman-logs-proxy'
+restart: podman-restart ## Alias for 'podman-restart'
+restart-proxy: podman-restart-proxy ## Alias for 'podman-restart-proxy'
+stop: podman-stop ## Alias for 'podman-stop'
+shell: podman-shell ## Alias for 'podman-shell'
+shell-proxy: podman-shell-proxy ## Alias for 'podman-shell-proxy'

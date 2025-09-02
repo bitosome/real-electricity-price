@@ -510,7 +510,18 @@ This provides accurate electricity pricing according to local tariff rules for t
    pip install -r requirements.txt
    ```
 
-3. Set up pre-commit hooks:
+3. Install Podman and podman-compose:
+   ```bash
+   # macOS
+   brew install podman
+   pip install podman-compose
+   
+   # Linux (example for Ubuntu/Debian)
+   sudo apt-get install podman
+   pip install podman-compose
+   ```
+
+4. Set up pre-commit hooks:
    ```bash
    pre-commit install
    ```
@@ -519,20 +530,35 @@ This provides accurate electricity pricing according to local tariff rules for t
 
 The project includes comprehensive testing support:
 
-#### Docker Test Environment
+#### One-Click Development Environment
 
 ```bash
-# Start test environment
-docker compose up -d
+# Start complete development environment (recommended)
+./scripts/dev-setup.sh
 
-# Access Home Assistant at http://localhost:8123
-# Default login: admin / admin
+# This automatically:
+# - Sets up Podman containers
+# - Installs HACS
+# - Syncs integration files
+# - Starts Home Assistant with everything configured
+```
+
+#### Podman Test Environment
+
+```bash
+# Start test environment manually
+podman-compose up -d
+
+```bash
+# Access Home Assistant at http://localhost:8080 (via proxy)
+# Complete initial setup in browser
 
 # View logs
-docker logs hass-dev-test --tail 50 -f
+podman logs dc --tail 50 -f
 
 # Stop environment
-docker compose down
+podman-compose down
+```
 ```
 
 #### Manual Testing

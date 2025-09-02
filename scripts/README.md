@@ -8,16 +8,17 @@ This directory contains all development and utility scripts for the Real Electri
 ```bash
 ./scripts/dev-setup.sh
 ```
-This script sets up the complete development environment with Home Assistant running in Docker.
+This script sets up the complete development environment with Home Assistant running in Podman.
 
 ## 📋 Available Scripts
 
 ### 🏗️ Environment Setup
 - **`setup.sh`** - Install all development dependencies and tools
-- **`dev-setup.sh`** - Complete one-click development environment setup with Docker
+- **`dev-setup.sh`** - Complete one-click development environment setup with Podman
+- **`install-hacs.sh`** - Install HACS (Home Assistant Community Store) automatically
 
 ### 🔄 Development Workflow
-- **`sync-integration.sh`** - Sync integration files to Docker container
+- **`sync-integration.sh`** - Sync integration files to Podman container
 
 ### 🧪 Testing
 Tests are located in the `tests/` directory:
@@ -35,7 +36,13 @@ Tests are located in the `tests/` directory:
 **One-click development environment setup**
 
 Features:
-- ✅ Checks Docker availability
+- ✅ Checks Podman availability
+- ✅ Sets up Podman machine (macOS)
+- ✅ Syncs integration files to container
+- ✅ Installs HACS automatically
+- ✅ Starts Home Assistant container
+- ✅ Waits for Home Assistant to be ready
+- ✅ Shows access information and next steps
 - ✅ Syncs integration files
 - ✅ Stops existing containers
 - ✅ Starts Home Assistant in Docker
@@ -150,22 +157,22 @@ git add .
 git commit -m "Your commit message"
 ```
 
-## 🐳 Docker Commands
+## 🐳 Podman Commands
 
 The development environment provides these useful commands:
 
 ```bash
 # View logs
-docker logs hass-real-electricity-price-test --tail 50 -f
+podman logs dc --tail 50 -f
 
 # Restart Home Assistant
-docker restart hass-real-electricity-price-test
+podman restart dc
 
 # Stop environment
-docker compose down
+podman-compose down
 
 # Access container shell
-docker exec -it hass-real-electricity-price-test bash
+podman exec -it dc bash
 ```
 
 ## 🔍 Troubleshooting
@@ -175,16 +182,16 @@ docker exec -it hass-real-electricity-price-test bash
 chmod +x scripts/*.sh
 ```
 
-### Docker Issues
+### Podman Issues
 ```bash
-# Check Docker status
-docker ps
+# Check Podman status
+podman ps
 
 # Check container logs
-docker logs hass-real-electricity-price-test
+podman logs dc
 
-# Restart Docker
-docker restart hass-real-electricity-price-test
+# Restart Podman container
+podman restart dc
 ```
 
 ### Import Errors

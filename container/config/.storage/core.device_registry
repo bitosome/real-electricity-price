@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "minor_version": 11,
+  "key": "core.device_registry",
+  "data": {
+    "devices": [
+      {"area_id":null,"config_entries":["01K455A6FZNYT0W3ZKH90VHTAP"],"config_entries_subentries":{"01K455A6FZNYT0W3ZKH90VHTAP":[null]},"configuration_url":"homeassistant://config/backup","connections":[],"created_at":"2025-09-02T12:09:33.441155+00:00","disabled_by":null,"entry_type":"service","hw_version":null,"id":"c6f75e0e6bb76b302a70bbe75ed70537","identifiers":[["backup","backup_manager"]],"labels":[],"manufacturer":"Home Assistant","model":"Home Assistant Backup","model_id":null,"modified_at":"2025-09-02T12:09:33.441175+00:00","name_by_user":null,"name":"Backup","primary_config_entry":"01K455A6FZNYT0W3ZKH90VHTAP","serial_number":null,"sw_version":"2025.8.3","via_device_id":null},
+      {"area_id":null,"config_entries":["01K456F8ND3QBSX6BJ65D6BS9Q"],"config_entries_subentries":{"01K456F8ND3QBSX6BJ65D6BS9Q":[null]},"configuration_url":null,"connections":[],"created_at":"2025-09-02T12:29:49.060549+00:00","disabled_by":null,"entry_type":"service","hw_version":null,"id":"b8dea094b92ddad573dc8ac3c04adc01","identifiers":[["real_electricity_price","01K456F8ND3QBSX6BJ65D6BS9Q"]],"labels":[],"manufacturer":"bitosome","model":"Real Electricity Price","model_id":null,"modified_at":"2025-09-02T12:29:49.060573+00:00","name_by_user":null,"name":"Real Electricity Price","primary_config_entry":"01K456F8ND3QBSX6BJ65D6BS9Q","serial_number":null,"sw_version":null,"via_device_id":null},
+      {"area_id":null,"config_entries":["01K45709D3117VB7E85NZ79WMR"],"config_entries_subentries":{"01K45709D3117VB7E85NZ79WMR":[null]},"configuration_url":null,"connections":[],"created_at":"2025-09-02T12:39:05.892416+00:00","disabled_by":null,"entry_type":"service","hw_version":null,"id":"d875968c46cdc293a0023c5ce2c2b509","identifiers":[["sun","01K45709D3117VB7E85NZ79WMR"]],"labels":[],"manufacturer":null,"model":null,"model_id":null,"modified_at":"2025-09-02T12:39:05.892433+00:00","name_by_user":null,"name":"Sun","primary_config_entry":"01K45709D3117VB7E85NZ79WMR","serial_number":null,"sw_version":null,"via_device_id":null}
+    ],
+    "deleted_devices": []
+  }
+}

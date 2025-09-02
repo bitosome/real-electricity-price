@@ -1,21 +1,36 @@
-# Docker Test Environment for Real Electricity Price Integration
+# Podman Test Environment with Nginx Reverse Proxy
 
-This directory contains a complete Docker-based Home Assistant test environment for testing the Real Electricity Price integration via HACS.
+This directory contains a complete Podman-based Home Assistant test environment with maximum network discretion using an Nginx reverse proxy.
+
+## 🛡️ Maximum Network Discretion
+
+**What makes this discrete:**
+- ✅ **Non-descriptive container names**: `dc` and `web`
+- ✅ **Custom port**: Access on `8080` instead of standard `8123`
+- ✅ **Proxy masking**: Nginx hides Home Assistant identity
+- ✅ **Generic server headers**: Appears as "Web Server"
+- ✅ **No direct HA exposure**: Port 8123 not accessible externally
+- ✅ **Internal network**: Containers communicate on private bridge
 
 ## Quick Start
 
 1. **Start the test environment:**
    ```bash
-   docker-compose up -d
+   ./scripts/dev-setup.sh
+   ```
+   OR manually:
+   ```bash
+   podman-compose up -d
    ```
 
 2. **Access Home Assistant:**
-   - Open http://localhost:8123 in your browser
+   - Open http://localhost:8080 in your browser (via proxy)
    - Complete the initial setup (create user account)
 
-3. **Install HACS (if not already done):**
-   - Follow the guide in `HACS_SETUP.md`
-   - Or run: `./install_hacs.sh` (if available)
+3. **Configure HACS (pre-installed):**
+   - Go to Settings → Devices & Services
+   - Configure HACS integration
+   - Add custom repository: `https://github.com/bitosome/real-electricity-price`
 
 4. **Install the integration via HACS:**
    - Go to HACS → Integrations
@@ -29,19 +44,24 @@ This directory contains a complete Docker-based Home Assistant test environment 
    - Search for "Real Electricity Price"
    - Configure with your preferred settings
 
-4. **View the test dashboard:**
-   - Go to the "Real Electricity Price Test" dashboard
-   - Monitor sensors and debug information
-
 ## What's Included
 
 ### 🏠 **Home Assistant Setup**
-- Latest stable Home Assistant container
+- Latest stable Home Assistant container via Podman
 - Estonian timezone and location (Tallinn)
 - Debug logging enabled for the integration
+- HACS pre-installed and ready to configure
+- **Hidden behind Nginx proxy for maximum discretion**
+
+### 🛡️ **Nginx Reverse Proxy**
+- Generic "Web Server" identification
+- Custom port 8080 (not standard HA port 8123)
+- Header masking and security headers
+- WebSocket support for real-time updates
+- Static asset caching for performance
 
 ### 🧪 **Test Features**
-- HACS integration for testing
+- HACS integration for testing (pre-installed)
 - Current and tomorrow's price displays
 - Price status indicators
 - Average price calculations
@@ -57,43 +77,54 @@ This directory contains a complete Docker-based Home Assistant test environment 
 ## File Structure
 
 ```
-docker/
-├── config/
-│   ├── configuration.yaml    # Main HA configuration
-│   ├── ui-lovelace.yaml     # Test dashboard
-│   ├── automations.yaml     # Empty, ready for testing
-│   ├── scenes.yaml          # Empty scenes file
-│   └── scripts.yaml         # Empty scripts file
-└── docker-compose.yml       # Container configuration
+container/
+├── config/                # Home Assistant configuration
+│   ├── configuration.yaml # Main HA configuration
+│   ├── ui-lovelace.yaml   # Test dashboard
+│   ├── automations.yaml   # Empty, ready for testing
+│   ├── scenes.yaml        # Empty scenes file
+│   ├── scripts.yaml       # Empty scripts file
+│   └── custom_components/ # Pre-installed integrations
+│       ├── hacs/          # HACS files (auto-installed)
+│       └── real_electricity_price/  # Your integration (synced)
+└── nginx/                 # Nginx proxy configuration
+    ├── nginx.conf         # Main Nginx config
+    └── default.conf       # Proxy configuration
 ```
 
 ## Usage
 
 ### Starting the Environment
 ```bash
-# Start in background
-docker-compose up -d
+# Start complete development environment (recommended)
+./scripts/dev-setup.sh
+
+# Or start manually in background
+podman-compose up -d
 
 # Start with logs (for debugging)
-docker-compose up
+podman-compose up
 
 # Stop the environment
-docker-compose down
+podman-compose down
 
 # Reset everything (removes data)
-docker-compose down -v
+podman-compose down -v
 ```
 
 ### Viewing Logs
 ```bash
 # View all logs
-docker-compose logs -f
+podman-compose logs -f
 
-# View just Home Assistant logs
-docker-compose logs -f homeassistant
+# View Home Assistant logs
+podman logs dc -f
+
+# View proxy logs
+podman logs web -f
 
 # View integration logs specifically
-docker-compose exec homeassistant grep "real_electricity_price" /config/home-assistant.log
+podman exec dc grep "real_electricity_price" /config/home-assistant.log
 ```
 
 ### Development Workflow
@@ -132,20 +163,26 @@ Modify these in the integration settings to test different configurations for ot
 
 ### Container Won't Start
 ```bash
-# Check Docker is running
-docker --version
+# Check Podman is running
+podman --version
+
+# On macOS, check Podman machine
+podman machine list
+
+# Start Podman machine if not running
+podman machine start
 
 # Check for port conflicts
 lsof -i :8123
 
 # View detailed logs
-docker-compose logs homeassistant
+podman-compose logs homeassistant
 ```
 
 ### Integration Not Available in HACS
 ```bash
 # Check HACS is properly installed
-docker-compose logs homeassistant | grep -i hacs
+podman logs dc | grep -i hacs
 
 # Verify repository is accessible
 curl -s https://api.github.com/repos/bitosome/real-electricity-price
@@ -157,7 +194,7 @@ curl -s https://api.github.com/repos/bitosome/real-electricity-price
 ### HACS Download Errors
 ```bash
 # Check for file permission errors
-docker-compose logs homeassistant | grep -i "read-only\|permission"
+podman logs dc | grep -i "read-only\|permission"
 
 # Restart HACS
 # Go to HACS → Settings → Restart
@@ -169,7 +206,7 @@ docker-compose logs homeassistant | grep -i "read-only\|permission"
 curl "https://dataportal-api.nordpoolgroup.com/api/DayAheadPrices?date=$(date +%Y-%m-%d)&market=DayAhead&currency=EUR"
 
 # Check network connectivity from container
-docker-compose exec homeassistant ping google.com
+podman exec dc ping google.com
 ```
 
 ## Cleanup
@@ -177,8 +214,8 @@ docker-compose exec homeassistant ping google.com
 To completely remove the test environment:
 ```bash
 # Stop and remove containers, networks, and volumes
-docker-compose down -v
+podman-compose down -v
 
-# Remove the docker directory
-rm -rf docker/
+# Remove the container directory
+rm -rf container/
 ```

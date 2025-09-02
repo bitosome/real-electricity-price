@@ -1,13 +1,23 @@
 # HACS Setup Guide for Testing
 
 ## Current Status
-✅ HACS has been installed and is ready for configuration
+✅ HACS is automatically installed during environment setup
 ✅ Home Assistant is running at http://localhost:8123
 ✅ Real Electricity Price integration is mounted and ready
 
 ## Step-by-Step Setup
 
-### 1. Complete Home Assistant Initial Setup
+### 1. Start Development Environment
+```bash
+./scripts/dev-setup.sh
+```
+This automatically:
+- Sets up Podman containers
+- Installs HACS
+- Syncs your integration files
+- Starts Home Assistant
+
+### 2. Complete Home Assistant Initial Setup
 1. Open http://localhost:8123 in your browser
 2. Create your user account
 3. Complete the initial configuration wizard
@@ -56,7 +66,7 @@
 If you prefer to test directly without HACS:
 
 1. The integration is already mounted at `/config/custom_components/real_electricity_price`
-2. Restart Home Assistant: `docker-compose restart homeassistant`
+2. Restart Home Assistant: `podman restart dc`
 3. Go directly to **Settings** → **Devices & Services** → **Add Integration**
 4. Search for **"Real Electricity Price"** and configure
 
@@ -75,12 +85,12 @@ If you prefer to test directly without HACS:
 ## Troubleshooting
 
 ### HACS Not Appearing
-- Check logs: `docker-compose logs homeassistant | grep -i hacs`
-- Verify files: `ls docker/config/custom_components/hacs/`
-- Restart container: `docker-compose restart homeassistant`
+- Check logs: `podman logs dc | grep -i hacs`
+- Verify files: `ls container/config/custom_components/hacs/`
+- Restart container: `podman restart dc`
 
 ### Integration Not Loading
-- Check integration files: `ls docker/config/custom_components/real_electricity_price/`
+- Check integration files: `ls container/config/custom_components/real_electricity_price/`
 - Check syntax: Run linting on your integration code
 - Check logs for specific error messages
 
@@ -93,19 +103,19 @@ If you prefer to test directly without HACS:
 
 ```bash
 # View logs
-docker-compose logs -f homeassistant
+podman logs dc -f
 
 # Restart Home Assistant
-docker-compose restart homeassistant
+podman restart dc
 
 # Check container status
-docker-compose ps
+podman-compose ps
 
 # Stop environment
-docker-compose down
+podman-compose down
 
 # Access container shell
-docker-compose exec homeassistant bash
+podman exec -it dc bash
 ```
 
 ## Next Steps

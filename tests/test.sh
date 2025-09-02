@@ -103,37 +103,37 @@ config_validation() {
     fi
 }
 
-# Docker integration test
-docker_test() {
-    print_header "Docker Integration Test"
+# Podman integration test
+podman_test() {
+    print_header "Podman Integration Test"
     
-    if ! command -v docker &> /dev/null; then
-        print_warning "Docker not available, skipping Docker tests"
+    if ! command -v podman &> /dev/null; then
+        print_warning "Podman not available, skipping Podman tests"
         return
     fi
     
-    if ! docker info &> /dev/null; then
-        print_warning "Docker not running, skipping Docker tests"
+    if ! podman info &> /dev/null; then
+        print_warning "Podman not running, skipping Podman tests"
         return
     fi
     
-    print_status "Testing Docker setup..."
+    print_status "Testing Podman setup..."
     
     # Sync files
     "$PROJECT_ROOT/scripts/sync-integration.sh" > /dev/null
     
     # Check if container is running
-    if docker ps -q -f name=hass-real-electricity-price-test | grep -q .; then
+    if podman ps -q -f name=dc | grep -q .; then
         print_status "Container is running, checking logs..."
         
         # Check for integration in logs
-        if docker logs hass-real-electricity-price-test 2>&1 | grep -q "real_electricity_price"; then
-            print_success "Integration appears in Docker logs"
+        if podman logs dc 2>&1 | grep -q "real_electricity_price"; then
+            print_success "Integration appears in Podman logs"
         else
-            print_warning "Integration not found in Docker logs"
+            print_warning "Integration not found in Podman logs"
         fi
     else
-        print_warning "Docker container not running"
+        print_warning "Podman container not running"
     fi
 }
 
@@ -159,7 +159,7 @@ run_tests() {
     import_test
     config_validation
     quality_check
-    docker_test
+    podman_test
 }
 
 # Main execution
@@ -183,7 +183,10 @@ case "${1:-}" in
         config_validation
         ;;
     docker)
-        docker_test
+        podman_test
+        ;;
+    podman)
+        podman_test
         ;;
     quality)
         quality_check
