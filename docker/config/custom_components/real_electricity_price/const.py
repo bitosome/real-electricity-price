@@ -70,6 +70,65 @@ PRICE_DECIMAL_PRECISION = 6  # Number of decimal places for all price calculatio
 CONF_CHEAP_PRICE_THRESHOLD = "cheap_price_threshold"
 CHEAP_PRICE_THRESHOLD_DEFAULT = 10.0  # percent above minimum price
 
+# Update triggers - when to recalculate prices
+CONF_UPDATE_TRIGGER = "update_trigger"
+CONF_CHEAP_PRICE_UPDATE_TRIGGER = "cheap_price_update_trigger"
+DEFAULT_UPDATE_TRIGGER = "14:00"  # Default time for main data update
+DEFAULT_CHEAP_PRICE_UPDATE_TRIGGER = "14:30"  # Default time for cheap price calculation
+
+# Time configuration
+CONF_NIGHT_PRICE_START_TIME = "night_price_start_time"
+CONF_NIGHT_PRICE_END_TIME = "night_price_end_time"
+CONF_TIME_FORMAT_24H = "time_format_24h"
+
+# Time defaults
+NIGHT_PRICE_START_TIME_DEFAULT = "22:00"  # Night price start time in HH:MM format
+NIGHT_PRICE_END_TIME_DEFAULT = "07:00"    # Night price end time in HH:MM format  
+TIME_FORMAT_24H_DEFAULT = True            # Use 24-hour time format by default
+
 # Scan interval
 DEFAULT_SCAN_INTERVAL = 3600  # 1 hour in seconds
 CONF_SCAN_INTERVAL = "scan_interval"
+
+
+def parse_time_string(time_str: str) -> tuple[int, int, int]:
+    """Parse time string in HH:MM or HH:MM:SS format.
+    
+    Returns:
+        tuple[int, int, int]: (hour, minute, second)
+    """
+    if not isinstance(time_str, str):
+        raise ValueError("Time string must be a string")
+    
+    parts = time_str.split(":")
+    if len(parts) == 2:
+        # HH:MM format
+        hour, minute = map(int, parts)
+        second = 0
+    elif len(parts) == 3:
+        # HH:MM:SS format
+        hour, minute, second = map(int, parts)
+    else:
+        raise ValueError("Time string must be in HH:MM or HH:MM:SS format")
+    
+    if not (0 <= hour <= 23):
+        raise ValueError("Hour must be between 0 and 23")
+    if not (0 <= minute <= 59):
+        raise ValueError("Minute must be between 0 and 59")
+    if not (0 <= second <= 59):
+        raise ValueError("Second must be between 0 and 59")
+    
+    return hour, minute, second
+
+
+def time_string_to_hour(time_str: str) -> float:
+    """Convert time string to hour as float.
+    
+    Args:
+        time_str: Time string in HH:MM or HH:MM:SS format
+        
+    Returns:
+        float: Hour as decimal (e.g., "14:30" -> 14.5)
+    """
+    hour, minute, second = parse_time_string(time_str)
+    return hour + minute / 60.0 + second / 3600.0

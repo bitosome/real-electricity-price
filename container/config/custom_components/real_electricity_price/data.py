@@ -11,6 +11,7 @@ if TYPE_CHECKING:
 
     from .api import RealElectricityPriceApiClient
     from .coordinator import RealElectricityPriceDataUpdateCoordinator
+    from .cheap_price_coordinator import CheapPriceDataUpdateCoordinator
 
 
 type RealElectricityPriceConfigEntry = ConfigEntry[RealElectricityPriceData]
@@ -22,4 +23,5 @@ class RealElectricityPriceData:
 
     client: RealElectricityPriceApiClient
     coordinator: RealElectricityPriceDataUpdateCoordinator
+    cheap_price_coordinator: CheapPriceDataUpdateCoordinator
     integration: Integration

@@ -51,6 +51,7 @@ if TYPE_CHECKING:
     from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
     from .coordinator import RealElectricityPriceDataUpdateCoordinator
+    from .cheap_price_coordinator import CheapPriceDataUpdateCoordinator
     from .data import RealElectricityPriceConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
@@ -103,25 +104,31 @@ async def async_setup_entry(
 ) -> None:
     """Set up the sensor platform."""
     coordinator = entry.runtime_data.coordinator
+    cheap_price_coordinator = entry.runtime_data.cheap_price_coordinator
 
     entities = []
     for entity_description in ENTITY_DESCRIPTIONS:
         if entity_description.key == "real_electricity_price":
             sensor_type = SENSOR_TYPE_CURRENT_PRICE
+            coord = coordinator
         elif entity_description.key == "real_electricity_prices":
             sensor_type = SENSOR_TYPE_HOURLY_PRICES
+            coord = coordinator
         elif entity_description.key == "real_electricity_price_last_sync":
             sensor_type = SENSOR_TYPE_LAST_SYNC
+            coord = coordinator
         elif entity_description.key == "real_electricity_price_current_tariff":
             sensor_type = SENSOR_TYPE_CURRENT_TARIFF
+            coord = coordinator
         elif entity_description.key == "real_electricity_price_cheap_prices":
             sensor_type = SENSOR_TYPE_CHEAP_PRICES
+            coord = cheap_price_coordinator  # Use separate coordinator for cheap prices
         else:
             continue
 
         entities.append(
             RealElectricityPriceSensor(
-                coordinator=coordinator,
+                coordinator=coord,
                 entity_description=entity_description,
                 sensor_type=sensor_type,
             )
@@ -135,7 +142,7 @@ class RealElectricityPriceSensor(RealElectricityPriceEntity, SensorEntity):
 
     def __init__(
         self,
-        coordinator: RealElectricityPriceDataUpdateCoordinator,
+        coordinator: RealElectricityPriceDataUpdateCoordinator | CheapPriceDataUpdateCoordinator,
         entity_description: SensorEntityDescription,
         sensor_type: str,
     ) -> None:
@@ -437,6 +444,22 @@ class RealElectricityPriceSensor(RealElectricityPriceEntity, SensorEntity):
 
     def _get_cheap_prices_value(self) -> float | None:
         """Get nearest cheap price value based on current time."""
+        # For cheap prices sensor, use the dedicated coordinator
+        if self._sensor_type == SENSOR_TYPE_CHEAP_PRICES:
+            # Check if we have a cheap price coordinator (should be the case for cheap prices sensor)
+            if hasattr(self.coordinator, 'get_current_cheap_price'):
+                current_price = self.coordinator.get_current_cheap_price()
+                if current_price is not None:
+                    return current_price
+                
+                # If not in a cheap period, get the next upcoming cheap price
+                next_cheap = self.coordinator.get_next_cheap_price()
+                if next_cheap:
+                    return round(next_cheap["price"], PRICE_DECIMAL_PRECISION)
+                
+                return None
+        
+        # Fallback to old method for sensors still using main coordinator
         cheap_ranges = self._analyze_cheap_prices()
         if not cheap_ranges:
             return None
@@ -469,6 +492,61 @@ class RealElectricityPriceSensor(RealElectricityPriceEntity, SensorEntity):
 
     def _get_cheap_prices_attributes(self) -> dict[str, Any]:
         """Get attributes for cheap prices sensor."""
+        # For cheap prices sensor, use the dedicated coordinator
+        if self._sensor_type == SENSOR_TYPE_CHEAP_PRICES:
+            if hasattr(self.coordinator, 'data') and self.coordinator.data:
+                cheap_data = self.coordinator.data
+                cheap_ranges = cheap_data.get("cheap_ranges", [])
+                analysis_info = cheap_data.get("analysis_info", {})
+                
+                # Get current status
+                now = datetime.now(timezone.utc)
+                current_status = "outside_cheap_period"
+                next_cheap_info = None
+                
+                # Check if we're in a cheap period
+                for range_data in cheap_ranges:
+                    start_time = datetime.fromisoformat(range_data["start_time"].replace("Z", "+00:00"))
+                    end_time = datetime.fromisoformat(range_data["end_time"].replace("Z", "+00:00"))
+                    
+                    if start_time <= now < end_time:
+                        current_status = "in_cheap_period"
+                        break
+                
+                # Find next cheap period if not currently in one
+                if current_status == "outside_cheap_period":
+                    min_time_diff = None
+                    for range_data in cheap_ranges:
+                        start_time = datetime.fromisoformat(range_data["start_time"].replace("Z", "+00:00"))
+                        if start_time > now:
+                            time_diff = (start_time - now).total_seconds()
+                            if min_time_diff is None or time_diff < min_time_diff:
+                                min_time_diff = time_diff
+                                next_cheap_info = {
+                                    "start_time": range_data["start_time"],
+                                    "end_time": range_data["end_time"],
+                                    "price": range_data["price"],
+                                    "hours_until": round(time_diff / 3600, 2),
+                                }
+                
+                attributes = {
+                    "cheap_price_ranges": cheap_ranges,
+                    "current_status": current_status,
+                    "total_cheap_hours": len(cheap_ranges),
+                    "last_calculation": cheap_data.get("last_update"),
+                    "trigger_time": cheap_data.get("trigger_time"),
+                }
+                
+                # Add analysis info
+                attributes.update(analysis_info)
+                
+                # Add next cheap period info if available
+                if next_cheap_info:
+                    attributes["next_cheap_period"] = next_cheap_info
+                
+                return attributes
+        
+        # Fallback to old method for sensors still using main coordinator
         cheap_ranges = self._analyze_cheap_prices()
         
         # Get configuration

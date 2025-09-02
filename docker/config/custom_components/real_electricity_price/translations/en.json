@@ -23,9 +23,15 @@
                     "vat_grid_transmission_day": "Apply VAT to Grid Transmission (Day)",
                     "vat_supplier_renewable_energy_charge": "Apply VAT to Supplier Renewable Energy Charge",
                     "vat_supplier_margin": "Apply VAT to Supplier Margin",
+                    "time_format_24h": "Use 24-hour time format",
+                    "night_price_start_time": "Night Price Start Time",
+                    "night_price_end_time": "Night Price End Time",
                     "night_price_start_hour": "Night Price Start Hour (0-23)",
                     "night_price_end_hour": "Night Price End Hour (0-23)",
-                    "scan_interval": "Scan Interval (seconds)"
+                    "scan_interval": "Scan Interval (seconds)",
+                    "update_trigger": "Update Trigger (Advanced)",
+                    "cheap_price_update_trigger": "Cheap Price Update Time",
+                    "cheap_price_threshold": "Cheap Price Threshold (%)"
                 }
             }
         },
@@ -63,9 +69,15 @@
                     "vat_grid_transmission_day": "Apply VAT to Grid Transmission (Day)",
                     "vat_supplier_renewable_energy_charge": "Apply VAT to Supplier Renewable Energy Charge",
                     "vat_supplier_margin": "Apply VAT to Supplier Margin",
+                    "time_format_24h": "Use 24-hour time format",
+                    "night_price_start_time": "Night Price Start Time",
+                    "night_price_end_time": "Night Price End Time",
                     "night_price_start_hour": "Night Price Start Hour (0-23)",
                     "night_price_end_hour": "Night Price End Hour (0-23)",
-                    "scan_interval": "Scan Interval (seconds)"
+                    "scan_interval": "Scan Interval (seconds)",
+                    "update_trigger": "Update Trigger (Advanced)",
+                    "cheap_price_update_trigger": "Cheap Price Update Time",
+                    "cheap_price_threshold": "Cheap Price Threshold (%)"
                 }
             }
         }

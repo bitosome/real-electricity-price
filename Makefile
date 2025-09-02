@@ -29,6 +29,10 @@ develop: ## Start local Home Assistant Core development
 	@echo "🏠 Starting local Home Assistant development..."
 	@./scripts/develop.sh
 
+restart-ha: ## Restart Home Assistant with automatic proxy fix
+	@echo "🔄 Restarting Home Assistant..."
+	@./scripts/restart-ha.sh
+
 # File Management
 sync: ## Sync integration files to Podman container
 	@echo "🔄 Syncing integration files..."
@@ -74,6 +78,15 @@ podman-restart: ## Restart Home Assistant container
 podman-restart-proxy: ## Restart Nginx proxy container
 	@echo "🔄 Restarting proxy container..."
 	@podman restart web
+
+podman-restart-all: ## Restart both Home Assistant and proxy containers
+	@echo "🔄 Restarting Home Assistant container..."
+	@podman restart dc
+	@echo "⏳ Waiting for Home Assistant to start..."
+	@sleep 3
+	@echo "🔄 Restarting proxy container..."
+	@podman restart web
+	@echo "✅ Both containers restarted"
 
 podman-stop: ## Stop development environment
 	@echo "🛑 Stopping development environment..."
@@ -153,7 +166,8 @@ full: lint test sync ## Full development cycle: lint + test + sync
 start: dev ## Alias for 'dev'
 logs: podman-logs ## Alias for 'podman-logs'
 logs-proxy: podman-logs-proxy ## Alias for 'podman-logs-proxy'
-restart: podman-restart ## Alias for 'podman-restart'
+restart: restart-ha ## Alias for 'restart-ha' (restarts both containers with connectivity fix)
+restart-basic: podman-restart-all ## Basic restart of both containers without health checks
 restart-proxy: podman-restart-proxy ## Alias for 'podman-restart-proxy'
 stop: podman-stop ## Alias for 'podman-stop'
 shell: podman-shell ## Alias for 'podman-shell'
