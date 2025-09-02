@@ -20,3 +20,8 @@ logger:
     homeassistant.components.button: debug
     homeassistant.helpers.entity: debug
     homeassistant.helpers.update_coordinator: debug
+# Lovelace Resources
+lovelace:
+  resources:
+    - url: /local/community/apexcharts-card/apexcharts-card.js
+      type: module

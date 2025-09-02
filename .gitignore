@@ -115,6 +115,9 @@ docker/config/.*
 # Custom components backup
 custom_components/hacs/
 
+# Container - Exclude all runtime data
+container/
+
 # Test files
 test_*.py
 *_test.py
