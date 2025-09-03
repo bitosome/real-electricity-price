@@ -1,17 +1,6 @@
 """Sensor platform for real_electricity_price."""
 
-from __future_    "real_electricity_price_cheap_hours": (
-        SENSOR_TYPE_CHEAP_HOURS,
-        CheapHoursSensor,
-    ),
-    "real_electricity_price_cheap_hours_end": (
-        SENSOR_TYPE_CHEAP_HOURS_END,
-        CheapHoursEndSensor,
-    ),
-    "real_electricity_price_cheap_hours_start": (
-        SENSOR_TYPE_CHEAP_HOURS_START,
-        CheapHoursStartSensor,
-    ),otations
+from __future__ import annotations
 
 import logging
 from typing import TYPE_CHECKING
@@ -41,30 +30,24 @@ _LOGGER = logging.getLogger(__name__)
 # Sensor type constants
 SENSOR_TYPE_CURRENT_PRICE = "current_price"
 SENSOR_TYPE_CURRENT_TARIFF = "current_tariff"
-SENSOR_TYPE_LAST_SYNC = "last_sync"
-SENSOR_TYPE_LAST_CHEAP_CALCULATION = "last_cheap_calculation"
-SENSOR_TYPE_HOURLY_PRICES_YESTERDAY = "hourly_prices_yesterday"
 SENSOR_TYPE_HOURLY_PRICES_TODAY = "hourly_prices_today"
 SENSOR_TYPE_HOURLY_PRICES_TOMORROW = "hourly_prices_tomorrow"
+SENSOR_TYPE_HOURLY_PRICES_YESTERDAY = "hourly_prices_yesterday"
+SENSOR_TYPE_LAST_SYNC = "last_sync"
+SENSOR_TYPE_LAST_CHEAP_CALCULATION = "last_cheap_calculation"
 SENSOR_TYPE_CHEAP_HOURS = "cheap_hours"
-SENSOR_TYPE_CHEAP_HOURS_END = "cheap_hours_end"
 SENSOR_TYPE_CHEAP_HOURS_START = "cheap_hours_start"
+SENSOR_TYPE_CHEAP_HOURS_END = "cheap_hours_end"
 
-# Mapping of entity descriptions to sensor types and classes
-SENSOR_MAPPING = {
-    "real_electricity_price": (SENSOR_TYPE_CURRENT_PRICE, CurrentPriceSensor),
+# Sensor registry mapping sensor keys to their types and classes
+SENSOR_REGISTRY = {
+    "real_electricity_price_current_price": (
+        SENSOR_TYPE_CURRENT_PRICE,
+        CurrentPriceSensor,
+    ),
     "real_electricity_price_current_tariff": (
         SENSOR_TYPE_CURRENT_TARIFF,
         CurrentTariffSensor,
-    ),
-    "real_electricity_price_last_sync": (SENSOR_TYPE_LAST_SYNC, LastSyncSensor),
-    "real_electricity_price_last_cheap_calculation": (
-        SENSOR_TYPE_LAST_CHEAP_CALCULATION,
-        LastCheapCalculationSensor,
-    ),
-    "real_electricity_price_hourly_prices_yesterday": (
-        SENSOR_TYPE_HOURLY_PRICES_YESTERDAY,
-        HourlyPricesYesterdaySensor,
     ),
     "real_electricity_price_hourly_prices_today": (
         SENSOR_TYPE_HOURLY_PRICES_TODAY,
@@ -74,16 +57,28 @@ SENSOR_MAPPING = {
         SENSOR_TYPE_HOURLY_PRICES_TOMORROW,
         HourlyPricesTomorrowSensor,
     ),
-    "real_electricity_price_cheap_prices": (
-        SENSOR_TYPE_CHEAP_PRICES,
+    "real_electricity_price_hourly_prices_yesterday": (
+        SENSOR_TYPE_HOURLY_PRICES_YESTERDAY,
+        HourlyPricesYesterdaySensor,
+    ),
+    "real_electricity_price_last_sync": (
+        SENSOR_TYPE_LAST_SYNC,
+        LastSyncSensor,
+    ),
+    "real_electricity_price_last_cheap_calculation": (
+        SENSOR_TYPE_LAST_CHEAP_CALCULATION,
+        LastCheapCalculationSensor,
+    ),
+    "real_electricity_price_cheap_hours": (
+        SENSOR_TYPE_CHEAP_HOURS,
         CheapHoursSensor,
     ),
-    "real_electricity_price_cheap_price_end": (
-        SENSOR_TYPE_CHEAP_PRICE_END,
+    "real_electricity_price_cheap_hours_end": (
+        SENSOR_TYPE_CHEAP_HOURS_END,
         CheapHoursEndSensor,
     ),
-    "real_electricity_price_cheap_price_start": (
-        SENSOR_TYPE_CHEAP_PRICE_START,
+    "real_electricity_price_cheap_hours_start": (
+        SENSOR_TYPE_CHEAP_HOURS_START,
         CheapHoursStartSensor,
     ),
 }
@@ -95,40 +90,63 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the sensor platform."""
-    _LOGGER.debug("Setting up sensor platform for entry: %s", entry.entry_id)
-
-    coordinator = entry.runtime_data.coordinator
-    cheap_hours_coordinator = entry.runtime_data.cheap_hours_coordinator
+    _LOGGER.debug("Setting up sensor platform")
 
     entities = []
 
-    for entity_description in SENSOR_DESCRIPTIONS:
-        _LOGGER.debug("Processing entity description: %s", entity_description.key)
-
-        if entity_description.key not in SENSOR_MAPPING:
-            _LOGGER.warning(
-                "Unknown entity description key: %s", entity_description.key
-            )
+    # Add main coordinator sensors (excluding cheap hours sensors)
+    cheap_hours_keys = {
+        "real_electricity_price_cheap_hours",
+        "real_electricity_price_cheap_hours_start", 
+        "real_electricity_price_cheap_hours_end",
+        "real_electricity_price_last_cheap_calculation"
+    }
+    
+    for description in SENSOR_DESCRIPTIONS:
+        key = description.key
+        # Skip cheap hours sensors - they'll be added separately with the cheap hours coordinator
+        if key in cheap_hours_keys:
             continue
+            
+        if key in SENSOR_REGISTRY:
+            sensor_type, sensor_class = SENSOR_REGISTRY[key]
+            _LOGGER.debug("Creating sensor: %s (type: %s)", key, sensor_type)
 
-        sensor_type, sensor_class = SENSOR_MAPPING[entity_description.key]
-
-        # Determine which coordinator to use
-        if sensor_type in (
-            SENSOR_TYPE_CHEAP_HOURS,
-            SENSOR_TYPE_CHEAP_HOURS_END,
-            SENSOR_TYPE_CHEAP_HOURS_START,
-            SENSOR_TYPE_LAST_CHEAP_CALCULATION,
-        ):
-            coord = cheap_hours_coordinator  # Use separate coordinator for cheap hours
+            entities.append(
+                sensor_class(
+                    coordinator=entry.runtime_data.coordinator,
+                    description=description,
+                )
+            )
         else:
-            coord = coordinator  # Use main coordinator for other sensors
+            _LOGGER.warning("Unknown sensor key: %s", key)
 
-        _LOGGER.debug(
-            "Creating sensor entity: %s -> %s", entity_description.key, sensor_type
-        )
+    # Add cheap hours coordinator sensors
+    cheap_hours_sensors = [
+        "real_electricity_price_cheap_hours",
+        "real_electricity_price_cheap_hours_start",
+        "real_electricity_price_cheap_hours_end",
+        "real_electricity_price_last_cheap_calculation",
+    ]
 
-        entities.append(sensor_class(coord, entity_description))
+    for key in cheap_hours_sensors:
+        # Find the description with matching key
+        description = None
+        for desc in SENSOR_DESCRIPTIONS:
+            if desc.key == key:
+                description = desc
+                break
+        
+        if description and key in SENSOR_REGISTRY:
+            sensor_type, sensor_class = SENSOR_REGISTRY[key]
+            _LOGGER.debug("Creating cheap hours sensor: %s (type: %s)", key, sensor_type)
 
-    _LOGGER.debug("Adding %s sensor entities to Home Assistant", len(entities))
-    async_add_entities(entities)
+            entities.append(
+                sensor_class(
+                    coordinator=entry.runtime_data.cheap_hours_coordinator,
+                    description=description,
+                )
+            )
+
+    _LOGGER.debug("Adding %d sensor entities", len(entities))
+    async_add_entities(entities, update_before_add=True)

@@ -1,4 +1,5 @@
-"""Entity descriptions for Real Electricity Price integration."""
+"""Entity descriptions for Real ElSENSOR_LAST_CHEAP_CALCULATION = SensorEntityDescription(
+    key="real_electricity_price_last_cheap_calculation",tricity Price integration."""
 
 from __future__ import annotations
 
@@ -8,10 +9,11 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.const import CURRENCY_EURO, UnitOfEnergy
+from homeassistant.helpers.entity import EntityCategory
 
 # Price sensors
 SENSOR_CURRENT_PRICE = SensorEntityDescription(
-    key="real_electricity_price",
+    key="real_electricity_price_current_price",
     name="Current Price",
     icon="mdi:flash",
     device_class=SensorDeviceClass.MONETARY,
@@ -30,13 +32,15 @@ SENSOR_LAST_SYNC = SensorEntityDescription(
     name="Last Sync",
     icon="mdi:cloud-refresh-outline",
     device_class=SensorDeviceClass.TIMESTAMP,
+    entity_category=EntityCategory.DIAGNOSTIC,
 )
 
-SENSOR_LAST_CHEAP_HOURS_CALCULATION = SensorEntityDescription(
-    key="real_electricity_price_last_cheap_hours_calculation",
+SENSOR_LAST_CHEAP_CALCULATION = SensorEntityDescription(
+    key="real_electricity_price_last_cheap_calculation",
     name="Last Cheap Hours Calculation",
     icon="mdi:calculator-variant-outline",
     device_class=SensorDeviceClass.TIMESTAMP,
+    entity_category=EntityCategory.DIAGNOSTIC,
 )
 
 SENSOR_HOURLY_PRICES_YESTERDAY = SensorEntityDescription(
@@ -68,21 +72,22 @@ SENSOR_HOURLY_PRICES_TOMORROW = SensorEntityDescription(
 
 SENSOR_CHEAP_HOURS = SensorEntityDescription(
     key="real_electricity_price_cheap_hours",
-    name="Cheap hours",
+    name="Cheap Hours",
     icon="mdi:clock-time-twelve",
     native_unit_of_measurement="h",
+    state_class=SensorStateClass.MEASUREMENT,
 )
 
 SENSOR_CHEAP_HOURS_END = SensorEntityDescription(
     key="real_electricity_price_cheap_hours_end",
-    name="Next Cheap Hours End",
+    name="Cheap Hours End",
     icon="mdi:clock-end",
     device_class=SensorDeviceClass.TIMESTAMP,
 )
 
 SENSOR_CHEAP_HOURS_START = SensorEntityDescription(
     key="real_electricity_price_cheap_hours_start",
-    name="Next Cheap Hours Start",
+    name="Cheap Hours Start",
     icon="mdi:clock-start",
     device_class=SensorDeviceClass.TIMESTAMP,
 )
@@ -92,7 +97,7 @@ SENSOR_DESCRIPTIONS = (
     SENSOR_CURRENT_PRICE,
     SENSOR_CURRENT_TARIFF,
     SENSOR_LAST_SYNC,
-    SENSOR_LAST_CHEAP_HOURS_CALCULATION,
+    SENSOR_LAST_CHEAP_CALCULATION,
     SENSOR_HOURLY_PRICES_YESTERDAY,
     SENSOR_HOURLY_PRICES_TODAY,
     SENSOR_HOURLY_PRICES_TOMORROW,

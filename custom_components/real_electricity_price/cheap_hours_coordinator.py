@@ -6,7 +6,6 @@ import datetime
 import logging
 from typing import TYPE_CHECKING, Any
 
-import pandas as pd
 from homeassistant.const import EVENT_HOMEASSISTANT_STOP
 from homeassistant.core import callback
 from homeassistant.helpers.event import async_track_time_change
@@ -16,7 +15,7 @@ from .const import (
     CHEAP_HOURS_THRESHOLD_DEFAULT,
     CONF_CHEAP_HOURS_THRESHOLD,
     CONF_CHEAP_HOURS_UPDATE_TRIGGER,
-    DEFAULT_CHEAP_PRICE_UPDATE_TRIGGER,
+    DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER,
     PRICE_DECIMAL_PRECISION,
 )
 
@@ -206,21 +205,33 @@ class CheapHoursDataUpdateCoordinator(DataUpdateCoordinator):
                 _LOGGER.debug("No valid price data available for cheap price analysis")
                 return {"cheap_ranges": [], "analysis_info": {}}
 
-            # Create pandas DataFrame for analysis
-            df = pd.DataFrame(all_prices)
-            df["start_time_dt"] = pd.to_datetime(df["start_time"])
-            df = df.sort_values("start_time_dt")
+            # Convert to list of dicts and add parsed datetime for analysis
+            price_list = []
+            for price in all_prices:
+                try:
+                    # Parse datetime string
+                    start_time_dt = datetime.datetime.fromisoformat(price["start_time"].replace('Z', '+00:00'))
+                    price_list.append({
+                        **price,
+                        "start_time_dt": start_time_dt
+                    })
+                except Exception as e:
+                    _LOGGER.warning(f"Failed to parse datetime {price.get('start_time')}: {e}")
+                    continue
+
+            # Sort by start time
+            price_list.sort(key=lambda x: x["start_time_dt"])
 
             # Filter for future prices only (NOW onwards)
             current_time = datetime.datetime.now(datetime.UTC)
-            df = df[df["start_time_dt"] >= current_time].copy()
+            future_prices = [p for p in price_list if p["start_time_dt"] >= current_time]
 
-            if df.empty:
+            if not future_prices:
                 _LOGGER.debug("No future price data available for cheap price analysis")
                 return {"cheap_ranges": [], "analysis_info": {}}
 
             # Find minimum price
-            min_price = df["price"].min()
+            min_price = min(p["price"] for p in future_prices)
 
             # Get threshold from configuration
             config = {**self.config_entry.data, **self.config_entry.options}
@@ -232,9 +243,9 @@ class CheapHoursDataUpdateCoordinator(DataUpdateCoordinator):
             max_cheap_price = min_price * (1 + threshold_percent / 100)
 
             # Filter cheap prices
-            cheap_df = df[df["price"] <= max_cheap_price].copy()
+            cheap_prices = [p for p in future_prices if p["price"] <= max_cheap_price]
 
-            if cheap_df.empty:
+            if not cheap_prices:
                 _LOGGER.debug(
                     "No cheap prices found with threshold %s%%", threshold_percent
                 )
@@ -247,14 +258,10 @@ class CheapHoursDataUpdateCoordinator(DataUpdateCoordinator):
                 }
 
             # Group consecutive hours into ranges
-            cheap_ranges = self._group_consecutive_hours(cheap_df)
+            cheap_ranges = self._group_consecutive_hours(cheap_prices)
 
             # Calculate analysis period based on actual future data analyzed
-            if not df.empty:
-                total_hours = len(df)
-                analysis_period_hours = total_hours
-            else:
-                analysis_period_hours = 0
+            analysis_period_hours = len(future_prices)
 
             analysis_info = {
                 "min_price": round(min_price, PRICE_DECIMAL_PRECISION),
@@ -281,24 +288,23 @@ class CheapHoursDataUpdateCoordinator(DataUpdateCoordinator):
             _LOGGER.error("Error analyzing cheap prices: %s", e, exc_info=True)
             return {"cheap_ranges": [], "analysis_info": {}}
 
-    def _group_consecutive_hours(self, cheap_df) -> list[dict[str, Any]]:
+    def _group_consecutive_hours(self, cheap_prices: list[dict]) -> list[dict[str, Any]]:
         """Group consecutive cheap hours into time ranges."""
-        if cheap_df.empty:
+        if not cheap_prices:
             return []
 
         ranges = []
         current_range = None
 
-        for _, row in cheap_df.iterrows():
-            start_time = pd.to_datetime(row["start_time"])
-            pd.to_datetime(row["end_time"])
-            price = row["price"]
+        for price_data in cheap_prices:
+            start_time_dt = price_data["start_time_dt"]
+            price = price_data["price"]
 
             if current_range is None:
                 # Start new range
                 current_range = {
-                    "start_time": row["start_time"],
-                    "end_time": row["end_time"],
+                    "start_time": price_data["start_time"],
+                    "end_time": price_data["end_time"],
                     "price": price,  # Use first price in range
                     "min_price": price,
                     "max_price": price,
@@ -308,26 +314,43 @@ class CheapHoursDataUpdateCoordinator(DataUpdateCoordinator):
                 }
             else:
                 # Check if this hour is consecutive to the current range
-                current_end = pd.to_datetime(current_range["end_time"])
-                if start_time == current_end:
-                    # Extend current range
-                    current_range["end_time"] = row["end_time"]
-                    current_range["hour_count"] += 1
-                    current_range["prices"].append(price)
-                    current_range["min_price"] = min(current_range["min_price"], price)
-                    current_range["max_price"] = max(current_range["max_price"], price)
-                    current_range["avg_price"] = sum(current_range["prices"]) / len(
-                        current_range["prices"]
-                    )
-                else:
-                    # Finish current range and start new one
-                    # Remove the prices list before adding to results (too verbose for attributes)
+                try:
+                    current_end_dt = datetime.datetime.fromisoformat(current_range["end_time"].replace('Z', '+00:00'))
+                    if start_time_dt == current_end_dt:
+                        # Extend current range
+                        current_range["end_time"] = price_data["end_time"]
+                        current_range["hour_count"] += 1
+                        current_range["prices"].append(price)
+                        current_range["min_price"] = min(current_range["min_price"], price)
+                        current_range["max_price"] = max(current_range["max_price"], price)
+                        current_range["avg_price"] = sum(current_range["prices"]) / len(
+                            current_range["prices"]
+                        )
+                    else:
+                        # Finish current range and start new one
+                        # Remove the prices list before adding to results (too verbose for attributes)
+                        current_range.pop("prices", None)
+                        ranges.append(current_range)
+
+                        current_range = {
+                            "start_time": price_data["start_time"],
+                            "end_time": price_data["end_time"],
+                            "price": price,
+                            "min_price": price,
+                            "max_price": price,
+                            "avg_price": price,
+                            "hour_count": 1,
+                            "prices": [price],
+                        }
+                except Exception as e:
+                    _LOGGER.warning(f"Error parsing datetime for consecutive check: {e}")
+                    # Start new range on error
                     current_range.pop("prices", None)
                     ranges.append(current_range)
-
+                    
                     current_range = {
-                        "start_time": row["start_time"],
-                        "end_time": row["end_time"],
+                        "start_time": price_data["start_time"],
+                        "end_time": price_data["end_time"],
                         "price": price,
                         "min_price": price,
                         "max_price": price,

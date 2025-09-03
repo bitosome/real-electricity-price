@@ -19,7 +19,7 @@ from .cheap_hours_coordinator import CheapHoursDataUpdateCoordinator
 from .const import (
     CONF_CHEAP_HOURS_UPDATE_TRIGGER,
     CONF_SCAN_INTERVAL,
-    DEFAULT_CHEAP_PRICE_UPDATE_TRIGGER,
+    DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
     LOGGER,

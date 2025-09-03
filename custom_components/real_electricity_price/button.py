@@ -34,7 +34,7 @@ async def async_setup_entry(
             ),
             RealElectricityPriceCalculateCheapHoursButton(
                 coordinator=entry.runtime_data.coordinator,
-                cheap_coordinator=entry.runtime_data.cheap_price_coordinator,
+                cheap_coordinator=entry.runtime_data.cheap_hours_coordinator,
             ),
         ]
     )

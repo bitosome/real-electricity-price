@@ -6,9 +6,9 @@ import logging
 from datetime import datetime
 from typing import Any
 
-import pandas as pd
 from homeassistant.util import dt as dt_util
 
+from ..entity_descriptions import SENSOR_CHEAP_HOURS
 from .base import RealElectricityPriceBaseSensor
 
 _LOGGER = logging.getLogger(__name__)
@@ -334,13 +334,11 @@ class CheapHoursSensor(RealElectricityPriceBaseSensor):
                 _LOGGER.debug("No valid price data available for cheap price analysis")
                 return []
 
-            # Create pandas DataFrame for analysis
-            df = pd.DataFrame(all_prices)
-            df["start_time_dt"] = pd.to_datetime(df["start_time"])
-            df = df.sort_values("start_time_dt")
+            # Sort prices by start time
+            all_prices.sort(key=lambda x: dt_util.parse_datetime(x["start_time"]))
 
             # Find minimum price
-            min_price = df["price"].min()
+            min_price = min(price_entry["price"] for price_entry in all_prices)
 
             # Get threshold from configuration
             config = self.get_config()
@@ -350,16 +348,19 @@ class CheapHoursSensor(RealElectricityPriceBaseSensor):
             max_cheap_price = min_price * (1 + threshold_percent / 100)
 
             # Filter cheap prices
-            cheap_df = df[df["price"] <= max_cheap_price].copy()
+            cheap_prices = [
+                price_entry for price_entry in all_prices 
+                if price_entry["price"] <= max_cheap_price
+            ]
 
-            if cheap_df.empty:
+            if not cheap_prices:
                 _LOGGER.debug(
                     "No cheap prices found with threshold %s%%", threshold_percent
                 )
                 return []
 
             # Group consecutive hours into ranges
-            cheap_ranges = self._group_consecutive_hours(cheap_df)
+            cheap_ranges = self._group_consecutive_hours(cheap_prices)
 
             _LOGGER.debug(
                 "Found %d cheap price ranges (min: %.6f, max_cheap: %.6f, threshold: %.1f%%)",
@@ -375,23 +376,23 @@ class CheapHoursSensor(RealElectricityPriceBaseSensor):
             _LOGGER.exception("Error analyzing cheap prices")
             return []
 
-    def _group_consecutive_hours(self, cheap_df: pd.DataFrame) -> list[dict[str, Any]]:
+    def _group_consecutive_hours(self, cheap_prices: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Group consecutive cheap price hours into ranges."""
-        if cheap_df.empty:
+        if not cheap_prices:
             return []
 
         ranges = []
         current_range = None
 
-        for _, row in cheap_df.iterrows():
-            start_time = pd.to_datetime(row["start_time"])
-            price = row["price"]
+        for price_entry in cheap_prices:
+            start_time = dt_util.parse_datetime(price_entry["start_time"])
+            price = price_entry["price"]
 
             if current_range is None:
                 # Start new range
                 current_range = {
-                    "start_time": row["start_time"],
-                    "end_time": row["end_time"],
+                    "start_time": price_entry["start_time"],
+                    "end_time": price_entry["end_time"],
                     "hour_count": 1,
                     "min_price": self._round_price(price),
                     "max_price": self._round_price(price),
@@ -400,10 +401,10 @@ class CheapHoursSensor(RealElectricityPriceBaseSensor):
                 }
             else:
                 # Check if this hour is consecutive to the current range
-                current_end_time = pd.to_datetime(current_range["end_time"])
+                current_end_time = dt_util.parse_datetime(current_range["end_time"])
                 if start_time == current_end_time:
                     # Extend current range
-                    current_range["end_time"] = row["end_time"]
+                    current_range["end_time"] = price_entry["end_time"]
                     current_range["hour_count"] += 1
                     current_range["prices"].append(price)
                     current_range["min_price"] = self._round_price(
@@ -422,8 +423,8 @@ class CheapHoursSensor(RealElectricityPriceBaseSensor):
                     ranges.append(current_range)
 
                     current_range = {
-                        "start_time": row["start_time"],
-                        "end_time": row["end_time"],
+                        "start_time": price_entry["start_time"],
+                        "end_time": price_entry["end_time"],
                         "hour_count": 1,
                         "min_price": self._round_price(price),
                         "max_price": self._round_price(price),
@@ -603,7 +604,7 @@ class CheapHoursEndSensor(RealElectricityPriceBaseSensor):
     def _analyze_cheap_prices(self) -> list[dict[str, Any]]:
         """Reuse the analysis from CheapHoursSensor."""
         # Create a temporary instance to reuse the analysis logic
-        temp_sensor = CheapHoursSensor(self.coordinator, None)
+        temp_sensor = CheapHoursSensor(self.coordinator, SENSOR_CHEAP_HOURS)
         return temp_sensor._analyze_cheap_prices()
 
 
@@ -699,5 +700,5 @@ class CheapHoursStartSensor(RealElectricityPriceBaseSensor):
     def _analyze_cheap_prices(self) -> list[dict[str, Any]]:
         """Reuse the analysis from CheapHoursSensor."""
         # Create a temporary instance to reuse the analysis logic
-        temp_sensor = CheapHoursSensor(self.coordinator, None)
+        temp_sensor = CheapHoursSensor(self.coordinator, SENSOR_CHEAP_HOURS)
         return temp_sensor._analyze_cheap_prices()
