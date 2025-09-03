@@ -437,16 +437,16 @@ class RealElectricityPriceFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                     )  # 5 min to 24 hours
                 ),
                 vol.Optional(
-                    CONF_CHEAP_PRICE_UPDATE_TRIGGER,
+                    CONF_CHEAP_HOURS_UPDATE_TRIGGER,
                     default={"hour": 14, "minute": 30}
-                    if CONF_CHEAP_PRICE_UPDATE_TRIGGER not in user_input
-                    else user_input.get(CONF_CHEAP_PRICE_UPDATE_TRIGGER),
+                    if CONF_CHEAP_HOURS_UPDATE_TRIGGER not in user_input
+                    else user_input.get(CONF_CHEAP_HOURS_UPDATE_TRIGGER),
                 ): selector.TimeSelector(),
                 # Cheap price analysis
                 vol.Optional(
-                    CONF_CHEAP_PRICE_THRESHOLD,
+                    CONF_CHEAP_HOURS_THRESHOLD,
                     default=user_input.get(
-                        CONF_CHEAP_PRICE_THRESHOLD, CHEAP_PRICE_THRESHOLD_DEFAULT
+                        CONF_CHEAP_HOURS_THRESHOLD, CHEAP_HOURS_THRESHOLD_DEFAULT
                     ),
                 ): selector.NumberSelector(
                     selector.NumberSelectorConfig(min=0, max=100, step=0.1, mode="box")
@@ -722,21 +722,21 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     )  # 5 min to 24 hours
                 ),
                 vol.Optional(
-                    CONF_CHEAP_PRICE_UPDATE_TRIGGER,
+                    CONF_CHEAP_HOURS_UPDATE_TRIGGER,
                     default=options_data.get(
-                        CONF_CHEAP_PRICE_UPDATE_TRIGGER,
+                        CONF_CHEAP_HOURS_UPDATE_TRIGGER,
                         current_data.get(
-                            CONF_CHEAP_PRICE_UPDATE_TRIGGER, {"hour": 14, "minute": 30}
+                            CONF_CHEAP_HOURS_UPDATE_TRIGGER, {"hour": 14, "minute": 30}
                         ),
                     ),
                 ): selector.TimeSelector(),
                 # Cheap price analysis
                 vol.Optional(
-                    CONF_CHEAP_PRICE_THRESHOLD,
+                    CONF_CHEAP_HOURS_THRESHOLD,
                     default=options_data.get(
-                        CONF_CHEAP_PRICE_THRESHOLD,
+                        CONF_CHEAP_HOURS_THRESHOLD,
                         current_data.get(
-                            CONF_CHEAP_PRICE_THRESHOLD, CHEAP_PRICE_THRESHOLD_DEFAULT
+                            CONF_CHEAP_HOURS_THRESHOLD, CHEAP_HOURS_THRESHOLD_DEFAULT
                         ),
                     ),
                 ): selector.NumberSelector(
