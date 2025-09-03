@@ -35,7 +35,7 @@ make test
 ./tests/test.sh syntax    # Syntax validation
 ./tests/test.sh import    # Import tests
 ./tests/test.sh config    # Configuration tests
-./tests/test.sh docker    # Podman integration tests
+./tests/test.sh podman    # Podman integration tests
 ./tests/test.sh quality   # Code quality checks
 ```
 

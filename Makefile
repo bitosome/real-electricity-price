@@ -3,7 +3,7 @@
 # This Makefile provides convenient shortcuts for common development tasks.
 #
 
-.PHONY: help setup dev sync test lint clean docker-logs docker-restart docker-stop brand-assets install-deps
+.PHONY: help setup dev sync test lint clean podman-logs podman-restart podman-stop brand-assets install-deps
 
 # Default target
 help: ## Show this help message
@@ -52,8 +52,8 @@ test-import: ## Run import test only
 test-config: ## Run configuration validation only
 	@./tests/test.sh config
 
-test-docker: ## Run Podman integration test only
-	@./tests/test.sh docker
+test-podman: ## Run Podman integration test only
+	@./tests/test.sh podman
 
 test-quality: ## Run code quality check only
 	@./tests/test.sh quality

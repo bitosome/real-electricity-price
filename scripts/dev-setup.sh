@@ -3,7 +3,7 @@
 # Real Electricity Price - One-Click Development Setup
 # 
 # This script sets up the complete development environment with Home Assistant
-# running in Docker and the integration ready for testing.
+# running in Podman and the integration ready for testing.
 #
 
 set -e

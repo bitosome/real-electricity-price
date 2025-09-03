@@ -9,7 +9,7 @@ homeassistant:
 http:
   use_x_forwarded_for: true
   trusted_proxies:
-    - 10.89.0.0/16  # Internal docker network
+    - 10.89.0.0/16  # Internal podman network
 
 # https://www.home-assistant.io/integrations/logger/
 logger:

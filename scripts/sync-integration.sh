@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 #
-# Sync Integration Files to Docker Container
+# Sync Integration Files to Podman Container
 #
 # This script syncs the integration files from the development directory
-# to the Docker container's custom_components directory.
+# to the Podman container's custom_components directory.
 #
 
 set -e
@@ -28,7 +28,7 @@ print_success() {
 # Sync integration files
 sync_files() {
     SOURCE_DIR="$PROJECT_ROOT/custom_components/real_electricity_price"
-    TARGET_DIR="$PROJECT_ROOT/docker/config/custom_components/real_electricity_price"
+    TARGET_DIR="$PROJECT_ROOT/container/config/custom_components/real_electricity_price"
     
     print_status "Syncing integration files..."
     print_status "From: $SOURCE_DIR"
@@ -43,9 +43,9 @@ sync_files() {
     print_success "Integration files synced successfully"
     
     # Restart Home Assistant if container is running
-    if docker ps -q -f name=hass-real-electricity-price-test | grep -q .; then
+    if podman ps -q -f name=dc | grep -q .; then
         print_status "Restarting Home Assistant container..."
-        docker restart hass-real-electricity-price-test > /dev/null
+        podman restart dc > /dev/null
         print_success "Home Assistant restarted"
         print_status "Wait 10-15 seconds for Home Assistant to reload"
     else

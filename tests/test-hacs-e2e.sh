@@ -47,19 +47,19 @@ check_dependencies() {
     fi
     print_status "✅ Python 3 found"
     
-    # Check Docker
-    if ! command -v docker &> /dev/null; then
-        print_error "Docker is required but not installed"
+    # Check Podman
+    if ! command -v podman &> /dev/null; then
+        print_error "Podman is required but not installed"
         exit 1
     fi
-    print_status "✅ Docker found"
+    print_status "✅ Podman found"
     
-    # Check Docker daemon
-    if ! docker info &> /dev/null; then
-        print_error "Docker daemon is not running"
+    # Check Podman daemon
+    if ! podman info &> /dev/null; then
+        print_error "Podman is not running"
         exit 1
     fi
-    print_status "✅ Docker daemon running"
+    print_status "✅ Podman running"
     
     # Check if port 8123 is available
     if lsof -Pi :8123 -sTCP:LISTEN -t >/dev/null 2>&1; then
@@ -79,7 +79,7 @@ install_dependencies() {
         print_success "Dependencies installed"
     else
         print_warning "test-requirements.txt not found, installing manually..."
-        pip3 install aiohttp docker PyYAML pytest pytest-asyncio
+        pip3 install aiohttp PyYAML pytest pytest-asyncio
         print_success "Dependencies installed manually"
     fi
 }
@@ -89,10 +89,10 @@ cleanup_existing() {
     print_header "Cleaning Up Existing Test Containers"
     
     # Stop and remove existing test containers
-    if docker ps -a --format "table {{.Names}}" | grep -q "hass-e2e-test"; then
+    if podman ps -a --format "table {{.Names}}" | grep -q "hass-e2e-test"; then
         print_status "Stopping existing test container..."
-        docker stop hass-e2e-test 2>/dev/null || true
-        docker rm hass-e2e-test 2>/dev/null || true
+        podman stop hass-e2e-test 2>/dev/null || true
+        podman rm hass-e2e-test 2>/dev/null || true
         print_success "Existing container cleaned up"
     else
         print_status "No existing test containers found"
@@ -112,7 +112,7 @@ run_test() {
     
     print_status "Starting comprehensive integration test..."
     print_status "This test will:"
-    echo "  1. 🚀 Start Home Assistant in Docker"
+    echo "  1. 🚀 Start Home Assistant in Podman"
     echo "  2. 📦 Install Real Electricity Price via HACS simulation"
     echo "  3. ⚙️ Configure the integration"
     echo "  4. 🔍 Verify all entities are created"
@@ -145,7 +145,7 @@ show_results() {
         echo -e "${RED}❌ SOME TESTS FAILED!${NC}"
         echo -e "${RED}Please check the detailed output above for specific failures${NC}"
         echo -e "${YELLOW}Common issues:${NC}"
-        echo -e "  • Docker permissions (try: sudo usermod -aG docker \$USER)"
+        echo -e "  • Podman permissions (try: sudo usermod -aG podman \$USER)"
         echo -e "  • Port 8123 already in use"
         echo -e "  • Network connectivity issues"
         echo -e "  • Insufficient system resources"

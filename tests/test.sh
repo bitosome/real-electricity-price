@@ -182,10 +182,11 @@ case "${1:-}" in
     config)
         config_validation
         ;;
-    docker)
+    podman)
         podman_test
         ;;
-    podman)
+    docker)
+        # Legacy support - redirect to podman
         podman_test
         ;;
     quality)

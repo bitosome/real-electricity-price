@@ -43,9 +43,9 @@ show_usage() {
     echo "Available test types:"
     echo "  basic       - Run basic integration tests (syntax, imports)"
     echo "  config      - Test configuration flow"
-    echo "  docker      - Test Docker environment setup"
+    echo "  podman      - Test Podman environment setup"
     echo "  hacs-simple - Run simplified HACS installation test"
-    echo "  hacs-full   - Run full HACS E2E test (requires Docker)"
+    echo "  hacs-full   - Run full HACS E2E test (requires Podman)"
     echo "  all         - Run all tests (default)"
     echo "  help        - Show this help message"
     echo ""
@@ -100,20 +100,20 @@ run_config_tests() {
     print_success "✅ Configuration tests passed"
 }
 
-# Docker tests
-run_docker_tests() {
-    print_header "Running Docker Tests"
+# Podman tests
+run_podman_tests() {
+    print_header "Running Podman Tests"
     
-    print_status "Testing Docker environment..."
-    if command -v docker &> /dev/null; then
-        if docker info &> /dev/null; then
-            print_success "✅ Docker is available and running"
+    print_status "Testing Podman environment..."
+    if command -v podman &> /dev/null; then
+        if podman info &> /dev/null; then
+            print_success "✅ Podman is available and running"
         else
-            print_error "❌ Docker daemon not running"
+            print_error "❌ Podman daemon not running"
             return 1
         fi
     else
-        print_error "❌ Docker not installed"
+        print_error "❌ Podman not installed"
         return 1
     fi
 }
@@ -123,7 +123,7 @@ run_hacs_simple_test() {
     print_header "Running Simplified HACS Test"
     
     print_status "Installing test dependencies..."
-    pip3 install -q docker PyYAML
+    pip3 install -q PyYAML
     
     print_status "Running HACS simulation test..."
     python3 test_hacs_simple.py
@@ -190,14 +190,14 @@ run_all_tests() {
         failed_tests=$((failed_tests + 1))
     fi
     
-    # Docker tests (optional)
-    if run_docker_tests; then
-        # Only run HACS tests if Docker is available
+    # Podman tests (optional)
+    if run_podman_tests; then
+        # Only run HACS tests if Podman is available
         if ! run_hacs_simple_test; then
             failed_tests=$((failed_tests + 1))
         fi
     else
-        print_warning "⚠️ Skipping HACS tests (Docker not available)"
+        print_warning "⚠️ Skipping HACS tests (Podman not available)"
     fi
     
     # Summary
@@ -222,8 +222,8 @@ main() {
         config)
             run_config_tests
             ;;
-        docker)
-            run_docker_tests
+        podman)
+            run_podman_tests
             ;;
         precision)
             run_precision_tests

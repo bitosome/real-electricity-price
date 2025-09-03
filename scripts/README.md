@@ -45,7 +45,7 @@ Features:
 - ✅ Shows access information and next steps
 - ✅ Syncs integration files
 - ✅ Stops existing containers
-- ✅ Starts Home Assistant in Docker
+- ✅ Starts Home Assistant in Podman
 - ✅ Waits for startup completion
 - ✅ Shows access information and commands
 
@@ -57,7 +57,7 @@ Usage:
 After running, access Home Assistant at http://localhost:8123 (admin/admin)
 
 ### sync-integration.sh
-**Sync integration files to Docker container**
+**Sync integration files to Podman container**
 
 Use this when you make changes to integration files and want to test them:
 
@@ -80,7 +80,7 @@ Run specific tests:
 ./scripts/test.sh syntax   # Syntax check only
 ./scripts/test.sh import   # Import test only
 ./scripts/test.sh config   # Configuration validation
-./scripts/test.sh docker   # Docker integration test
+./scripts/test.sh podman   # Podman integration test
 ./scripts/test.sh quality  # Code quality check
 ```
 
@@ -112,7 +112,7 @@ Features:
 ### develop.sh
 **Local Home Assistant Core development**
 
-For development without Docker:
+For development without Podman:
 
 ```bash
 ./scripts/develop.sh
@@ -210,7 +210,7 @@ scripts/
 ├── README.md                 # This file
 ├── dev-setup.sh             # One-click development setup
 ├── setup.sh                 # Install dependencies
-├── sync-integration.sh      # Sync files to Docker
+├── sync-integration.sh      # Sync files to Podman
 ├── develop.sh               # Local HA Core development
 ├── test.sh                  # Testing suite
 ├── lint.sh                  # Code quality
@@ -222,7 +222,7 @@ scripts/
 - **Always run `./scripts/dev-setup.sh` for new development sessions**
 - **Use `./scripts/sync-integration.sh` after making changes**
 - **Run `./scripts/test.sh` before committing**
-- **Keep Docker running for faster development cycles**
+- **Keep Podman running for faster development cycles**
 - **Use `./scripts/lint.sh` to maintain code quality**
 
 Happy coding! 🚀

@@ -55,7 +55,7 @@ Then access Home Assistant at **http://localhost:8080** (via proxy)
 - **`custom_components/real_electricity_price/`** - Main integration code
 - **`scripts/`** - Development and utility scripts  
 - **`container/config/`** - Podman container configuration
-- **`docker-compose.yml`** - Container orchestration (using Podman)
+- **`docker-compose.yml`** - Container orchestration using podman-compose
 - **`README.md`** - Full documentation and user guide
 
 ## 🏪 HACS Integration
