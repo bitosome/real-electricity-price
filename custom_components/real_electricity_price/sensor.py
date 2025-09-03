@@ -89,6 +89,7 @@ def datetime_serializer(obj):
 SENSOR_TYPE_CURRENT_PRICE = "current_price"
 SENSOR_TYPE_HOURLY_PRICES = "hourly_prices"
 SENSOR_TYPE_LAST_SYNC = "last_sync"
+SENSOR_TYPE_LAST_CHEAP_CALCULATION = "last_cheap_calculation"
 SENSOR_TYPE_CURRENT_TARIFF = "current_tariff"
 SENSOR_TYPE_CHEAP_PRICES = "cheap_prices"
 
@@ -112,6 +113,12 @@ ENTITY_DESCRIPTIONS = (
         device_class=SensorDeviceClass.TIMESTAMP,
     ),
     SensorEntityDescription(
+        key="real_electricity_price_last_cheap_calculation",
+        name="Last Cheap Price Calculation",
+        icon="mdi:calculator-variant",
+        device_class=SensorDeviceClass.TIMESTAMP,
+    ),
+    SensorEntityDescription(
         key="real_electricity_price_current_tariff",
         name="Current Tariff",
         icon="mdi:weather-night",
@@ -132,11 +139,17 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the sensor platform."""
+    print("CRITICAL DEBUG: async_setup_entry called in sensor.py!")  # Should appear in console
+    _LOGGER.critical("CRITICAL DEBUG: async_setup_entry called in sensor.py!")  # Should appear in logs
+    _LOGGER.warning(f"SENSOR SETUP ENTRY CALLED - Starting async_setup_entry for entry: {entry.entry_id}")
     coordinator = entry.runtime_data.coordinator
     cheap_price_coordinator = entry.runtime_data.cheap_price_coordinator
 
     entities = []
+    print(f"DEBUG: Processing {len(ENTITY_DESCRIPTIONS)} entity descriptions")
     for entity_description in ENTITY_DESCRIPTIONS:
+        print(f"DEBUG: Processing entity: {entity_description.key}")
+        _LOGGER.debug(f"Processing entity description: {entity_description.key}")
         if entity_description.key == "real_electricity_price":
             sensor_type = SENSOR_TYPE_CURRENT_PRICE
             coord = coordinator
@@ -146,6 +159,11 @@ async def async_setup_entry(
         elif entity_description.key == "real_electricity_price_last_sync":
             sensor_type = SENSOR_TYPE_LAST_SYNC
             coord = coordinator
+        elif entity_description.key == "real_electricity_price_last_cheap_calculation":
+            sensor_type = SENSOR_TYPE_LAST_CHEAP_CALCULATION
+            coord = cheap_price_coordinator  # Use cheap price coordinator for this sensor
+            print(f"DEBUG: Found last_cheap_calculation sensor!")
+            _LOGGER.debug(f"Setting up new sensor: {entity_description.key} with type {sensor_type}")
         elif entity_description.key == "real_electricity_price_current_tariff":
             sensor_type = SENSOR_TYPE_CURRENT_TARIFF
             coord = coordinator
@@ -153,8 +171,10 @@ async def async_setup_entry(
             sensor_type = SENSOR_TYPE_CHEAP_PRICES
             coord = cheap_price_coordinator  # Use separate coordinator for cheap prices
         else:
+            _LOGGER.warning(f"Unknown entity description key: {entity_description.key}")
             continue
 
+        _LOGGER.debug(f"Creating sensor entity: {entity_description.key} -> {sensor_type}")
         entities.append(
             RealElectricityPriceSensor(
                 coordinator=coord,
@@ -163,6 +183,7 @@ async def async_setup_entry(
             )
         )
 
+    _LOGGER.debug(f"Adding {len(entities)} sensor entities to Home Assistant")
     async_add_entities(entities)
 
 
@@ -257,8 +278,11 @@ class RealElectricityPriceSensor(RealElectricityPriceEntity, SensorEntity):
         """Return the native value of the sensor."""
         _LOGGER.debug("native_value called for sensor type: %s", self._sensor_type)
         
+        # For special sensors that don't use coordinator data
         if self._sensor_type == SENSOR_TYPE_LAST_SYNC:
             return self._get_last_sync_value()
+        elif self._sensor_type == SENSOR_TYPE_LAST_CHEAP_CALCULATION:
+            return self._get_last_cheap_calculation_value()
         elif self._sensor_type == SENSOR_TYPE_CURRENT_TARIFF:
             return self._get_current_tariff_value()
         
@@ -283,6 +307,21 @@ class RealElectricityPriceSensor(RealElectricityPriceEntity, SensorEntity):
             return self.coordinator.data["last_sync"]
         # Fallback to current time if no sync data available
         _LOGGER.debug("No last sync data found, using current time")
+        return datetime.now(timezone.utc)
+
+    def _get_last_cheap_calculation_value(self) -> datetime.datetime:
+        """Get the last cheap price calculation timestamp."""
+        _LOGGER.debug("Last cheap calculation sensor: coordinator.data = %s", self.coordinator.data)
+        if self.coordinator.data and "last_update" in self.coordinator.data:
+            last_update = self.coordinator.data["last_update"]
+            _LOGGER.debug("Last cheap calculation found: %s", last_update)
+            return last_update
+        # Fallback to coordinator's last update time
+        if hasattr(self.coordinator, 'last_update_success_time') and self.coordinator.last_update_success_time:
+            _LOGGER.debug("Using coordinator last update success time")
+            return self.coordinator.last_update_success_time
+        # Final fallback to current time
+        _LOGGER.debug("No cheap calculation data found, using current time")
         return datetime.now(timezone.utc)
 
     def _get_current_tariff_value(self) -> str:
@@ -388,7 +427,7 @@ class RealElectricityPriceSensor(RealElectricityPriceEntity, SensorEntity):
     def extra_state_attributes(self) -> dict[str, Any]:
         """Return additional state attributes."""
         # For special sensors that don't use coordinator data
-        if self._sensor_type in (SENSOR_TYPE_LAST_SYNC, SENSOR_TYPE_CURRENT_TARIFF):
+        if self._sensor_type in (SENSOR_TYPE_LAST_SYNC, SENSOR_TYPE_LAST_CHEAP_CALCULATION, SENSOR_TYPE_CURRENT_TARIFF):
             return self._get_special_sensor_attributes()
             
         if not self.coordinator.data:
@@ -404,7 +443,7 @@ class RealElectricityPriceSensor(RealElectricityPriceEntity, SensorEntity):
         return {}
 
     def _get_special_sensor_attributes(self) -> dict[str, Any]:
-        """Get attributes for special sensors (last_sync, current_tariff)."""
+        """Get attributes for special sensors (last_sync, last_cheap_calculation, current_tariff)."""
         if self._sensor_type == SENSOR_TYPE_LAST_SYNC:
             sync_info = {
                 "last_update_time": self.coordinator.last_update_success,
@@ -412,6 +451,16 @@ class RealElectricityPriceSensor(RealElectricityPriceEntity, SensorEntity):
             }
             return {
                 "sync_info": json.dumps(sync_info, indent=2, default=str),
+            }
+        elif self._sensor_type == SENSOR_TYPE_LAST_CHEAP_CALCULATION:
+            # For cheap calculation sensor, get info from cheap price coordinator
+            calculation_info = {
+                "last_calculation_time": self.coordinator.last_update_success,
+                "coordinator_available": self.coordinator.last_update_success,
+                "trigger_time": self.coordinator.data.get("trigger_time") if self.coordinator.data else None,
+            }
+            return {
+                "calculation_info": json.dumps(calculation_info, indent=2, default=str),
             }
         elif self._sensor_type == SENSOR_TYPE_CURRENT_TARIFF:
             config = {**self.coordinator.config_entry.data, **self.coordinator.config_entry.options}

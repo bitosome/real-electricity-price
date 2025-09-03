@@ -4,6 +4,26 @@
 [![GitHub Release][releases-shield]][releases]
 [![License][license-shield]](LICENSE)
 
+A comprehensive Home Assistant integration for real-time electricity pricing from Nord Pool, with advanced cheap price analysis and configurable grid costs for all Nord Pool market areas.
+
+## Version
+
+Current version: v1.1.0
+
+## Latest Features (v1.1.0)
+- **NEW**: Advanced Cheapest Prices sensor with pandas-powered analysis
+- **NEW**: Configurable cheap price threshold (percentage above minimum price)
+- **NEW**: Smart time range grouping for consecutive cheap hours
+- **NEW**: Separate coordinator architecture for optimized performance
+- **NEW**: Time-based triggers for cheap price calculations (default: 14:30)
+- **NEW**: Two service calls for manual data refresh and cheap price recalculation
+- **NEW**: Calculate Cheap Hours button for manual price analysis
+- **ENHANCED**: Rich sensor attributes with detailed price statistics and analysis infoy Price Integration
+
+[![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/custom-components/hacs)
+[![GitHub Release][releases-shield]][releases]
+[![License][license-shield]](LICENSE)
+
 A comprehensive Home Assistant integration for real-time electricity pricing from Nord Pool, with configurable grid costs and supplier charges for Nord Pool market areas.
 
 ## Version
@@ -20,40 +40,61 @@ Current version: v1.1.0
 
 ### 🏠 Unified Se### Common Issues
 
+### Common Issues
+
 #### Integration Won't Load
 ```bash
 # Check logs for import errors
 grep -i "real_electricity_price" /config/home-assistant.log
 ```
 
-#### Integration Logo/Icon Not Displaying
-The integration includes icon and logo files locally, but for official display in Home Assistant:
+#### No Data Available
+1. Verify internet connection and Nord Pool API accessibility
+2. Check configuration parameters (area code, API settings)
+3. Look for API errors in integration logs
+4. Try manual refresh using the "Refresh Data" button
 
-1. **Local Display**: Icon/logo files are included in the integration directory
-2. **Official Branding**: Submit to [Home Assistant brands repository](https://github.com/home-assistant/brands)
-3. **Submission Guide**: See `BRAND_SUBMISSION.md` for complete instructions
-4. **Timeline**: 1-7 days for review, automatic display after merge
+#### Incorrect Prices
+1. Verify grid and supplier parameters in configuration
+2. Check VAT percentage for your country
+3. Validate regional settings (ensure correct Nord Pool area code)
+4. Compare calculated prices with official electricity bill
 
-The integration works perfectly without custom branding - icons are cosmetic improvements only.
+#### Missing Tomorrow's Data
+- Tomorrow's prices are published around 14:00 CET
+- Check if integration has been updated recently
+- Manual refresh may be needed after 14:00
+- Cheap price calculations automatically trigger at 14:30 (configurable)
 
-#### Only One Entity Visible
-If you see only one entity instead of 5 (4 sensors + 1 button):
+#### Cheapest Prices Sensor Not Updating
+1. Check if cheap price threshold is reasonable (default: 10%)
+2. Verify trigger time configuration (default: 14:30)
+3. Try manual recalculation using "Calculate Cheap Hours" button
+4. Check if pandas dependency is installed (`pandas>=1.3.0`)
 
-1. **Check Entity List**: Go to Settings → Devices & Services → Entities, search for "real_electricity_price"
-2. **Check Device View**: Go to Settings → Devices & Services → Real Electricity Price → Click the device
-3. **Check Developer Tools**: Go to Developer Tools → States, search for "real_electricity_price"
+#### Only Seeing Some Entities
+If you see only some entities instead of all 6 sensors + 2 buttons:
+
+1. **Check Entity List**: Settings → Devices & Services → Entities, search for "real_electricity_price"
+2. **Check Device View**: Settings → Devices & Services → Real Electricity Price → Click the device
+3. **Check Developer Tools**: Developer Tools → States, search for "real_electricity_price"
 4. **Verify All Entities**:
    - `sensor.real_electricity_price_current_price`
    - `sensor.real_electricity_price_hourly_prices`
    - `sensor.real_electricity_price_last_sync`
+   - `sensor.real_electricity_price_last_cheap_calculation`
    - `sensor.real_electricity_price_current_tariff`
+   - `sensor.real_electricity_price_cheap_prices`
    - `button.real_electricity_price_refresh_data`
-5. **Force Refresh**: Try restarting Home Assistant or reloading the integration
-
-#### No Data Availablehitecture
-- **Single device** with multiple sensors grouped together
-- **Professional branding** as a real electricity price service
-- **Device-level information** including manufacturer and model
+   - `button.real_electricity_price_calculate_cheap_hours`
+5. **Force Refresh**: Restart Home Assistant or reload the integration
+### 🏠 Modern Architecture
+- **Dual coordinator design** with independent update schedules
+- **Main coordinator** for price data (hourly updates)
+- **Cheap price coordinator** for analysis (time-triggered)
+- **Professional device grouping** with comprehensive sensor suite
+- **Service-based control** for manual updates and calculations
+- **Optimized performance** with separate analysis pipeline
 
 ### 📊 Comprehensive Price Monitoring
 - **Current price sensor** with real-time hourly updates
@@ -63,11 +104,14 @@ If you see only one entity instead of 5 (4 sensors + 1 button):
 - **Current tariff detection** (day/night/weekend/holiday)
 
 ### ⚡ Smart Automation Ready
-- **Automatic hourly updates** when price changes
-- **Manual refresh button** for instant data updates
-- **Rich attributes** with price breakdowns and metadata
-- **Tariff-aware pricing** based on market blocks and holidays
-- **Weekend and holiday detection** for selected country calendar
+### ⚡ Smart Automation Ready
+- **Dual update system** with independent coordinators
+- **Manual control buttons** for instant data refresh and cheap price recalculation  
+- **Rich sensor attributes** with comprehensive price breakdowns and metadata
+- **Time-triggered analysis** for optimal cheap period detection
+- **Service calls** for automation integration
+- **Timezone-aware** tariff detection using Home Assistant local time
+- **Weekend and holiday detection** for automatic night tariff application
 
 ### 🌍 Configurable Pricing Structure
 - **Grid costs**: Excise duty, renewable energy charges, transmission prices
@@ -82,32 +126,87 @@ The integration creates the following sensors under a single device:
 | Sensor | Entity ID | Description | Unit | Update Frequency |
 |--------|-----------|-------------|------|------------------|
 | **Current Price** | `sensor.real_electricity_price_current_price` | Real-time electricity price for current hour | EUR/kWh | Hourly (automatic) |
-| **Hourly Prices** | `sensor.real_electricity_price_hourly_prices` | Complete price array for 3 days (yesterday, today, tomorrow) | EUR/kWh | Hourly |
+| **Hourly Prices** | `sensor.real_electricity_price_hourly_prices` | Complete price array for up to 3 days (yesterday, today, tomorrow) | EUR/kWh | Hourly |
 | **Last Data Sync** | `sensor.real_electricity_price_last_sync` | Timestamp of last successful data update | Timestamp | On each update |
-| **Current Tariff** | `sensor.real_electricity_price_current_tariff` | Current pricing period (day/night) | Text | Real-time |
-| **Refresh Data** | `button.real_electricity_price_refresh_data` | Manual refresh button | Button | Manual |
+| **Last Cheap Price Calculation** | `sensor.real_electricity_price_last_cheap_calculation` | Timestamp of last cheap price analysis | Timestamp | On cheap price calculation |
+| **Current Tariff** | `sensor.real_electricity_price_current_tariff` | Current pricing period (day/night) based on local time | Text | Real-time |
+| **Cheapest Prices** | `sensor.real_electricity_price_cheap_prices` | Advanced analysis of cheapest time periods with configurable threshold | EUR/kWh | Time-triggered (default: 14:30) |
+
+### Buttons
+
+| Button | Entity ID | Description | Function |
+|--------|-----------|-------------|----------|
+| **Refresh Data** | `button.real_electricity_price_refresh_data` | Manual refresh of price data | Triggers immediate API update |
+| **Calculate Cheap Hours** | `button.real_electricity_price_calculate_cheap_hours` | Manual cheap price analysis | Recalculates cheap periods immediately |
+
+### Cheapest Prices Sensor
+
+**NEW in v1.1.0** - Advanced price analysis to identify optimal electricity usage periods:
+
+- **State**: Nearest cheap price (current if in a cheap period, or next upcoming cheap price)
+- **Device Class**: Monetary (EUR/kWh)
+- **Icon**: `mdi:currency-eur-off`
+- **Update Schedule**: Time-triggered (configurable, default: 14:30)
+
+#### Key Features
+- **Smart Analysis**: Uses pandas for efficient price data analysis
+- **Configurable Threshold**: Set percentage above minimum price (default: 10%)
+- **Time Range Grouping**: Groups consecutive cheap hours into periods
+- **Independent Updates**: Separate coordinator for optimized performance
+- **Current Status**: Knows if you're currently in a cheap period
+- **Future-Focused**: Analyzes from current hour onwards only
+
+#### Cheap Price Definition
+- **Cheapest price**: The absolute minimum price in all available data
+- **Other cheap prices**: Prices within X% of the minimum price, where X is configurable
+- **Example**: If minimum price is 0.10 EUR/kWh and threshold is 10%, then all prices ≤ 0.11 EUR/kWh are considered cheap
+
+#### Rich Attributes
+```json
+{
+  "cheap_price_ranges": [
+    {
+      "start_time": "2025-09-01T02:00:00Z",
+      "end_time": "2025-09-01T06:00:00Z", 
+      "price": 0.105,
+      "min_price": 0.100,
+      "max_price": 0.110,
+      "avg_price": 0.106,
+      "hour_count": 4
+    }
+  ],
+  "status_info": {
+    "current_status": "in_cheap_period",
+    "total_cheap_hours": 8,
+    "next_cheap_period": {
+      "start_time": "2025-09-01T22:00:00Z",
+      "average_price": 0.098
+    }
+  },
+  "analysis_info": {
+    "threshold_percent": 10.0,
+    "min_price": 0.100,
+    "max_cheap_price": 0.110
+  }
+}
+```
 
 ### Current Price Sensor
 
 The main sensor provides:
 - **State**: Current hour price in EUR/kWh (all costs included)
 - **Attributes**:
-  - `date`: Data date (YYYY-MM-DD)
-  - `hour_start`: Current hour start time (ISO format)
-  - `hour_end`: Current hour end time (ISO format)
-  - `nord_pool_price`: Base market price before additions
-  - All additional cost components with their current values
-  - `tariff`: Current tariff (day/night)
-  - `is_holiday`: Whether current date is a holiday
-  - `is_weekend`: Whether current date is a weekend
+  - `current_hour_info`: Current hour details (date, start/end times, Nord Pool price, tariff)
+  - `price_components`: Complete breakdown of all cost components (grid, supplier, tax)
 
 ### Hourly Prices Sensor
 
 The hourly prices sensor provides:
 - **State**: Current hour price
 - **Attributes**:
-  - `hourly_prices`: Array of all hourly price objects from yesterday, today, and tomorrow
+  - `hourly_prices`: Array of all hourly price objects from available data
   - `data_sources`: List of available data keys (yesterday, today, tomorrow)
+  - `data_sources_info`: Detailed information about each data source
 
 Each hourly price object contains:
 ```json
@@ -126,46 +225,12 @@ Each hourly price object contains:
 
 Shows the current pricing period:
 - **night**: Off-peak hours, weekends, holidays
-- **day**: Peak hours on business days (based on Nord Pool blocks)
+- **day**: Peak hours on business days (based on local time)
 
 The tariff determination follows this logic:
 1. **Weekends/Holidays**: Always "night" tariff
-2. **Business days**: Based on Nord Pool block aggregates:
-   - "Peak" blocks → "day" tariff
-   - All other blocks → "night" tariff
-
-### Cheapest Prices Sensor
-
-Analyzes all available hourly price data to identify the cheapest time periods:
-
-- **State**: Nearest cheap price (current if in a cheap period, or next upcoming cheap price)
-- **Attributes**:
-  - `cheap_price_ranges`: Array of cheap time periods with detailed information
-  - `threshold_percent`: Configured percentage threshold (default 10%)
-  - `min_price`: Absolute minimum price found in the data
-  - `max_cheap_price`: Maximum price considered "cheap" (min_price + threshold%)
-  - `total_cheap_hours`: Number of cheap hour periods found
-  - `analysis_period`: Time period analyzed (e.g., "3 days")
-  - `data_sources`: Information about data sources used
-
-#### Cheap Price Definition
-
-- **Cheapest price**: The absolute minimum price in all available data
-- **Other cheap prices**: Prices within X% of the minimum price, where X is configurable (default 10%)
-- **Example**: If minimum price is 0.10 EUR/kWh and threshold is 10%, then all prices ≤ 0.11 EUR/kWh are considered cheap
-
-Each cheap price range contains:
-```json
-{
-  "start_time": "2025-09-01T02:00:00Z",
-  "end_time": "2025-09-01T06:00:00Z", 
-  "price": 0.105,
-  "min_price": 0.100,
-  "max_price": 0.110,
-  "avg_price": 0.106,
-  "hour_count": 4
-}
-```
+2. **Business days**: Based on configured night hours (default: 22:00-07:00 local time)
+3. **Timezone-aware**: Uses Home Assistant's configured timezone
 
 ## Installation
 
@@ -243,6 +308,9 @@ The integration can be configured entirely through the Home Assistant UI:
 - **Cheap Price Threshold**: Percentage above minimum price to consider "cheap" (default: 10.0%)
   - Example: If minimum price is 0.10 EUR/kWh and threshold is 10%, then prices ≤ 0.11 EUR/kWh are considered cheap
   - Used by the Cheapest Prices sensor to identify optimal time periods
+- **Cheap Price Update Trigger**: Time when daily cheap price calculation runs (default: "14:30")
+  - Automatically recalculates when tomorrow's prices become available
+  - Can be configured to any time in HH:MM format
 
 ### Configuration Example
 
@@ -258,7 +326,113 @@ real_electricity_price:
   vat: 24.0
 ```
 
+## Services
+
+The integration provides two services for manual control:
+
+### Refresh Data Service
+- **Service**: `real_electricity_price.refresh_data`
+- **Purpose**: Manually refresh electricity price data from Nord Pool API
+- **Usage**: Updates all main sensors (current price, hourly prices, tariff, sync status)
+- **Trigger**: Can be called via service call, automation, or "Refresh Data" button
+
+### Recalculate Cheap Prices Service
+- **Service**: `real_electricity_price.recalculate_cheap_prices`
+- **Purpose**: Manually recalculate cheap price periods based on current configuration
+- **Usage**: Updates the Cheapest Prices sensor immediately
+- **Trigger**: Can be called via service call, automation, or "Calculate Cheap Hours" button
+
+### Service Usage Examples
+
+```yaml
+# Manual refresh of price data
+service: real_electricity_price.refresh_data
+
+# Manual recalculation of cheap prices
+service: real_electricity_price.recalculate_cheap_prices
+
+# Automation to refresh prices at specific times
+automation:
+  - alias: "Refresh prices at 14:00"
+    trigger:
+      - platform: time
+        at: "14:00:00"
+    action:
+      - service: real_electricity_price.refresh_data
+      
+  - alias: "Recalculate cheap prices after refresh"
+    trigger:
+      - platform: state
+        entity_id: sensor.real_electricity_price_last_sync
+    action:
+      - delay: "00:01:00"  # Wait a minute after data refresh
+      - service: real_electricity_price.recalculate_cheap_prices
+```
+
 ## Usage Examples
+
+### Automations for Cheap Electricity Periods
+
+```yaml
+# Get notified when cheap electricity period starts
+automation:
+  - alias: "Notify cheap electricity period"
+    trigger:
+      - platform: state
+        entity_id: sensor.real_electricity_price_cheap_prices
+        attribute: current_status
+        to: "in_cheap_period"
+    action:
+      - service: notify.mobile_app
+        data:
+          title: "⚡ Cheap Electricity!"
+          message: >
+            Cheap period started! Price: {{ states('sensor.real_electricity_price_cheap_prices') }} EUR/kWh
+            Period ends: {{ state_attr('sensor.real_electricity_price_cheap_prices', 'cheap_price_ranges')[0].end_time | as_datetime | as_local }}
+
+# Start energy-intensive devices during cheap periods
+automation:
+  - alias: "Auto washing machine during cheap hours"
+    trigger:
+      - platform: state
+        entity_id: sensor.real_electricity_price_cheap_prices
+        attribute: current_status
+        to: "in_cheap_period"
+    condition:
+      - condition: state
+        entity_id: switch.washing_machine
+        state: "off"
+      - condition: time
+        after: "06:00:00"
+        before: "22:00:00"
+    action:
+      - service: switch.turn_on
+        target:
+          entity_id: switch.washing_machine
+      - service: notify.mobile_app
+        data:
+          message: "🧺 Washing machine started during cheap electricity period"
+
+# Set up EV charging during cheapest hours
+automation:
+  - alias: "EV charging during cheapest hours"
+    trigger:
+      - platform: state
+        entity_id: sensor.real_electricity_price_cheap_prices
+        attribute: current_status
+        to: "in_cheap_period"
+    condition:
+      - condition: numeric_state
+        entity_id: sensor.car_battery_level
+        below: 80
+      - condition: state
+        entity_id: device_tracker.car
+        state: "home"
+    action:
+      - service: switch.turn_on
+        target:
+          entity_id: switch.ev_charger
+```
 
 ### Template Sensors
 
@@ -267,14 +441,52 @@ Create custom sensors in your `configuration.yaml`:
 ```yaml
 template:
   - sensor:
-      - name: "Tomorrow First Hour Price"
+      # Check if currently in cheap price period
+      - name: "Is Cheap Electricity Period"
+        state: >
+          {% set status = state_attr('sensor.real_electricity_price_cheap_prices', 'status_info') %}
+          {{ status.current_status == 'in_cheap_period' if status else false }}
+        icon: >
+          {% set status = state_attr('sensor.real_electricity_price_cheap_prices', 'status_info') %}
+          {% if status and status.current_status == 'in_cheap_period' %}
+            mdi:lightning-bolt
+          {% else %}
+            mdi:lightning-bolt-outline
+          {% endif %}
+
+      # Next cheap period countdown
+      - name: "Next Cheap Period In"
+        state: >
+          {% set status = state_attr('sensor.real_electricity_price_cheap_prices', 'status_info') %}
+          {% if status and status.next_cheap_period %}
+            {% set next_start = status.next_cheap_period.start_time | as_datetime %}
+            {% set diff = (next_start - now()).total_seconds() %}
+            {% if diff > 3600 %}
+              {{ (diff / 3600) | round(1) }} hours
+            {% elif diff > 60 %}
+              {{ (diff / 60) | round(0) }} minutes
+            {% else %}
+              Now
+            {% endif %}
+          {% else %}
+            Unknown
+          {% endif %}
+        icon: "mdi:clock-outline"
+
+      # Tomorrow's cheapest hour
+      - name: "Tomorrow Cheapest Hour Price"
         state: >
           {% set prices = state_attr('sensor.real_electricity_price_hourly_prices', 'hourly_prices') %}
-          {% set tomorrow_prices = prices | selectattr('start_time', 'match', '^' + (now() + timedelta(days=1)).strftime('%Y-%m-%d') + 'T00:00:00') | list %}
-          {{ tomorrow_prices[0].actual_price if tomorrow_prices else 'N/A' }}
+          {% set tomorrow_prices = prices | selectattr('start_time', 'match', '^' + (now() + timedelta(days=1)).strftime('%Y-%m-%d') + 'T') | list %}
+          {% if tomorrow_prices %}
+            {{ (tomorrow_prices | map(attribute='actual_price') | min) | round(4) }}
+          {% else %}
+            unavailable
+          {% endif %}
         unit_of_measurement: "EUR/kWh"
 
-      - name: "Average Price Today"
+      # Current day price statistics
+      - name: "Today Average Price"
         state: >
           {% set prices = state_attr('sensor.real_electricity_price_hourly_prices', 'hourly_prices') %}
           {% set today_prices = prices | selectattr('start_time', 'match', '^' + now().strftime('%Y-%m-%d') + 'T') | list %}
@@ -285,23 +497,13 @@ template:
           {% endif %}
         unit_of_measurement: "EUR/kWh"
 
-      - name: "Max Price Today"
+      - name: "Today Price Range"
         state: >
           {% set prices = state_attr('sensor.real_electricity_price_hourly_prices', 'hourly_prices') %}
           {% set today_prices = prices | selectattr('start_time', 'match', '^' + now().strftime('%Y-%m-%d') + 'T') | list %}
           {% if today_prices %}
-            {{ today_prices | map(attribute='actual_price') | max }}
-          {% else %}
-            unavailable
-          {% endif %}
-        unit_of_measurement: "EUR/kWh"
-
-      - name: "Min Price Today"
-        state: >
-          {% set prices = state_attr('sensor.real_electricity_price_hourly_prices', 'hourly_prices') %}
-          {% set today_prices = prices | selectattr('start_time', 'match', '^' + now().strftime('%Y-%m-%d') + 'T') | list %}
-          {% if today_prices %}
-            {{ today_prices | map(attribute='actual_price') | min }}
+            {% set price_list = today_prices | map(attribute='actual_price') | list %}
+            {{ (price_list | max - price_list | min) | round(4) }}
           {% else %}
             unavailable
           {% endif %}
@@ -310,54 +512,56 @@ template:
 
 ### Lovelace Cards
 
-#### Simple Price Display
+### Lovelace Cards
+
+#### Simple Price Display with Cheap Period Status
 
 ```yaml
 type: entities
-title: "Electricity Price"
+title: "💡 Electricity Price Monitor"
 entities:
-  - sensor.real_electricity_price_current_price
-  - sensor.real_electricity_price_current_tariff
-  - sensor.real_electricity_price_hourly_prices
+  - entity: sensor.real_electricity_price_current_price
+    name: "Current Price"
+  - entity: sensor.real_electricity_price_current_tariff
+    name: "Current Tariff"
+  - entity: sensor.real_electricity_price_cheap_prices
+    name: "Cheap Price Status"
+  - entity: sensor.is_cheap_electricity_period
+    name: "In Cheap Period"
+  - entity: sensor.next_cheap_period_in
+    name: "Next Cheap Period"
+  - type: divider
+  - entity: sensor.real_electricity_price_last_sync
+    name: "Last Data Update"
+  - entity: sensor.real_electricity_price_last_cheap_calculation
+    name: "Last Cheap Calculation"
+  - type: divider
+  - entity: button.real_electricity_price_refresh_data
+    name: "Refresh Prices"
+  - entity: button.real_electricity_price_calculate_cheap_hours
+    name: "Recalculate Cheap Hours"
 ```
 
-#### Price History Chart
-
-```yaml
-type: history-graph
-title: \"Electricity Price History\"
-entities:
-  - sensor.real_electricity_price_current_price
-hours_to_show: 24
-refresh_interval: 0
-```
-
-#### ApexCharts Advanced Chart
-
-For ApexCharts Card (latest recommended):
+#### Cheap Price Timeline Card
 
 ```yaml
 type: custom:apexcharts-card
 header:
   show: true
-  title: "📊 Electricity Prices (72h)"
+  title: "⚡ Electricity Price Timeline - Next 48h"
   show_states: true
   colorize_states: true
-chart_type: line
-graph_span: 72h
+chart_type: column
+graph_span: 48h
 span:
-  end: day
+  start: hour
 now:
   show: true
   color: "#FF6B6B"
   label: "Now"
 apex_config:
   chart:
-    height: 350
-    animations:
-      enabled: true
-      easing: easeinout
-      speed: 800
+    height: 400
   theme:
     mode: dark
   grid:
@@ -367,7 +571,7 @@ apex_config:
     theme: dark
     shared: true
     x:
-      format: "MMM dd, HH:mm"
+      format: "ddd, MMM dd, HH:mm"
   xaxis:
     type: datetime
     labels:
@@ -392,9 +596,8 @@ apex_config:
             color: "#fff"
             background: "#FF6B6B"
 all_series_config:
-  stroke_width: 3
-  curve: stepline
-  opacity: 0.8
+  stroke_width: 2
+  opacity: 0.9
 series:
   - entity: sensor.real_electricity_price_hourly_prices
     type: column
@@ -403,51 +606,58 @@ series:
     data_generator: |
       const prices = entity.attributes.hourly_prices || [];
       const now = new Date();
+      const currentTime = now.getTime();
+      
+      // Get cheap price ranges for highlighting
+      const cheapPricesEntity = hass.states['sensor.real_electricity_price_cheap_prices'];
+      const cheapRanges = cheapPricesEntity?.attributes?.cheap_price_ranges || [];
+      
+      // Create a map of cheap periods for quick lookup
+      const cheapPeriods = new Map();
+      cheapRanges.forEach(range => {
+        const start = new Date(range.start_time).getTime();
+        const end = new Date(range.end_time).getTime();
+        for (let time = start; time < end; time += 3600000) { // 1 hour intervals
+          cheapPeriods.set(time, true);
+        }
+      });
       
       return prices.map((hour) => {
         const startTime = new Date(hour.start_time);
-        const endTime = new Date(hour.end_time);
         const price = hour.actual_price;
         
-        // Color coding based on price level and availability
+        if (price === null) return null; // Skip unavailable data
+        
+        // Color coding based on cheap periods and price levels
         let color = "#4ECDC4"; // Default blue-green
         
-        if (price === null) {
-          color = "#95A5A6"; // Gray for unavailable data
+        const isCheap = cheapPeriods.has(startTime.getTime());
+        const isCurrent = startTime.getTime() <= currentTime && currentTime < new Date(hour.end_time).getTime();
+        
+        if (isCheap) {
+          color = "#2ECC71"; // Green for cheap periods
         } else if (price < 0.10) {
-          color = "#2ECC71"; // Green for very cheap
+          color = "#F39C12"; // Orange for low prices
         } else if (price < 0.15) {
-          color = "#F39C12"; // Orange for moderate
+          color = "#E67E22"; // Orange for moderate prices
         } else if (price < 0.25) {
           color = "#E74C3C"; // Red for expensive  
         } else {
           color = "#8E44AD"; // Purple for very expensive
         }
         
+        // Highlight current hour
+        if (isCurrent) {
+          color = "#FF6B6B"; // Red for current hour
+        }
+        
         return {
           x: startTime.getTime(),
           y: price,
           fillColor: color,
-          strokeColor: color,
-          meta: {
-            tariff: hour.tariff,
-            nord_pool_price: hour.nord_pool_price,
-            is_current: now >= startTime && now < endTime
-          }
+          strokeColor: color
         };
-      }).filter(point => point.y !== null); // Remove unavailable data points
-  - entity: sensor.real_electricity_price
-    type: line
-    name: "🎯 Current Price"
-    color: "#FF6B6B"
-    stroke_width: 4
-    show:
-      in_header: true
-      name_in_header: false
-    data_generator: |
-      const currentPrice = parseFloat(entity.state);
-      const now = new Date();
-      return [[now.getTime(), currentPrice]];
+      }).filter(point => point !== null);
 ```
 
 ## API Information
@@ -492,10 +702,10 @@ This provides accurate electricity pricing according to local tariff rules for t
 
 ## Development
 
-### Requirements
+### Dependencies
 - Python 3.11+
 - Home Assistant 2025.1+
-- Dependencies: `aiohttp`, `holidays`, `pandas`
+- Dependencies: `aiohttp`, `holidays>=0.21`, `pandas>=1.3.0`
 
 ### Development Setup
 
@@ -546,19 +756,24 @@ The project includes comprehensive testing support:
 #### Podman Test Environment
 
 ```bash
-# Start test environment manually
-podman-compose up -d
+# Start test environment with one command
+./scripts/dev-setup.sh
 
-```bash
+# This automatically:
+# - Sets up Podman containers  
+# - Installs HACS
+# - Syncs integration files
+# - Starts Home Assistant with everything configured
+# - Provides proxy access on port 8080
+
 # Access Home Assistant at http://localhost:8080 (via proxy)
 # Complete initial setup in browser
 
-# View logs
-podman logs dc --tail 50 -f
-
-# Stop environment
-podman-compose down
-```
+# Manual container management:
+podman-compose up -d  # Start containers
+podman logs dc --tail 50 -f  # View HA logs
+podman logs web --tail 50 -f  # View proxy logs  
+podman-compose down  # Stop environment
 ```
 
 #### Manual Testing
@@ -631,6 +846,7 @@ logger:
     custom_components.real_electricity_price: debug
     custom_components.real_electricity_price.api: debug
     custom_components.real_electricity_price.coordinator: debug
+    custom_components.real_electricity_price.cheap_price_coordinator: debug
 ```
 
 ### Reset Integration
@@ -638,8 +854,8 @@ logger:
 If the integration becomes unresponsive:
 
 1. Go to Settings → Devices & Services
-2. Find \"Real Electricity Price\" integration
-3. Click the three dots → \"Delete\"
+2. Find "Real Electricity Price" integration
+3. Click the three dots → "Delete"
 4. Restart Home Assistant
 5. Re-add the integration
 
