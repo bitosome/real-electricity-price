@@ -496,6 +496,7 @@ class RealElectricityPriceApiClient:
         data["date"] = date
         data["is_holiday"] = is_holiday
         data["is_weekend"] = is_weekend
+        data["data_available"] = True  # Flag to indicate this is real data
         return data
 
     async def _api_wrapper(

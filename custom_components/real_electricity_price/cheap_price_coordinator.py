@@ -184,6 +184,11 @@ class CheapPriceDataUpdateCoordinator(DataUpdateCoordinator):
                 if not isinstance(day_data, dict):
                     continue
 
+                # Only include data from days where actual data is available
+                data_available = day_data.get("data_available", False)
+                if not data_available:
+                    continue
+
                 hourly_prices = day_data.get("hourly_prices", [])
                 for price_entry in hourly_prices:
                     # Only include entries with valid price data

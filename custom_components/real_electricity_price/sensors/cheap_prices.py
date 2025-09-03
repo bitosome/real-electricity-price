@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import yaml
 from datetime import UTC, datetime
 from typing import Any
 
@@ -25,13 +26,79 @@ class CheapPricesSensor(RealElectricityPriceBaseSensor):
         self._use_cheap_coordinator = hasattr(coordinator, "get_current_cheap_price")
 
     @property
-    def native_value(self) -> datetime | None:
-        """Return the timestamp of the next cheap price period."""
+    def native_value(self) -> int | None:
+        """Return the count of next cheap hours."""
         if self._use_cheap_coordinator:
-            return self._get_next_cheap_period_from_coordinator()
+            return self._get_next_cheap_hours_from_coordinator()
 
         # Fallback to checking ranges manually
-        return self._get_next_cheap_period_from_ranges()
+        return self._get_next_cheap_hours_from_ranges()
+
+    def _get_next_cheap_hours_from_coordinator(self) -> int | None:
+        """Get count of next cheap hours from cheap price coordinator."""
+        if not (hasattr(self.coordinator, "data") and self.coordinator.data):
+            return None
+
+        cheap_data = self.coordinator.data
+        cheap_ranges = cheap_data.get("cheap_ranges", [])
+        
+        if not cheap_ranges:
+            return 0
+
+        now = datetime.now(UTC)
+        total_cheap_hours = 0
+
+        # Count all future cheap hours
+        for range_data in cheap_ranges:
+            try:
+                start_time = datetime.fromisoformat(range_data["start_time"])
+                end_time = datetime.fromisoformat(range_data["end_time"])
+
+                # If we're currently in a cheap period, count remaining hours + future periods
+                if start_time <= now < end_time:
+                    # Count remaining hours in current period
+                    remaining_hours = int((end_time - now).total_seconds() / 3600)
+                    total_cheap_hours += max(1, remaining_hours)  # At least 1 hour if we're in it
+                    
+                # If this is a future cheap period, count all its hours
+                elif start_time > now:
+                    period_hours = range_data.get("hour_count", 1)
+                    total_cheap_hours += period_hours
+            except (ValueError, KeyError):
+                continue
+
+        return total_cheap_hours
+
+    def _get_next_cheap_hours_from_ranges(self) -> int | None:
+        """Get count of next cheap hours by checking ranges manually."""
+        cheap_ranges = self._analyze_cheap_prices()
+        
+        if not cheap_ranges:
+            return 0
+
+        now = datetime.now(UTC)
+        total_cheap_hours = 0
+
+        # Count all future cheap hours
+        for range_data in cheap_ranges:
+            try:
+                start_time = datetime.fromisoformat(range_data["start_time"])
+                end_time = datetime.fromisoformat(range_data["end_time"])
+
+                # If we're currently in a cheap period, count remaining hours + future periods
+                if start_time <= now < end_time:
+                    # Count remaining hours in current period
+                    remaining_hours = int((end_time - now).total_seconds() / 3600)
+                    total_cheap_hours += max(1, remaining_hours)  # At least 1 hour if we're in it
+                    
+                # If this is a future cheap period, count all its hours
+                elif start_time > now:
+                    period_hours = range_data.get("hour_count", 1)
+                    total_cheap_hours += period_hours
+            except (ValueError, KeyError):
+                continue
+
+        return total_cheap_hours
 
     def _get_next_cheap_period_from_coordinator(self) -> datetime | None:
         """Get next cheap period timestamp from cheap price coordinator."""
@@ -162,9 +229,9 @@ class CheapPricesSensor(RealElectricityPriceBaseSensor):
         analysis_info_serializable = datetime_serializer(analysis_info)
 
         return {
-            "cheap_price_ranges": json.dumps(cheap_ranges_serializable, indent=2),
-            "status_info": json.dumps(status_info_serializable, indent=2),
-            "analysis_info": json.dumps(analysis_info_serializable, indent=2),
+            "cheap_price_ranges": yaml.dump(cheap_ranges_serializable, default_flow_style=False, allow_unicode=True),
+            "status_info": yaml.dump(status_info_serializable, default_flow_style=False, allow_unicode=True),
+            "analysis_info": yaml.dump(analysis_info_serializable, default_flow_style=False, allow_unicode=True),
         }
 
     def _get_manual_analysis_attributes(self) -> dict[str, Any]:
@@ -187,9 +254,9 @@ class CheapPricesSensor(RealElectricityPriceBaseSensor):
         }
 
         return {
-            "cheap_price_ranges": json.dumps(cheap_ranges, indent=2),
-            "summary_info": json.dumps(summary_info, indent=2),
-            "analysis_info": json.dumps(analysis_info, indent=2),
+            "cheap_price_ranges": yaml.dump(cheap_ranges, default_flow_style=False, allow_unicode=True),
+            "summary_info": yaml.dump(summary_info, default_flow_style=False, allow_unicode=True),
+            "analysis_info": yaml.dump(analysis_info, default_flow_style=False, allow_unicode=True),
         }
 
     def _get_current_cheap_price_from_ranges(self) -> float | None:
@@ -220,6 +287,11 @@ class CheapPricesSensor(RealElectricityPriceBaseSensor):
             for data_key in self.coordinator.data:
                 day_data = self.coordinator.data[data_key]
                 if not isinstance(day_data, dict):
+                    continue
+
+                # Only include data from days where actual data is available
+                data_available = day_data.get("data_available", False)
+                if not data_available:
                     continue
 
                 hourly_prices = day_data.get("hourly_prices", [])
@@ -366,6 +438,11 @@ class CheapPricesSensor(RealElectricityPriceBaseSensor):
                 if not isinstance(day_data, dict):
                     continue
 
+                # Only include data from days where actual data is available
+                data_available = day_data.get("data_available", False)
+                if not data_available:
+                    continue
+
                 hourly_prices = day_data.get("hourly_prices", [])
                 future_prices = []
 
@@ -496,6 +573,96 @@ class CheapPriceEndSensor(RealElectricityPriceBaseSensor):
                 # If this is a future cheap period, return its end time
                 if start_time > now:
                     return dt_util.as_local(end_time)
+            except (ValueError, KeyError):
+                continue
+
+        return None
+
+    def _analyze_cheap_prices(self) -> list[dict[str, Any]]:
+        """Reuse the analysis from CheapPricesSensor."""
+        # Create a temporary instance to reuse the analysis logic
+        temp_sensor = CheapPricesSensor(self.coordinator, None)
+        return temp_sensor._analyze_cheap_prices()
+
+
+class CheapPriceStartSensor(RealElectricityPriceBaseSensor):
+    """Sensor for next cheap electricity price period start."""
+
+    def __init__(self, coordinator, description):
+        """Initialize the next cheap price start sensor."""
+        super().__init__(coordinator, description)
+        # This sensor should use the cheap price coordinator when available
+        self._use_cheap_coordinator = hasattr(coordinator, "get_current_cheap_price")
+
+    @property
+    def native_value(self) -> datetime | None:
+        """Return the timestamp when the next cheap price period starts."""
+        if self._use_cheap_coordinator:
+            return self._get_next_cheap_period_start_from_coordinator()
+
+        # Fallback to checking ranges manually
+        return self._get_next_cheap_period_start_from_ranges()
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return no attributes for this sensor."""
+        return {}
+
+    def _get_next_cheap_period_start_from_coordinator(self) -> datetime | None:
+        """Get next cheap period start timestamp from cheap price coordinator."""
+        if not (hasattr(self.coordinator, "data") and self.coordinator.data):
+            return None
+
+        cheap_data = self.coordinator.data
+        cheap_ranges = cheap_data.get("cheap_ranges", [])
+        
+        if not cheap_ranges:
+            return None
+
+        now = datetime.now(UTC)
+
+        # Find the next cheap period start time
+        for range_data in cheap_ranges:
+            try:
+                start_time = datetime.fromisoformat(range_data["start_time"])
+                end_time = datetime.fromisoformat(range_data["end_time"])
+
+                # If this is a future cheap period, return its start time
+                if start_time > now:
+                    return dt_util.as_local(start_time)
+
+                # If we're currently in a cheap period, find the next one
+                if start_time <= now < end_time:
+                    # Continue to find the next period after this one
+                    continue
+            except (ValueError, KeyError):
+                continue
+
+        return None
+
+    def _get_next_cheap_period_start_from_ranges(self) -> datetime | None:
+        """Get next cheap period start timestamp by checking ranges manually."""
+        cheap_ranges = self._analyze_cheap_prices()
+        
+        if not cheap_ranges:
+            return None
+
+        now = datetime.now(UTC)
+
+        # Find the next cheap period start time
+        for range_data in cheap_ranges:
+            try:
+                start_time = datetime.fromisoformat(range_data["start_time"])
+                end_time = datetime.fromisoformat(range_data["end_time"])
+
+                # If this is a future cheap period, return its start time
+                if start_time > now:
+                    return dt_util.as_local(start_time)
+
+                # If we're currently in a cheap period, find the next one
+                if start_time <= now < end_time:
+                    # Continue to find the next period after this one
+                    continue
             except (ValueError, KeyError):
                 continue
 

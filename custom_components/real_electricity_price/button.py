@@ -51,9 +51,9 @@ class RealElectricityPriceRefreshButton(RealElectricityPriceEntity, ButtonEntity
         config = {**coordinator.config_entry.data, **coordinator.config_entry.options}
         device_name = config.get(CONF_NAME, "Real Electricity Price")
 
-        self._attr_name = f"{device_name} Refresh Data"
+        self._attr_name = f"{device_name} Sync data"
         self._attr_unique_id = f"{coordinator.config_entry.entry_id}_refresh_button"
-        self._attr_icon = "mdi:reload"
+        self._attr_icon = "mdi:cloud-refresh-outline"
 
     async def async_press(self) -> None:
         """Handle the button press."""

@@ -12,9 +12,12 @@ from .entity_descriptions import SENSOR_DESCRIPTIONS
 from .sensors import (
     CheapPricesSensor,
     CheapPriceEndSensor,
+    CheapPriceStartSensor,
     CurrentPriceSensor,
     CurrentTariffSensor,
-    HourlyPricesSensor,
+    HourlyPricesYesterdaySensor,
+    HourlyPricesTodaySensor,
+    HourlyPricesTomorrowSensor,
     LastCheapCalculationSensor,
     LastSyncSensor,
 )
@@ -29,9 +32,12 @@ SENSOR_TYPE_CURRENT_PRICE = "current_price"
 SENSOR_TYPE_CURRENT_TARIFF = "current_tariff"
 SENSOR_TYPE_LAST_SYNC = "last_sync"
 SENSOR_TYPE_LAST_CHEAP_CALCULATION = "last_cheap_calculation"
-SENSOR_TYPE_HOURLY_PRICES = "hourly_prices"
+SENSOR_TYPE_HOURLY_PRICES_YESTERDAY = "hourly_prices_yesterday"
+SENSOR_TYPE_HOURLY_PRICES_TODAY = "hourly_prices_today"
+SENSOR_TYPE_HOURLY_PRICES_TOMORROW = "hourly_prices_tomorrow"
 SENSOR_TYPE_CHEAP_PRICES = "cheap_prices"
 SENSOR_TYPE_CHEAP_PRICE_END = "cheap_price_end"
+SENSOR_TYPE_CHEAP_PRICE_START = "cheap_price_start"
 
 # Mapping of entity descriptions to sensor types and classes
 SENSOR_MAPPING = {
@@ -45,9 +51,17 @@ SENSOR_MAPPING = {
         SENSOR_TYPE_LAST_CHEAP_CALCULATION,
         LastCheapCalculationSensor,
     ),
-    "real_electricity_price_hourly_prices": (
-        SENSOR_TYPE_HOURLY_PRICES,
-        HourlyPricesSensor,
+    "real_electricity_price_hourly_prices_yesterday": (
+        SENSOR_TYPE_HOURLY_PRICES_YESTERDAY,
+        HourlyPricesYesterdaySensor,
+    ),
+    "real_electricity_price_hourly_prices_today": (
+        SENSOR_TYPE_HOURLY_PRICES_TODAY,
+        HourlyPricesTodaySensor,
+    ),
+    "real_electricity_price_hourly_prices_tomorrow": (
+        SENSOR_TYPE_HOURLY_PRICES_TOMORROW,
+        HourlyPricesTomorrowSensor,
     ),
     "real_electricity_price_cheap_prices": (
         SENSOR_TYPE_CHEAP_PRICES,
@@ -56,6 +70,10 @@ SENSOR_MAPPING = {
     "real_electricity_price_cheap_price_end": (
         SENSOR_TYPE_CHEAP_PRICE_END,
         CheapPriceEndSensor,
+    ),
+    "real_electricity_price_cheap_price_start": (
+        SENSOR_TYPE_CHEAP_PRICE_START,
+        CheapPriceStartSensor,
     ),
 }
 
@@ -88,6 +106,7 @@ async def async_setup_entry(
         if sensor_type in (
             SENSOR_TYPE_CHEAP_PRICES,
             SENSOR_TYPE_CHEAP_PRICE_END,
+            SENSOR_TYPE_CHEAP_PRICE_START,
             SENSOR_TYPE_LAST_CHEAP_CALCULATION,
         ):
             coord = cheap_price_coordinator  # Use separate coordinator for cheap prices

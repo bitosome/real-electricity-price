@@ -34,6 +34,7 @@ class RealElectricityPriceDataUpdateCoordinator(DataUpdateCoordinator):
         self._midnight_check_scheduled = False
         self._hourly_update_unsub: Callable[[], None] | None = None
         self._stop_unsub: Callable[[], None] | None = None
+        self._cheap_price_coordinator = None  # Will be set after initialization
 
         # Centralized hourly tick at hh:00 for all sensors (no network call)
         self._hourly_update_unsub = async_track_time_change(
@@ -99,6 +100,12 @@ class RealElectricityPriceDataUpdateCoordinator(DataUpdateCoordinator):
                 self._validate_data_dates(data, current_date)
 
             self._last_update_date = current_date
+            
+            # Trigger cheap price coordinator update after successful data sync
+            if self._cheap_price_coordinator:
+                _LOGGER.debug("Triggering cheap price coordinator update after data sync")
+                await self._cheap_price_coordinator.async_manual_update()
+            
             return data
 
         except RealElectricityPriceApiClientError as exception:
@@ -185,7 +192,11 @@ class RealElectricityPriceDataUpdateCoordinator(DataUpdateCoordinator):
                     tomorrow_data.get("date"),
                 )
 
+    def set_cheap_price_coordinator(self, coordinator) -> None:
+        """Set the cheap price coordinator for automatic updates."""
+        self._cheap_price_coordinator = coordinator
+
     async def async_request_refresh(self) -> None:
-        """Request a refresh of the data."""
-        _LOGGER.debug("Manual refresh requested")
+        """Request a refresh for all entities and trigger hourly update."""
+        _LOGGER.debug("Requested refresh for all entities")
         await super().async_request_refresh()

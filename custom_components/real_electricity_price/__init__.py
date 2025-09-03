@@ -136,6 +136,9 @@ async def async_setup_entry(
         update_method=None,  # No default update interval, uses triggers
     )
 
+    # Link coordinators for automatic cheap price updates after data sync
+    coordinator.set_cheap_price_coordinator(cheap_price_coordinator)
+
     entry.runtime_data = RealElectricityPriceData(
         client=RealElectricityPriceApiClient(
             session=async_get_clientsession(hass),

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import yaml
 from datetime import datetime
 from typing import Any
 
@@ -53,7 +54,7 @@ class LastSyncSensor(RealElectricityPriceBaseSensor):
                 }
 
         return {
-            "data_sources": data_sources_info,
+            "data_sources": yaml.dump(data_sources_info, default_flow_style=False, allow_unicode=True),
             "coordinator_type": type(self.coordinator).__name__,
         }
 

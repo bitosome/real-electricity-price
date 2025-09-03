@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import yaml
 from typing import Any
 
 from .base import RealElectricityPriceBaseSensor
@@ -99,7 +100,16 @@ class HourlyPricesSensor(RealElectricityPriceBaseSensor):
             result["next_hours_preview"] = next_hours_preview
 
         _LOGGER.debug("Hourly prices attributes size reduced for database efficiency")
-        return result
+        
+        # Convert the result to YAML format for all attributes
+        yaml_result = {}
+        for key, value in result.items():
+            if isinstance(value, (dict, list)):
+                yaml_result[key] = yaml.dump(value, default_flow_style=False, allow_unicode=True)
+            else:
+                yaml_result[key] = value
+        
+        return yaml_result
 
     def _get_current_hour_price(self) -> float | None:
         """Get the price for the current hour."""
