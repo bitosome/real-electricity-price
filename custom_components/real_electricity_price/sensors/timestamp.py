@@ -17,9 +17,19 @@ class LastSyncSensor(RealElectricityPriceBaseSensor):
     @property
     def native_value(self) -> datetime | None:
         """Return the last sync timestamp."""
-        if not hasattr(self.coordinator, "last_update_success_time"):
-            return None
-        return self.coordinator.last_update_success_time
+        # First try to get from coordinator data (set in _async_update_data)
+        if (
+            self.coordinator.data 
+            and isinstance(self.coordinator.data, dict)
+            and "last_sync" in self.coordinator.data
+        ):
+            return self.coordinator.data["last_sync"]
+        
+        # Fallback to coordinator's last_update_success_time if it exists
+        if hasattr(self.coordinator, "last_update_success_time"):
+            return self.coordinator.last_update_success_time
+            
+        return None
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:

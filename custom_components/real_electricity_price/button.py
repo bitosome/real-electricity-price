@@ -53,7 +53,7 @@ class RealElectricityPriceRefreshButton(RealElectricityPriceEntity, ButtonEntity
 
         self._attr_name = f"{device_name} Refresh Data"
         self._attr_unique_id = f"{coordinator.config_entry.entry_id}_refresh_button"
-        self._attr_icon = "mdi:refresh"
+        self._attr_icon = "mdi:reload"
 
     async def async_press(self) -> None:
         """Handle the button press."""
@@ -84,7 +84,7 @@ class RealElectricityPriceCalculateCheapHoursButton(
         self._attr_unique_id = (
             f"{coordinator.config_entry.entry_id}_calculate_cheap_hours_button"
         )
-        self._attr_icon = "mdi:calculator"
+        self._attr_icon = "mdi:calculator-variant-outline"
 
     async def async_press(self) -> None:
         """Handle the button press."""

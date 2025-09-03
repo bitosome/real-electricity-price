@@ -2,6 +2,7 @@
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/custom-components/hacs)
 [![GitHub Release][releases-shield]][releases]
+[![Tests](https://github.com/bitosome/real-electricity-price/actions/workflows/test.yml/badge.svg)](https://github.com/bitosome/real-electricity-price/actions/workflows/test.yml)
 [![License][license-shield]](LICENSE)
 
 A comprehensive Home Assistant integration for real-time electricity pricing from Nord Pool, with advanced cheap price analysis and configurable grid costs for all Nord Pool market areas.
@@ -738,7 +739,27 @@ This provides accurate electricity pricing according to local tariff rules for t
 
 ### Testing
 
-The project includes comprehensive testing support:
+The project includes comprehensive testing support with **53+ individual tests** covering all functionality:
+
+#### Automated Testing (GitHub Actions)
+- **Continuous Integration**: All tests run automatically on every push/PR
+- **Multi-Python Support**: Tests on Python 3.11, 3.12, and 3.13
+- **Test Categories**: Configuration validation, sensor calculations, button functionality, integration scenarios
+- **Coverage**: [![Tests](https://github.com/bitosome/real-electricity-price/actions/workflows/test.yml/badge.svg)](https://github.com/bitosome/real-electricity-price/actions/workflows/test.yml)
+
+#### Local Testing
+```bash
+# Run all tests
+cd tests && ./test.sh
+
+# Run comprehensive test suite
+python tests/test_all_comprehensive.py
+
+# Run specific test categories
+python tests/test_all_comprehensive.py --config    # Configuration tests
+python tests/test_all_comprehensive.py --sensors   # Sensor calculation tests  
+python tests/test_all_comprehensive.py --buttons   # Button functionality tests
+```
 
 #### One-Click Development Environment
 
@@ -785,18 +806,26 @@ podman-compose down  # Stop environment
 
 ### Code Quality
 
-The project uses automated code quality tools:
+The project uses modern automated code quality tools:
 
 ```bash
-# Check code formatting
-python -m black custom_components/real_electricity_price/
+# Format and lint code (recommended)
+ruff check custom_components/real_electricity_price/ --fix
+ruff format custom_components/real_electricity_price/
 
-# Run linting
-python -m ruff check custom_components/real_electricity_price/
+# Run syntax validation
+cd tests && ./test.sh syntax
 
-# Type checking
-python -m mypy custom_components/real_electricity_price/
+# Check import structure  
+cd tests && ./test.sh import
 ```
+
+**Quality Assurance:**
+- ✅ **Automated formatting** with Ruff
+- ✅ **Linting** with automatic fixes
+- ✅ **GitHub Actions** for CI/CD
+- ✅ **Comprehensive test suite** (53+ tests)
+- ✅ **Multi-Python compatibility** testing
 
 ### Contributing
 

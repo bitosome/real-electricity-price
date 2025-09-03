@@ -8,8 +8,6 @@ git clone https://github.com/bitosome/real-electricity-price.git
 cd real-electricity-price
 
 # Start development environment (Podman-based)
-make dev
-# OR
 ./scripts/dev-setup.sh
 ```
 
@@ -22,22 +20,15 @@ This automatically:
 
 Then access Home Assistant at **http://localhost:8080** (via proxy)
 
-## 📋 Development Commands
+## 📋 Development Scripts
 
-| Command | Description |
+| Script | Description |
 |---------|-------------|
-| `make dev` | Start complete development environment (Podman) |
-| `make sync` | Sync integration files to container |
-| `make test` | Run all tests |
-| `make lint` | Format and lint code |
-| `make status` | Check environment status |
-| `make logs` | View container logs |
-| `make restart` | Restart Home Assistant container |
-| `make logs-proxy` | View proxy logs |
-| `make restart-proxy` | Restart proxy container |
-| `make shell-proxy` | Access proxy container shell |
-| `make stop` | Stop development environment |
-| `make help` | Show all available commands |
+| `./scripts/dev-setup.sh` | Start complete development environment (Podman) |
+| `./scripts/sync-integration.sh` | Sync integration files to container |
+| `./scripts/restart-ha.sh` | Restart Home Assistant with connectivity fixes |
+| `cd tests && ./test.sh` | Run all tests |
+| `ruff check . --fix && ruff format .` | Format and lint code |
 
 ## 🐳 Container Commands
 
@@ -74,9 +65,9 @@ See **[README.md](README.md)** for complete integration documentation, usage exa
 ## 🛠️ Development Workflow
 
 1. **Make changes** to integration files
-2. **Sync to container**: `make sync`
-3. **Run tests**: `make test`
-4. **Check code quality**: `make lint`
+2. **Sync to container**: `./scripts/sync-integration.sh`
+3. **Run tests**: `cd tests && ./test.sh`
+4. **Check code quality**: `ruff check . --fix && ruff format .`
 5. **Commit changes**: `git commit`
 
 Happy coding! 🎉

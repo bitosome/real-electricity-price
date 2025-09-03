@@ -83,23 +83,6 @@ Thumbs.db
 config/*
 !config/configuration.yaml
 
-# Docker Test Environment - Exclude runtime data and secrets
-docker/config/.storage/
-docker/config/home-assistant.log*
-docker/config/home-assistant_v2.db*
-docker/config/.cloud/
-docker/config/deps/
-docker/config/tts/
-docker/config/blueprints/
-docker/config/custom_components/hacs/
-docker/config/.HA_VERSION
-docker/config/.*
-!docker/config/configuration.yaml
-!docker/config/automations.yaml
-!docker/config/scenes.yaml
-!docker/config/scripts.yaml
-!docker/config/ui-lovelace.yaml
-
 # Dev Container - Exclude all runtime and storage data
 .devcontainer/config/.storage/
 .devcontainer/config/home-assistant.log*

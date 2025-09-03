@@ -11,6 +11,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from .entity_descriptions import SENSOR_DESCRIPTIONS
 from .sensors import (
     CheapPricesSensor,
+    CheapPriceEndSensor,
     CurrentPriceSensor,
     CurrentTariffSensor,
     HourlyPricesSensor,
@@ -30,6 +31,7 @@ SENSOR_TYPE_LAST_SYNC = "last_sync"
 SENSOR_TYPE_LAST_CHEAP_CALCULATION = "last_cheap_calculation"
 SENSOR_TYPE_HOURLY_PRICES = "hourly_prices"
 SENSOR_TYPE_CHEAP_PRICES = "cheap_prices"
+SENSOR_TYPE_CHEAP_PRICE_END = "cheap_price_end"
 
 # Mapping of entity descriptions to sensor types and classes
 SENSOR_MAPPING = {
@@ -50,6 +52,10 @@ SENSOR_MAPPING = {
     "real_electricity_price_cheap_prices": (
         SENSOR_TYPE_CHEAP_PRICES,
         CheapPricesSensor,
+    ),
+    "real_electricity_price_cheap_price_end": (
+        SENSOR_TYPE_CHEAP_PRICE_END,
+        CheapPriceEndSensor,
     ),
 }
 
@@ -81,6 +87,7 @@ async def async_setup_entry(
         # Determine which coordinator to use
         if sensor_type in (
             SENSOR_TYPE_CHEAP_PRICES,
+            SENSOR_TYPE_CHEAP_PRICE_END,
             SENSOR_TYPE_LAST_CHEAP_CALCULATION,
         ):
             coord = cheap_price_coordinator  # Use separate coordinator for cheap prices

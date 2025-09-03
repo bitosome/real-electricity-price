@@ -1,61 +1,44 @@
-# Contribution guidelines
+# Contributing
 
-Contributing to this project should be as easy and transparent as possible, whether it's:
+Thanks for your interest in contributing! 🎉
 
-- Reporting a bug
-- Discussing the current state of the code
-- Submitting a fix
-- Proposing new features
+## Quick Start
 
-## Github is used for everything
+1. **Fork** the repository
+2. **Create a branch** from `main`
+3. **Make your changes**
+4. **Test your changes**: `cd tests && ./test.sh`
+5. **Format code**: `ruff check . --fix && ruff format .`
+6. **Submit a pull request**
 
-Github is used to host code, to track issues and feature requests, as well as accept pull requests.
+## Development Environment
 
-Pull requests are the best way to propose changes to the codebase.
+```bash
+# One-click setup
+./scripts/dev-setup.sh
 
-1. Fork the repo and create your branch from `main`.
-2. If you've changed something, update the documentation.
-3. Make sure your code lints (using `scripts/lint`).
-4. Test you contribution.
-5. Issue that pull request!
+# Access Home Assistant at http://localhost:8080
+# Make changes and sync with:
+./scripts/sync-integration.sh
+```
 
-## Any contributions you make will be under the MIT Software License
+## Code Quality
 
-In short, when you submit code changes, your submissions are understood to be under the same [MIT License](http://choosealicense.com/licenses/mit/) that covers the project. Feel free to contact the maintainers if that's a concern.
+- **Format**: `ruff format custom_components/real_electricity_price/`
+- **Lint**: `ruff check custom_components/real_electricity_price/ --fix`
+- **Test**: `cd tests && ./test.sh`
+- **All tests run automatically** on GitHub Actions for every PR
 
-## Report bugs using Github's [issues](../../issues)
+## Bug Reports
 
-GitHub issues are used to track public bugs.
-Report a bug by [opening a new issue](../../issues/new/choose); it's that easy!
-
-## Write bug reports with detail, background, and sample code
-
-**Great Bug Reports** tend to have:
-
-- A quick summary and/or background
+Use [GitHub Issues](../../issues/new/choose) to report bugs with:
 - Steps to reproduce
-  - Be specific!
-  - Give sample code if you can.
-- What you expected would happen
-- What actually happens
-- Notes (possibly including why you think this might be happening, or stuff you tried that didn't work)
-
-People *love* thorough bug reports. I'm not even kidding.
-
-## Use a Consistent Coding Style
-
-Use [black](https://github.com/ambv/black) to make sure the code follows the style.
-
-## Test your code modification
-
-This is a custom Home Assistant integration for fetching real-time electricity prices from Nord Pool. The active code is located in `custom_components/real_electricity_price/`.
-
-It comes with development environment in a container, easy to launch
-if you use Visual Studio Code. With this container you will have a stand alone
-Home Assistant instance running and already configured with the included
-[`configuration.yaml`](./config/configuration.yaml)
-file.
+- Expected vs actual behavior  
+- Home Assistant version
+- Integration configuration
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under its MIT License.
+All contributions are under the [MIT License](LICENSE).
+
+For detailed development info, see [`scripts/README.md`](scripts/README.md).

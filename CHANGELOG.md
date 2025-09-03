@@ -1,5 +1,7 @@
 # Changelog
 
+> **Note**: Starting with v1.2.0, changelogs are maintained in [GitHub Releases](../../releases).
+
 All notable changes to this project will be documented in this file.
 
 ## v1.1.0 - Cheapest Prices Analysis

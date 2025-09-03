@@ -17,6 +17,7 @@ from .const import (
     CONF_CHEAP_PRICE_THRESHOLD,
     CONF_CHEAP_PRICE_UPDATE_TRIGGER,
     DEFAULT_CHEAP_PRICE_UPDATE_TRIGGER,
+    PRICE_DECIMAL_PRECISION,
 )
 
 if TYPE_CHECKING:
@@ -251,8 +252,8 @@ class CheapPriceDataUpdateCoordinator(DataUpdateCoordinator):
                 analysis_period_hours = 0
 
             analysis_info = {
-                "min_price": round(min_price, 6),
-                "max_cheap_price": round(max_cheap_price, 6),
+                "min_price": round(min_price, PRICE_DECIMAL_PRECISION),
+                "max_cheap_price": round(max_cheap_price, PRICE_DECIMAL_PRECISION),
                 "threshold_percent": threshold_percent,
                 "total_cheap_hours": len(cheap_ranges),
                 "analysis_period_hours": analysis_period_hours,
@@ -350,7 +351,7 @@ class CheapPriceDataUpdateCoordinator(DataUpdateCoordinator):
             end_time = datetime.datetime.fromisoformat(range_data["end_time"])
 
             if start_time <= now < end_time:
-                return round(range_data["price"], 6)
+                return round(range_data["price"], PRICE_DECIMAL_PRECISION)
 
         return None
 

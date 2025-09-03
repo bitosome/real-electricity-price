@@ -40,8 +40,10 @@ class HourlyPricesSensor(RealElectricityPriceBaseSensor):
         if not self.coordinator.data:
             return {}
 
-        all_hourly_prices = []
+        # Collect summary information instead of all hourly data
         data_sources_info = {}
+        current_hour_info = None
+        next_hours_preview = []
 
         for data_key in ["yesterday", "today", "tomorrow"]:
             day_data = self.coordinator.data.get(data_key)
@@ -59,7 +61,6 @@ class HourlyPricesSensor(RealElectricityPriceBaseSensor):
                 date,
                 data_available,
             )
-            all_hourly_prices.extend(hourly_prices)
 
             # Track data availability for each source
             data_sources_info[data_key] = {
@@ -68,11 +69,37 @@ class HourlyPricesSensor(RealElectricityPriceBaseSensor):
                 "hours_count": len(hourly_prices),
             }
 
-        _LOGGER.debug("Total hourly prices collected: %s", len(all_hourly_prices))
-        return {
-            "hourly_prices": json.dumps(all_hourly_prices, indent=2),
-            "data_sources": data_sources_info,
-        }
+            # Get current hour and next few hours for preview
+            if data_key in ["today", "tomorrow"] and hourly_prices:
+                from datetime import UTC, datetime
+                now = datetime.now(UTC).replace(minute=0, second=0, microsecond=0)
+                
+                for price_entry in hourly_prices[:12]:  # Limit to first 12 hours
+                    try:
+                        start_time = datetime.fromisoformat(price_entry["start_time"])
+                        if start_time >= now and len(next_hours_preview) < 6:
+                            next_hours_preview.append({
+                                "start_time": price_entry["start_time"],
+                                "price": self._round_price(price_entry.get("actual_price")) if price_entry.get("actual_price") is not None else None,
+                            })
+                        elif start_time == now:
+                            current_hour_info = {
+                                "start_time": price_entry["start_time"],
+                                "price": self._round_price(price_entry.get("actual_price")) if price_entry.get("actual_price") is not None else None,
+                            }
+                    except (ValueError, KeyError):
+                        continue
+
+        result = {"data_sources": data_sources_info}
+        
+        if current_hour_info:
+            result["current_hour"] = current_hour_info
+            
+        if next_hours_preview:
+            result["next_hours_preview"] = next_hours_preview
+
+        _LOGGER.debug("Hourly prices attributes size reduced for database efficiency")
+        return result
 
     def _get_current_hour_price(self) -> float | None:
         """Get the price for the current hour."""

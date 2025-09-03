@@ -13,22 +13,27 @@ This script sets up the complete development environment with Home Assistant run
 ## 📋 Available Scripts
 
 ### 🏗️ Environment Setup
-- **`setup.sh`** - Install all development dependencies and tools
 - **`dev-setup.sh`** - Complete one-click development environment setup with Podman
+- **`init-homeassistant.sh`** - Initialize Home Assistant configuration
 - **`install-hacs.sh`** - Install HACS (Home Assistant Community Store) automatically
 
 ### 🔄 Development Workflow
 - **`sync-integration.sh`** - Sync integration files to Podman container
+- **`restart-ha.sh`** - Restart Home Assistant with connectivity fixes
+
+### 🚀 Release Management  
+- **`release.sh`** - Release management script
+- **`generate_password_hash.py`** - Generate password hashes for testing
 
 ### 🧪 Testing
 Tests are located in the `tests/` directory:
 - **`tests/test.sh`** - Run comprehensive integration tests
+- **`tests/test_all_comprehensive.py`** - Master test runner with category support
+- **`tests/test_config_validation.py`** - Configuration validation tests
+- **`tests/test_sensor_calculations.py`** - Sensor calculation tests
+- **`tests/test_buttons_calculations.py`** - Button and cheap price calculation tests
 - **`tests/test_integration.py`** - Core integration tests
-- **`tests/test_button.py`** - Button functionality tests
-- **`tests/test_hacs_e2e.py`** - End-to-end HACS tests
-
-### 🎨 Utilities
-- **`prepare_brand_assets.sh`** - Prepare branding assets for submission
+- **`tests/test-hacs-e2e.sh`** - End-to-end HACS tests
 
 ## 📖 Script Details
 
@@ -43,18 +48,13 @@ Features:
 - ✅ Starts Home Assistant container
 - ✅ Waits for Home Assistant to be ready
 - ✅ Shows access information and next steps
-- ✅ Syncs integration files
-- ✅ Stops existing containers
-- ✅ Starts Home Assistant in Podman
-- ✅ Waits for startup completion
-- ✅ Shows access information and commands
 
 Usage:
 ```bash
 ./scripts/dev-setup.sh
 ```
 
-After running, access Home Assistant at http://localhost:8123 (admin/admin)
+After running, access Home Assistant at http://localhost:8123
 
 ### sync-integration.sh
 **Sync integration files to Podman container**
@@ -67,92 +67,48 @@ Use this when you make changes to integration files and want to test them:
 
 Automatically restarts Home Assistant container after syncing.
 
-### test.sh
-**Comprehensive testing suite**
-
-Run all tests:
-```bash
-./scripts/test.sh
-```
-
-Run specific tests:
-```bash
-./scripts/test.sh syntax   # Syntax check only
-./scripts/test.sh import   # Import test only
-./scripts/test.sh config   # Configuration validation
-./scripts/test.sh podman   # Podman integration test
-./scripts/test.sh quality  # Code quality check
-```
-
-### lint.sh
-**Code formatting and quality**
+### restart-ha.sh
+**Restart Home Assistant with connectivity fixes**
 
 ```bash
-./scripts/lint.sh
+./scripts/restart-ha.sh
 ```
 
-Features:
-- ✅ Code formatting with Ruff
-- ✅ Linting with automatic fixes
-- ✅ Syntax validation
-- ✅ Integration file checks
-
-### setup.sh
-**Development environment setup**
-
-```bash
-./scripts/setup.sh
-```
-
-Features:
-- ✅ Installs Python requirements
-- ✅ Installs development tools (ruff, black, mypy)
-- ✅ Sets up pre-commit hooks
-
-### develop.sh
-**Local Home Assistant Core development**
-
-For development without Podman:
-
-```bash
-./scripts/develop.sh
-```
-
-Requirements:
-- Home Assistant Core installed locally
-- Python 3.11+ environment
+This script includes fixes for proxy connectivity and ensures proper startup.
 
 ## 🔧 Development Workflow
 
 ### First Time Setup
-1. **Install dependencies:**
-   ```bash
-   ./scripts/setup.sh
-   ```
-
-2. **Start development environment:**
+1. **Start development environment:**
    ```bash
    ./scripts/dev-setup.sh
    ```
 
-3. **Access Home Assistant at http://localhost:8123**
+2. **Access Home Assistant at http://localhost:8123**
 
 ### Daily Development
 1. **Make changes to integration files**
 2. **Sync and test:**
    ```bash
    ./scripts/sync-integration.sh
-   ./scripts/test.sh
+   cd tests && ./test.sh
    ```
-3. **Check code quality:**
+3. **Check code quality with ruff:**
    ```bash
-   ./scripts/lint.sh
+   ruff check custom_components/real_electricity_price/
+   ruff format custom_components/real_electricity_price/
    ```
 
 ### Before Committing
 ```bash
-./scripts/lint.sh      # Format and lint code
-./scripts/test.sh      # Run all tests
+# Format and lint code
+ruff check custom_components/real_electricity_price/ --fix
+ruff format custom_components/real_electricity_price/
+
+# Run all tests
+cd tests && ./test.sh
+
+# Add and commit
 git add .
 git commit -m "Your commit message"
 ```
@@ -196,11 +152,11 @@ podman restart dc
 
 ### Import Errors
 ```bash
-# Check Python path
-./scripts/test.sh import
+# Check Python path in tests
+cd tests && ./test.sh import
 
 # Validate syntax
-./scripts/test.sh syntax
+cd tests && ./test.sh syntax
 ```
 
 ## 📁 File Structure
@@ -209,20 +165,21 @@ podman restart dc
 scripts/
 ├── README.md                 # This file
 ├── dev-setup.sh             # One-click development setup
-├── setup.sh                 # Install dependencies
 ├── sync-integration.sh      # Sync files to Podman
-├── develop.sh               # Local HA Core development
-├── test.sh                  # Testing suite
-├── lint.sh                  # Code quality
-└── prepare_brand_assets.sh  # Branding utilities
+├── restart-ha.sh            # Restart HA with fixes
+├── init-homeassistant.sh    # Initialize HA configuration
+├── install-hacs.sh          # Install HACS automatically
+├── release.sh               # Release management
+└── generate_password_hash.py # Password hash utility
 ```
 
 ## 🎯 Tips
 
 - **Always run `./scripts/dev-setup.sh` for new development sessions**
 - **Use `./scripts/sync-integration.sh` after making changes**
-- **Run `./scripts/test.sh` before committing**
+- **Run `cd tests && ./test.sh` before committing**
 - **Keep Podman running for faster development cycles**
-- **Use `./scripts/lint.sh` to maintain code quality**
+- **Use ruff directly for code quality: `ruff check . --fix && ruff format .`**
+- **All tests are automated via GitHub Actions on push/PR**
 
 Happy coding! 🚀

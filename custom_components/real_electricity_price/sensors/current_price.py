@@ -92,10 +92,10 @@ class CurrentPriceSensor(RealElectricityPriceBaseSensor):
         grid_name = config.grid
 
         return {
-            f"{grid_name.lower()}_electricity_excise_duty": config.grid_electricity_excise_duty,
-            f"{grid_name.lower()}_renewable_energy_charge": config.grid_renewable_energy_charge,
-            f"{grid_name.lower()}_transmission_price_night": config.grid_transmission_price_night,
-            f"{grid_name.lower()}_transmission_price_day": config.grid_transmission_price_day,
+            f"{grid_name.lower()}_electricity_excise_duty": self._round_price(config.grid_electricity_excise_duty),
+            f"{grid_name.lower()}_renewable_energy_charge": self._round_price(config.grid_renewable_energy_charge),
+            f"{grid_name.lower()}_transmission_price_night": self._round_price(config.grid_transmission_price_night),
+            f"{grid_name.lower()}_transmission_price_day": self._round_price(config.grid_transmission_price_day),
         }
 
     def _get_supplier_costs(self, config: IntegrationConfig) -> dict[str, float]:
@@ -103,8 +103,8 @@ class CurrentPriceSensor(RealElectricityPriceBaseSensor):
         supplier_name = config.supplier
 
         return {
-            f"{supplier_name.lower()}_renewable_energy_charge": config.supplier_renewable_energy_charge,
-            f"{supplier_name.lower()}_margin": config.supplier_margin,
+            f"{supplier_name.lower()}_renewable_energy_charge": self._round_price(config.supplier_renewable_energy_charge),
+            f"{supplier_name.lower()}_margin": self._round_price(config.supplier_margin),
         }
 
     def _get_legacy_price_breakdown(
@@ -116,14 +116,14 @@ class CurrentPriceSensor(RealElectricityPriceBaseSensor):
 
         return {
             "grid_costs": {
-                f"{grid_name.lower()}_electricity_excise_duty": config.grid_electricity_excise_duty,
-                f"{grid_name.lower()}_renewable_energy_charge": config.grid_renewable_energy_charge,
-                f"{grid_name.lower()}_transmission_night": config.grid_transmission_price_night,
-                f"{grid_name.lower()}_transmission_day": config.grid_transmission_price_day,
+                f"{grid_name.lower()}_electricity_excise_duty": self._round_price(config.grid_electricity_excise_duty),
+                f"{grid_name.lower()}_renewable_energy_charge": self._round_price(config.grid_renewable_energy_charge),
+                f"{grid_name.lower()}_transmission_night": self._round_price(config.grid_transmission_price_night),
+                f"{grid_name.lower()}_transmission_day": self._round_price(config.grid_transmission_price_day),
             },
             "supplier_costs": {
-                f"{supplier_name.lower()}_renewable_energy_charge": config.supplier_renewable_energy_charge,
-                f"{supplier_name.lower()}_margin": config.supplier_margin,
+                f"{supplier_name.lower()}_renewable_energy_charge": self._round_price(config.supplier_renewable_energy_charge),
+                f"{supplier_name.lower()}_margin": self._round_price(config.supplier_margin),
             },
         }
 

@@ -8,6 +8,7 @@ from typing import Any
 from homeassistant.components.sensor import SensorEntity, SensorEntityDescription
 from homeassistant.const import CONF_NAME
 
+from ..const import PRICE_DECIMAL_PRECISION
 from ..entity import RealElectricityPriceEntity
 from ..models import IntegrationConfig
 
@@ -93,4 +94,4 @@ class RealElectricityPriceBaseSensor(RealElectricityPriceEntity, SensorEntity):
 
     def _round_price(self, price: float) -> float:
         """Round price to the configured precision."""
-        return round(price, 6)  # PRICE_DECIMAL_PRECISION
+        return round(price, PRICE_DECIMAL_PRECISION)
