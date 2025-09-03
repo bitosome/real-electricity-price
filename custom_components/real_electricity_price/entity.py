@@ -22,7 +22,7 @@ class RealElectricityPriceEntity(
         """Initialize."""
         super().__init__(coordinator)
         self._attr_unique_id = coordinator.config_entry.entry_id
-        
+
         # Register a single service-like device per config entry so entities
         # are grouped under the integration device in the UI.
         config = {**coordinator.config_entry.data, **coordinator.config_entry.options}

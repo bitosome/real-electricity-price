@@ -10,8 +10,8 @@ if TYPE_CHECKING:
     from homeassistant.loader import Integration
 
     from .api import RealElectricityPriceApiClient
-    from .coordinator import RealElectricityPriceDataUpdateCoordinator
     from .cheap_price_coordinator import CheapPriceDataUpdateCoordinator
+    from .coordinator import RealElectricityPriceDataUpdateCoordinator
 
 
 type RealElectricityPriceConfigEntry = ConfigEntry[RealElectricityPriceData]

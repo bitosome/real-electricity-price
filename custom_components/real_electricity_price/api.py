@@ -15,6 +15,7 @@ import holidays
 from homeassistant.util import dt as dt_util
 
 from .const import (
+    CONF_COUNTRY_CODE,
     CONF_GRID_ELECTRICITY_EXCISE_DUTY,
     CONF_GRID_ELECTRICITY_TRANSMISSION_PRICE_DAY,
     CONF_GRID_ELECTRICITY_TRANSMISSION_PRICE_NIGHT,
@@ -45,7 +46,6 @@ from .const import (
     VAT_NORD_POOL_DEFAULT,
     VAT_SUPPLIER_MARGIN_DEFAULT,
     VAT_SUPPLIER_RENEWABLE_ENERGY_CHARGE_DEFAULT,
-    CONF_COUNTRY_CODE,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -82,32 +82,34 @@ def _verify_response_or_raise(response: aiohttp.ClientResponse) -> None:
 
 
 def extract_country_code_from_area(area_code: str) -> str:
-    """Extract ISO country code from Nord Pool area code.
-    
+    """
+    Extract ISO country code from Nord Pool area code.
+
     Nord Pool uses area codes that may include numbers for sub-regions.
     This function extracts the two-letter country code prefix.
-    
+
     Args:
         area_code: Nord Pool area code (e.g., "EE", "SE1", "NO2")
-        
+
     Returns:
         Two-letter ISO country code
-        
+
     Examples:
         - "EE" -> "EE"
-        - "FI" -> "FI" 
+        - "FI" -> "FI"
         - "SE1" -> "SE"
         - "NO2" -> "NO"
         - "DK1" -> "DK"
+
     """
     if not area_code or len(area_code) < 2:
         return "EE"  # Default fallback for empty or single character
-    
+
     # Extract first 2 letters using regex for better validation
-    match = re.match(r'^([A-Z]{2})', area_code.upper())
+    match = re.match(r"^([A-Z]{2})", area_code.upper())
     if match:
         return match.group(1)
-    
+
     # Fallback: just take first 2 characters and uppercase them
     return area_code[:2].upper()
 
@@ -140,9 +142,15 @@ class RealElectricityPriceApiClient:
             headers = self._get_request_headers(token)
 
             # Fetch yesterday's, today's and tomorrow's data
-            yesterday_data = await self._fetch_day_data(yesterday, currency, market, area, headers)
-            today_data = await self._fetch_day_data(today, currency, market, area, headers)
-            tomorrow_data = await self._fetch_day_data(tomorrow, currency, market, area, headers)
+            yesterday_data = await self._fetch_day_data(
+                yesterday, currency, market, area, headers
+            )
+            today_data = await self._fetch_day_data(
+                today, currency, market, area, headers
+            )
+            tomorrow_data = await self._fetch_day_data(
+                tomorrow, currency, market, area, headers
+            )
 
             if not today_data:
                 _LOGGER.warning("Failed to fetch today's electricity price data")
@@ -150,30 +158,44 @@ class RealElectricityPriceApiClient:
 
             # Process the data
             result = {}
-            
+
             if yesterday_data:
-                yesterday_processed = await self._modify_prices(yesterday_data, area, yesterday.isoformat())
+                yesterday_processed = await self._modify_prices(
+                    yesterday_data, area, yesterday.isoformat()
+                )
                 result["yesterday"] = yesterday_processed
             else:
-                _LOGGER.info("Yesterday's data not available for %s", yesterday.isoformat())
-                
-            today_processed = await self._modify_prices(today_data, area, today.isoformat())
+                _LOGGER.info(
+                    "Yesterday's data not available for %s", yesterday.isoformat()
+                )
+
+            today_processed = await self._modify_prices(
+                today_data, area, today.isoformat()
+            )
             result["today"] = today_processed
-            
+
             if tomorrow_data:
-                tomorrow_processed = await self._modify_prices(tomorrow_data, area, tomorrow.isoformat())
+                tomorrow_processed = await self._modify_prices(
+                    tomorrow_data, area, tomorrow.isoformat()
+                )
                 result["tomorrow"] = tomorrow_processed
             else:
-                _LOGGER.info("Tomorrow's data not available for %s (normal before ~14:00 CET)", tomorrow.isoformat())
+                _LOGGER.info(
+                    "Tomorrow's data not available for %s (normal before ~14:00 CET)",
+                    tomorrow.isoformat(),
+                )
                 # Create placeholder data with time ranges but unavailable prices
-                tomorrow_placeholder = await self._create_placeholder_day_data(tomorrow, area)
+                tomorrow_placeholder = await self._create_placeholder_day_data(
+                    tomorrow, area
+                )
                 result["tomorrow"] = tomorrow_placeholder
 
             return result
 
         except Exception as exception:
-            _LOGGER.error("Unexpected error in async_get_data: %s", exception)
-            raise RealElectricityPriceApiClientError(f"Unexpected error: {exception}") from exception
+            _LOGGER.exception("Unexpected error in async_get_data: %s", exception)
+            msg = f"Unexpected error: {exception}"
+            raise RealElectricityPriceApiClientError(msg) from exception
 
     def _get_request_headers(self, token: str | None) -> dict[str, str]:
         """Get request headers with optional authorization."""
@@ -188,12 +210,12 @@ class RealElectricityPriceApiClient:
         return headers
 
     async def _fetch_day_data(
-        self, 
-        date: datetime.date, 
-        currency: str, 
-        market: str, 
-        area: str, 
-        headers: dict[str, str]
+        self,
+        date: datetime.date,
+        currency: str,
+        market: str,
+        area: str,
+        headers: dict[str, str],
     ) -> dict[str, Any] | None:
         """Fetch data for a specific day."""
         params = {
@@ -215,18 +237,22 @@ class RealElectricityPriceApiClient:
             _LOGGER.warning("Failed to fetch data for %s", date.isoformat())
             return None
 
-    async def _create_placeholder_day_data(self, date: datetime.date, area: str) -> dict:
+    async def _create_placeholder_day_data(
+        self, date: datetime.date, area: str
+    ) -> dict:
         """Create placeholder day data with time ranges but unavailable prices."""
         # Get configuration for tariff calculation
         night_start = self._config.get("night_price_start_hour", 22)
         night_end = self._config.get("night_price_end_hour", 7)
         tz_name = self._config.get("time_zone")
-        tzinfo = dt_util.get_time_zone(tz_name) if tz_name else dt_util.DEFAULT_TIME_ZONE
+        tzinfo = (
+            dt_util.get_time_zone(tz_name) if tz_name else dt_util.DEFAULT_TIME_ZONE
+        )
         area_code = self._config.get(CONF_COUNTRY_CODE, COUNTRY_CODE_DEFAULT)
-        
+
         # Extract ISO country code from Nord Pool area code for holiday detection
         country_code = extract_country_code_from_area(area_code)
-        
+
         # Calculate holiday and weekend status for this date
         year = date.year
         loop = asyncio.get_running_loop()
@@ -235,18 +261,18 @@ class RealElectricityPriceApiClient:
         )
         is_holiday = date in country_holidays
         is_weekend = date.weekday() >= 5  # Saturday = 5, Sunday = 6
-        
+
         # Create 24 hourly time slots for the day
         hourly_prices = []
-        
+
         for hour in range(24):
             start_time = datetime.datetime.combine(date, datetime.time(hour=hour))
-            start_time = start_time.replace(tzinfo=datetime.timezone.utc)
+            start_time = start_time.replace(tzinfo=datetime.UTC)
             end_time = start_time + datetime.timedelta(hours=1)
-            
+
             # Convert to local time for tariff calculation
             local_hour = start_time.astimezone(tzinfo).hour
-            
+
             # Determine tariff based on local time and selected country's calendar
             tariff = "night"  # Default
             if is_holiday or is_weekend:
@@ -257,29 +283,32 @@ class RealElectricityPriceApiClient:
                     is_night_hour = local_hour >= night_start or local_hour < night_end
                 else:  # Night doesn't cross midnight (e.g., 0-6)
                     is_night_hour = night_start <= local_hour < night_end
-                
+
                 tariff = "night" if is_night_hour else "day"
-            
-            hourly_prices.append({
-                "start_time": start_time.isoformat().replace("+00:00", "Z"),
-                "end_time": end_time.isoformat().replace("+00:00", "Z"),
-                "nord_pool_price": None,  # Unavailable
-                "actual_price": None,     # Unavailable
-                "tariff": tariff,         # Calculated based on time and calendar
-                "is_holiday": is_holiday, # Calculated
-                "is_weekend": is_weekend, # Calculated
-            })
-        
+
+            hourly_prices.append(
+                {
+                    "start_time": start_time.isoformat().replace("+00:00", "Z"),
+                    "end_time": end_time.isoformat().replace("+00:00", "Z"),
+                    "nord_pool_price": None,  # Unavailable
+                    "actual_price": None,  # Unavailable
+                    "tariff": tariff,  # Calculated based on time and calendar
+                    "is_holiday": is_holiday,  # Calculated
+                    "is_weekend": is_weekend,  # Calculated
+                }
+            )
+
         return {
             "hourly_prices": hourly_prices,
             "date": date.isoformat(),
-            "is_holiday": is_holiday,     # Calculated
-            "is_weekend": is_weekend,     # Calculated
-            "data_available": False,      # Flag to indicate this is placeholder data
+            "is_holiday": is_holiday,  # Calculated
+            "is_weekend": is_weekend,  # Calculated
+            "data_available": False,  # Flag to indicate this is placeholder data
         }
 
     async def _modify_prices(self, data: dict, area: str, date: str) -> dict:
-        """Modify prices with additional costs.
+        """
+        Modify prices with additional costs.
 
         This method performs some blocking work (holidays lookup and
         locale file access). Run blocking parts in the executor to avoid
@@ -307,25 +336,42 @@ class RealElectricityPriceApiClient:
         supplier_margin = self._config.get(
             CONF_SUPPLIER_MARGIN, SUPPLIER_MARGIN_DEFAULT
         )
-        
+
         # Get VAT percentage and individual VAT flags
         vat_pct = self._config.get(CONF_VAT, VAT_DEFAULT)
         vat_nord_pool = self._config.get(CONF_VAT_NORD_POOL, VAT_NORD_POOL_DEFAULT)
-        vat_grid_excise_duty = self._config.get(CONF_VAT_GRID_ELECTRICITY_EXCISE_DUTY, VAT_GRID_ELECTRICITY_EXCISE_DUTY_DEFAULT)
-        vat_grid_renewable = self._config.get(CONF_VAT_GRID_RENEWABLE_ENERGY_CHARGE, VAT_GRID_RENEWABLE_ENERGY_CHARGE_DEFAULT)
-        vat_grid_transmission_night = self._config.get(CONF_VAT_GRID_TRANSMISSION_NIGHT, VAT_GRID_TRANSMISSION_NIGHT_DEFAULT)
-        vat_grid_transmission_day = self._config.get(CONF_VAT_GRID_TRANSMISSION_DAY, VAT_GRID_TRANSMISSION_DAY_DEFAULT)
-        vat_supplier_renewable = self._config.get(CONF_VAT_SUPPLIER_RENEWABLE_ENERGY_CHARGE, VAT_SUPPLIER_RENEWABLE_ENERGY_CHARGE_DEFAULT)
-        vat_supplier_margin = self._config.get(CONF_VAT_SUPPLIER_MARGIN, VAT_SUPPLIER_MARGIN_DEFAULT)
+        vat_grid_excise_duty = self._config.get(
+            CONF_VAT_GRID_ELECTRICITY_EXCISE_DUTY,
+            VAT_GRID_ELECTRICITY_EXCISE_DUTY_DEFAULT,
+        )
+        vat_grid_renewable = self._config.get(
+            CONF_VAT_GRID_RENEWABLE_ENERGY_CHARGE,
+            VAT_GRID_RENEWABLE_ENERGY_CHARGE_DEFAULT,
+        )
+        vat_grid_transmission_night = self._config.get(
+            CONF_VAT_GRID_TRANSMISSION_NIGHT, VAT_GRID_TRANSMISSION_NIGHT_DEFAULT
+        )
+        vat_grid_transmission_day = self._config.get(
+            CONF_VAT_GRID_TRANSMISSION_DAY, VAT_GRID_TRANSMISSION_DAY_DEFAULT
+        )
+        vat_supplier_renewable = self._config.get(
+            CONF_VAT_SUPPLIER_RENEWABLE_ENERGY_CHARGE,
+            VAT_SUPPLIER_RENEWABLE_ENERGY_CHARGE_DEFAULT,
+        )
+        vat_supplier_margin = self._config.get(
+            CONF_VAT_SUPPLIER_MARGIN, VAT_SUPPLIER_MARGIN_DEFAULT
+        )
         night_start = self._config.get("night_price_start_hour", 22)
         night_end = self._config.get("night_price_end_hour", 7)
         tz_name = self._config.get("time_zone")
-        tzinfo = dt_util.get_time_zone(tz_name) if tz_name else dt_util.DEFAULT_TIME_ZONE
+        tzinfo = (
+            dt_util.get_time_zone(tz_name) if tz_name else dt_util.DEFAULT_TIME_ZONE
+        )
         area_code = self._config.get(CONF_COUNTRY_CODE, COUNTRY_CODE_DEFAULT)
 
         # Extract ISO country code from Nord Pool area code for holiday detection
         country_code = extract_country_code_from_area(area_code)
-        
+
         year = int(date[:4])
         # holidays.EE may perform blocking I/O (import/module locale access).
         # Run it in the default executor to avoid blocking the event loop.
@@ -346,10 +392,10 @@ class RealElectricityPriceApiClient:
                 start_iso = delivery_start_str.replace("Z", "+00:00")
                 dt = datetime.datetime.fromisoformat(start_iso)
                 local_hour = dt.astimezone(tzinfo).hour
-                
+
                 # Determine tariff for this specific hour
                 tariff = "night"  # Default to night
-                
+
                 # If it's a holiday or weekend, always use night tariff
                 if is_holiday or is_weekend:
                     tariff = "night"
@@ -361,17 +407,15 @@ class RealElectricityPriceApiClient:
 
                         if block_start_str and block_end_str:
                             block_start = datetime.datetime.fromisoformat(
-                                block_start_str.replace("Z", "+00:00")
+                                block_start_str
                             )
-                            block_end = datetime.datetime.fromisoformat(
-                                block_end_str.replace("Z", "+00:00")
-                            )
+                            block_end = datetime.datetime.fromisoformat(block_end_str)
 
                             if block_start <= dt < block_end:
                                 block_name = block.get("blockName", "")
                                 tariff = "day" if block_name == "Peak" else "night"
                                 break
-                
+
                 # Determine transmission price based on time and tariff
                 if (
                     is_weekend
@@ -386,43 +430,51 @@ class RealElectricityPriceApiClient:
 
                 if area in entry.get("entryPerArea", {}):
                     original_price = entry["entryPerArea"][area]
-                    
+
                     # Start with base Nord Pool price and apply VAT if configured
-                    base_price = original_price / 1000  # Convert from EUR/MWh to EUR/kWh
+                    base_price = (
+                        original_price / 1000
+                    )  # Convert from EUR/MWh to EUR/kWh
                     if vat_nord_pool:
-                        base_price *= (1 + vat_pct / 100)
-                    
+                        base_price *= 1 + vat_pct / 100
+
                     # Add each component with individual VAT application
                     excise_component = grid_electricity_excise_duty
                     if vat_grid_excise_duty:
-                        excise_component *= (1 + vat_pct / 100)
-                    
+                        excise_component *= 1 + vat_pct / 100
+
                     renewable_grid_component = grid_renewable_energy_charge
                     if vat_grid_renewable:
-                        renewable_grid_component *= (1 + vat_pct / 100)
-                    
+                        renewable_grid_component *= 1 + vat_pct / 100
+
                     renewable_supplier_component = supplier_renewable_energy_charge
                     if vat_supplier_renewable:
-                        renewable_supplier_component *= (1 + vat_pct / 100)
-                    
+                        renewable_supplier_component *= 1 + vat_pct / 100
+
                     margin_component = supplier_margin
                     if vat_supplier_margin:
-                        margin_component *= (1 + vat_pct / 100)
-                    
+                        margin_component *= 1 + vat_pct / 100
+
                     transmission_component = transmission_price
                     if vat_transmission:
-                        transmission_component *= (1 + vat_pct / 100)
-                    
+                        transmission_component *= 1 + vat_pct / 100
+
                     # Calculate final price by summing all components
-                    final_price = (base_price + 
-                                 excise_component + 
-                                 renewable_grid_component + 
-                                 renewable_supplier_component + 
-                                 margin_component + 
-                                 transmission_component)
-                    
-                    entry["entryPerArea"][area] = round(final_price, PRICE_DECIMAL_PRECISION)
-                    entry["price_raw_kwh"] = round(original_price / 1000, PRICE_DECIMAL_PRECISION)
+                    final_price = (
+                        base_price
+                        + excise_component
+                        + renewable_grid_component
+                        + renewable_supplier_component
+                        + margin_component
+                        + transmission_component
+                    )
+
+                    entry["entryPerArea"][area] = round(
+                        final_price, PRICE_DECIMAL_PRECISION
+                    )
+                    entry["price_raw_kwh"] = round(
+                        original_price / 1000, PRICE_DECIMAL_PRECISION
+                    )
 
             start_time = entry.get("deliveryStart")
             end_time = entry.get("deliveryEnd")
