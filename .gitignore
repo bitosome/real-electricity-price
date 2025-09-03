@@ -101,6 +101,9 @@ custom_components/hacs/
 # Container - Exclude all runtime data
 container/
 
+# Reference directory - External reference code
+reference/
+
 # Test files
 test_*.py
 *_test.py

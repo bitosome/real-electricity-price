@@ -1,11 +1,9 @@
-"""Cheap prices sensor for Real Electricity Price integration."""
+"""Cheap hours sensor for Real Electricity Price integration."""
 
 from __future__ import annotations
 
-import json
 import logging
-import yaml
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Any
 
 import pandas as pd
@@ -16,13 +14,13 @@ from .base import RealElectricityPriceBaseSensor
 _LOGGER = logging.getLogger(__name__)
 
 
-class CheapPricesSensor(RealElectricityPriceBaseSensor):
-    """Sensor for cheap electricity prices."""
+class CheapHoursSensor(RealElectricityPriceBaseSensor):
+    """Sensor for cheap electricity hours."""
 
     def __init__(self, coordinator, description):
-        """Initialize the cheap prices sensor."""
+        """Initialize the cheap hours sensor."""
         super().__init__(coordinator, description)
-        # This sensor should use the cheap price coordinator when available
+        # This sensor should use the cheap hours coordinator when available
         self._use_cheap_coordinator = hasattr(coordinator, "get_current_cheap_price")
 
     @property
@@ -45,15 +43,18 @@ class CheapPricesSensor(RealElectricityPriceBaseSensor):
         if not cheap_ranges:
             return 0
 
-        now = datetime.now(UTC)
+        now = dt_util.now()
         total_cheap_hours = 0
 
         # Count all future cheap hours
         for range_data in cheap_ranges:
             try:
-                start_time = datetime.fromisoformat(range_data["start_time"])
-                end_time = datetime.fromisoformat(range_data["end_time"])
-
+                start_time = dt_util.parse_datetime(range_data["start_time"])
+                end_time = dt_util.parse_datetime(range_data["end_time"])
+                
+                # Skip if datetime parsing failed
+                if not start_time or not end_time:
+                    continue
                 # If we're currently in a cheap period, count remaining hours + future periods
                 if start_time <= now < end_time:
                     # Count remaining hours in current period
@@ -76,15 +77,18 @@ class CheapPricesSensor(RealElectricityPriceBaseSensor):
         if not cheap_ranges:
             return 0
 
-        now = datetime.now(UTC)
+        now = dt_util.now()
         total_cheap_hours = 0
 
         # Count all future cheap hours
         for range_data in cheap_ranges:
             try:
-                start_time = datetime.fromisoformat(range_data["start_time"])
-                end_time = datetime.fromisoformat(range_data["end_time"])
-
+                start_time = dt_util.parse_datetime(range_data["start_time"])
+                end_time = dt_util.parse_datetime(range_data["end_time"])
+                
+                # Skip if datetime parsing failed
+                if not start_time or not end_time:
+                    continue
                 # If we're currently in a cheap period, count remaining hours + future periods
                 if start_time <= now < end_time:
                     # Count remaining hours in current period
@@ -111,14 +115,17 @@ class CheapPricesSensor(RealElectricityPriceBaseSensor):
         if not cheap_ranges:
             return None
 
-        now = datetime.now(UTC)
+        now = dt_util.now()
 
         # Find the next cheap period start time
         for range_data in cheap_ranges:
             try:
-                start_time = datetime.fromisoformat(range_data["start_time"])
-                end_time = datetime.fromisoformat(range_data["end_time"])
-
+                start_time = dt_util.parse_datetime(range_data["start_time"])
+                end_time = dt_util.parse_datetime(range_data["end_time"])
+                
+                # Skip if datetime parsing failed
+                if not start_time or not end_time:
+                    continue
                 # If we're currently in a cheap period, return its end time
                 if start_time <= now < end_time:
                     return dt_util.as_local(end_time)
@@ -138,14 +145,17 @@ class CheapPricesSensor(RealElectricityPriceBaseSensor):
         if not cheap_ranges:
             return None
 
-        now = datetime.now(UTC)
+        now = dt_util.now()
 
         # Find the next cheap period start time
         for range_data in cheap_ranges:
             try:
-                start_time = datetime.fromisoformat(range_data["start_time"])
-                end_time = datetime.fromisoformat(range_data["end_time"])
-
+                start_time = dt_util.parse_datetime(range_data["start_time"])
+                end_time = dt_util.parse_datetime(range_data["end_time"])
+                
+                # Skip if datetime parsing failed
+                if not start_time or not end_time:
+                    continue
                 # If we're currently in a cheap period, return its end time
                 if start_time <= now < end_time:
                     return dt_util.as_local(end_time)
@@ -178,14 +188,17 @@ class CheapPricesSensor(RealElectricityPriceBaseSensor):
         analysis_info = cheap_data.get("analysis_info", {})
 
         # Find current status and next cheap period
-        now = datetime.now(UTC)
+        now = dt_util.now()
         current_status = "inactive"
         next_cheap_info = None
 
         for range_data in cheap_ranges:
-            start_time = datetime.fromisoformat(range_data["start_time"])
-            end_time = datetime.fromisoformat(range_data["end_time"])
-
+            start_time = dt_util.parse_datetime(range_data["start_time"])
+            end_time = dt_util.parse_datetime(range_data["end_time"])
+            
+            # Skip if datetime parsing failed
+            if not start_time or not end_time:
+                continue
             if start_time <= now < end_time:
                 current_status = "active"
             elif start_time > now and next_cheap_info is None:
@@ -229,9 +242,9 @@ class CheapPricesSensor(RealElectricityPriceBaseSensor):
         analysis_info_serializable = datetime_serializer(analysis_info)
 
         return {
-            "cheap_price_ranges": yaml.dump(cheap_ranges_serializable, default_flow_style=False, allow_unicode=True),
-            "status_info": yaml.dump(status_info_serializable, default_flow_style=False, allow_unicode=True),
-            "analysis_info": yaml.dump(analysis_info_serializable, default_flow_style=False, allow_unicode=True),
+            "cheap_price_ranges": cheap_ranges_serializable,
+            "status_info": status_info_serializable,
+            "analysis_info": analysis_info_serializable,
         }
 
     def _get_manual_analysis_attributes(self) -> dict[str, Any]:
@@ -254,20 +267,23 @@ class CheapPricesSensor(RealElectricityPriceBaseSensor):
         }
 
         return {
-            "cheap_price_ranges": yaml.dump(cheap_ranges, default_flow_style=False, allow_unicode=True),
-            "summary_info": yaml.dump(summary_info, default_flow_style=False, allow_unicode=True),
-            "analysis_info": yaml.dump(analysis_info, default_flow_style=False, allow_unicode=True),
+            "cheap_price_ranges": cheap_ranges,
+            "summary_info": summary_info,
+            "analysis_info": analysis_info,
         }
 
     def _get_current_cheap_price_from_ranges(self) -> float | None:
         """Get current cheap price by checking ranges manually."""
         cheap_ranges = self._analyze_cheap_prices()
-        now = datetime.now(UTC)
+        now = dt_util.now()
 
         for range_data in cheap_ranges:
-            start_time = datetime.fromisoformat(range_data["start_time"])
-            end_time = datetime.fromisoformat(range_data["end_time"])
-
+            start_time = dt_util.parse_datetime(range_data["start_time"])
+            end_time = dt_util.parse_datetime(range_data["end_time"])
+            
+            # Skip if datetime parsing failed
+            if not start_time or not end_time:
+                continue
             if start_time <= now < end_time:
                 return range_data["avg_price"]
 
@@ -280,7 +296,7 @@ class CheapPricesSensor(RealElectricityPriceBaseSensor):
 
         try:
             # Collect all hourly prices with valid data from current hour onwards
-            now = datetime.now(UTC)
+            now = dt_util.now()
             current_hour_start = now.replace(minute=0, second=0, microsecond=0)
             all_prices = []
 
@@ -299,7 +315,7 @@ class CheapPricesSensor(RealElectricityPriceBaseSensor):
                     # Only include entries with valid price data from current hour onwards
                     if price_entry.get("actual_price") is not None:
                         try:
-                            start_time = datetime.fromisoformat(
+                            start_time = dt_util.parse_datetime(
                                 price_entry["start_time"]
                             )
                             # Include current hour and future hours only
@@ -429,7 +445,7 @@ class CheapPricesSensor(RealElectricityPriceBaseSensor):
 
         try:
             # Collect all valid prices from NOW onwards only
-            now = datetime.now(UTC)
+            now = dt_util.now()
             all_prices = []
             future_data_sources = []
 
@@ -450,7 +466,7 @@ class CheapPricesSensor(RealElectricityPriceBaseSensor):
                 for price_entry in hourly_prices:
                     if price_entry.get("actual_price") is not None:
                         try:
-                            start_time = datetime.fromisoformat(
+                            start_time = dt_util.parse_datetime(
                                 price_entry["start_time"]
                             )
                             # Include current hour and future hours only
@@ -497,11 +513,11 @@ class CheapPricesSensor(RealElectricityPriceBaseSensor):
             return {}
 
 
-class CheapPriceEndSensor(RealElectricityPriceBaseSensor):
-    """Sensor for the end time of the next cheap price period."""
+class CheapHoursEndSensor(RealElectricityPriceBaseSensor):
+    """Sensor for the end time of the next cheap hours period."""
 
     def __init__(self, coordinator, description):
-        """Initialize the cheap price end sensor."""
+        """Initialize the cheap hours end sensor."""
         super().__init__(coordinator, description)
         # This sensor should use the cheap price coordinator when available
         self._use_cheap_coordinator = hasattr(coordinator, "get_current_cheap_price")
@@ -531,14 +547,17 @@ class CheapPriceEndSensor(RealElectricityPriceBaseSensor):
         if not cheap_ranges:
             return None
 
-        now = datetime.now(UTC)
+        now = dt_util.now()
 
         # Find the next cheap period and return its end time
         for range_data in cheap_ranges:
             try:
-                start_time = datetime.fromisoformat(range_data["start_time"])
-                end_time = datetime.fromisoformat(range_data["end_time"])
-
+                start_time = dt_util.parse_datetime(range_data["start_time"])
+                end_time = dt_util.parse_datetime(range_data["end_time"])
+                
+                # Skip if datetime parsing failed
+                if not start_time or not end_time:
+                    continue
                 # If we're currently in a cheap period, return its end time
                 if start_time <= now < end_time:
                     return dt_util.as_local(end_time)
@@ -558,14 +577,17 @@ class CheapPriceEndSensor(RealElectricityPriceBaseSensor):
         if not cheap_ranges:
             return None
 
-        now = datetime.now(UTC)
+        now = dt_util.now()
 
         # Find the next cheap period and return its end time
         for range_data in cheap_ranges:
             try:
-                start_time = datetime.fromisoformat(range_data["start_time"])
-                end_time = datetime.fromisoformat(range_data["end_time"])
-
+                start_time = dt_util.parse_datetime(range_data["start_time"])
+                end_time = dt_util.parse_datetime(range_data["end_time"])
+                
+                # Skip if datetime parsing failed
+                if not start_time or not end_time:
+                    continue
                 # If we're currently in a cheap period, return its end time
                 if start_time <= now < end_time:
                     return dt_util.as_local(end_time)
@@ -579,19 +601,19 @@ class CheapPriceEndSensor(RealElectricityPriceBaseSensor):
         return None
 
     def _analyze_cheap_prices(self) -> list[dict[str, Any]]:
-        """Reuse the analysis from CheapPricesSensor."""
+        """Reuse the analysis from CheapHoursSensor."""
         # Create a temporary instance to reuse the analysis logic
-        temp_sensor = CheapPricesSensor(self.coordinator, None)
+        temp_sensor = CheapHoursSensor(self.coordinator, None)
         return temp_sensor._analyze_cheap_prices()
 
 
-class CheapPriceStartSensor(RealElectricityPriceBaseSensor):
-    """Sensor for next cheap electricity price period start."""
+class CheapHoursStartSensor(RealElectricityPriceBaseSensor):
+    """Sensor for next cheap electricity hours period start."""
 
     def __init__(self, coordinator, description):
-        """Initialize the next cheap price start sensor."""
+        """Initialize the next cheap hours start sensor."""
         super().__init__(coordinator, description)
-        # This sensor should use the cheap price coordinator when available
+        # This sensor should use the cheap hours coordinator when available
         self._use_cheap_coordinator = hasattr(coordinator, "get_current_cheap_price")
 
     @property
@@ -619,14 +641,17 @@ class CheapPriceStartSensor(RealElectricityPriceBaseSensor):
         if not cheap_ranges:
             return None
 
-        now = datetime.now(UTC)
+        now = dt_util.now()
 
         # Find the next cheap period start time
         for range_data in cheap_ranges:
             try:
-                start_time = datetime.fromisoformat(range_data["start_time"])
-                end_time = datetime.fromisoformat(range_data["end_time"])
-
+                start_time = dt_util.parse_datetime(range_data["start_time"])
+                end_time = dt_util.parse_datetime(range_data["end_time"])
+                
+                # Skip if datetime parsing failed
+                if not start_time or not end_time:
+                    continue
                 # If this is a future cheap period, return its start time
                 if start_time > now:
                     return dt_util.as_local(start_time)
@@ -647,14 +672,17 @@ class CheapPriceStartSensor(RealElectricityPriceBaseSensor):
         if not cheap_ranges:
             return None
 
-        now = datetime.now(UTC)
+        now = dt_util.now()
 
         # Find the next cheap period start time
         for range_data in cheap_ranges:
             try:
-                start_time = datetime.fromisoformat(range_data["start_time"])
-                end_time = datetime.fromisoformat(range_data["end_time"])
-
+                start_time = dt_util.parse_datetime(range_data["start_time"])
+                end_time = dt_util.parse_datetime(range_data["end_time"])
+                
+                # Skip if datetime parsing failed
+                if not start_time or not end_time:
+                    continue
                 # If this is a future cheap period, return its start time
                 if start_time > now:
                     return dt_util.as_local(start_time)
@@ -669,7 +697,7 @@ class CheapPriceStartSensor(RealElectricityPriceBaseSensor):
         return None
 
     def _analyze_cheap_prices(self) -> list[dict[str, Any]]:
-        """Reuse the analysis from CheapPricesSensor."""
+        """Reuse the analysis from CheapHoursSensor."""
         # Create a temporary instance to reuse the analysis logic
-        temp_sensor = CheapPricesSensor(self.coordinator, None)
+        temp_sensor = CheapHoursSensor(self.coordinator, None)
         return temp_sensor._analyze_cheap_prices()

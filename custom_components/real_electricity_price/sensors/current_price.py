@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import yaml
 from datetime import UTC, datetime
 from typing import Any
 
@@ -45,7 +44,7 @@ class CurrentPriceSensor(RealElectricityPriceBaseSensor):
         components = self._get_price_components(config)
         
         return {
-            "price_components": yaml.dump(components, default_flow_style=False, allow_unicode=True),
+            "price_components": components,
         }
 
     def _get_price_components(self, config: IntegrationConfig) -> dict[str, float]:
@@ -78,7 +77,8 @@ class CurrentPriceSensor(RealElectricityPriceBaseSensor):
         if not self.coordinator.data:
             return None
 
-        now = datetime.now(UTC).replace(minute=0, second=0, microsecond=0)
+        # Use Home Assistant's datetime utility for consistent timezone handling
+        now = dt_util.now().replace(minute=0, second=0, microsecond=0)
 
         for data_key in ["yesterday", "today", "tomorrow"]:
             day_data = self.coordinator.data.get(data_key)
@@ -88,10 +88,15 @@ class CurrentPriceSensor(RealElectricityPriceBaseSensor):
             hourly_prices = day_data.get("hourly_prices", [])
             for price_entry in hourly_prices:
                 try:
-                    start_time = datetime.fromisoformat(price_entry["start_time"])
-                    end_time = datetime.fromisoformat(price_entry["end_time"])
-
-                    if start_time <= now < end_time:
+                    # Native datetime objects from attributes (no string parsing needed)
+                    start_time_str = price_entry["start_time"]
+                    end_time_str = price_entry["end_time"]
+                    
+                    # Parse ISO format datetime strings consistently
+                    start_time = dt_util.parse_datetime(start_time_str)
+                    end_time = dt_util.parse_datetime(end_time_str)
+                    
+                    if start_time and end_time and start_time <= now < end_time:
                         return price_entry.get("nord_pool_price")
                 except (ValueError, KeyError):
                     continue
@@ -122,11 +127,10 @@ class CurrentPriceSensor(RealElectricityPriceBaseSensor):
 
         # Get current local time in the configured country
         tz_name = self._get_timezone_for_country(config.country_code)
+        # Use Home Assistant's timezone utilities for consistent handling
         try:
-            import zoneinfo
-
-            local_tz = zoneinfo.ZoneInfo(tz_name)
-            local_time = datetime.now(local_tz)
+            local_tz = dt_util.get_time_zone(tz_name)
+            local_time = dt_util.now(local_tz)
             local_hour = local_time.hour
         except Exception:
             local_hour = dt_util.now().hour
@@ -160,7 +164,8 @@ class CurrentPriceSensor(RealElectricityPriceBaseSensor):
         if not self.coordinator.data:
             return None
 
-        now = datetime.now(UTC).replace(minute=0, second=0, microsecond=0)
+        # Use Home Assistant's datetime utility for consistent timezone handling
+        now = dt_util.now().replace(minute=0, second=0, microsecond=0)
 
         for data_key in ["yesterday", "today", "tomorrow"]:
             day_data = self.coordinator.data.get(data_key)
@@ -170,10 +175,14 @@ class CurrentPriceSensor(RealElectricityPriceBaseSensor):
             hourly_prices = day_data.get("hourly_prices", [])
             for price_entry in hourly_prices:
                 try:
-                    start_time = datetime.fromisoformat(price_entry["start_time"])
-                    end_time = datetime.fromisoformat(price_entry["end_time"])
+                    # Parse ISO format datetime strings consistently
+                    start_time_str = price_entry["start_time"]
+                    end_time_str = price_entry["end_time"]
+                    
+                    start_time = dt_util.parse_datetime(start_time_str)
+                    end_time = dt_util.parse_datetime(end_time_str)
 
-                    if start_time <= now < end_time:
+                    if start_time and end_time and start_time <= now < end_time:
                         price_value = price_entry["actual_price"]
                         if price_value is None:
                             _LOGGER.debug(
@@ -238,11 +247,10 @@ class CurrentTariffSensor(RealElectricityPriceBaseSensor):
 
         # Get current local time in the configured country
         tz_name = self._get_timezone_for_country(config.country_code)
+        # Use Home Assistant's timezone utilities for consistent handling
         try:
-            import zoneinfo
-
-            local_tz = zoneinfo.ZoneInfo(tz_name)
-            local_time = datetime.now(local_tz)
+            local_tz = dt_util.get_time_zone(tz_name)
+            local_time = dt_util.now(local_tz)
             local_hour = local_time.hour
         except Exception as e:
             _LOGGER.warning("Could not determine local time for %s: %s", tz_name, e)

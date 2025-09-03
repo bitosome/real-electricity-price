@@ -129,7 +129,7 @@ class RealElectricityPriceApiClient:
     async def async_get_data(self) -> dict[str, Any] | None:
         """Get data from Nord Pool API for yesterday, today and tomorrow."""
         try:
-            today = datetime.datetime.now(datetime.UTC).date()
+            today = dt_util.now().date()
             yesterday = today - datetime.timedelta(days=1)
             tomorrow = today + datetime.timedelta(days=1)
 
@@ -266,8 +266,9 @@ class RealElectricityPriceApiClient:
         hourly_prices = []
 
         for hour in range(24):
+            # Create timezone-aware timestamps in local timezone
             start_time = datetime.datetime.combine(date, datetime.time(hour=hour))
-            start_time = start_time.replace(tzinfo=datetime.UTC)
+            start_time = start_time.replace(tzinfo=tzinfo)
             end_time = start_time + datetime.timedelta(hours=1)
 
             # Convert to local time for tariff calculation
@@ -288,8 +289,8 @@ class RealElectricityPriceApiClient:
 
             hourly_prices.append(
                 {
-                    "start_time": start_time.isoformat().replace("+00:00", "Z"),
-                    "end_time": end_time.isoformat().replace("+00:00", "Z"),
+                    "start_time": start_time.isoformat(),
+                    "end_time": end_time.isoformat(),
                     "nord_pool_price": None,  # Unavailable
                     "actual_price": None,  # Unavailable
                     "tariff": tariff,  # Calculated based on time and calendar
@@ -390,7 +391,9 @@ class RealElectricityPriceApiClient:
             if delivery_start_str:
                 # deliveryStart may end with 'Z' — make it ISO-8601 compatible
                 start_iso = delivery_start_str.replace("Z", "+00:00")
-                dt = datetime.datetime.fromisoformat(start_iso)
+                dt = dt_util.parse_datetime(start_iso)
+                if not dt:
+                    continue
                 local_hour = dt.astimezone(tzinfo).hour
 
                 # Determine tariff for this specific hour
@@ -406,12 +409,10 @@ class RealElectricityPriceApiClient:
                         block_end_str = block.get("deliveryEnd")
 
                         if block_start_str and block_end_str:
-                            block_start = datetime.datetime.fromisoformat(
-                                block_start_str
-                            )
-                            block_end = datetime.datetime.fromisoformat(block_end_str)
+                            block_start = dt_util.parse_datetime(block_start_str)
+                            block_end = dt_util.parse_datetime(block_end_str)
 
-                            if block_start <= dt < block_end:
+                            if block_start and block_end and block_start <= dt < block_end:
                                 block_name = block.get("blockName", "")
                                 tariff = "day" if block_name == "Peak" else "night"
                                 break
@@ -476,14 +477,31 @@ class RealElectricityPriceApiClient:
                         original_price / 1000, PRICE_DECIMAL_PRECISION
                     )
 
-            start_time = entry.get("deliveryStart")
-            end_time = entry.get("deliveryEnd")
+            # Convert Nord Pool string timestamps to timezone-aware datetime objects
+            start_time_str = entry.get("deliveryStart")
+            end_time_str = entry.get("deliveryEnd")
+            
+            # Convert string timestamps to datetime objects in local timezone
+            if start_time_str:
+                start_iso = start_time_str.replace("Z", "+00:00")
+                start_time_utc = dt_util.parse_datetime(start_iso)
+                start_time = start_time_utc.astimezone(tzinfo) if start_time_utc else None
+            else:
+                start_time = None
+                
+            if end_time_str:
+                end_iso = end_time_str.replace("Z", "+00:00")
+                end_time_utc = dt_util.parse_datetime(end_iso)
+                end_time = end_time_utc.astimezone(tzinfo) if end_time_utc else None
+            else:
+                end_time = None
+                
             nord_pool_price = entry.get("price_raw_kwh", 0)
             actual_price = entry["entryPerArea"].get(area, 0)
             hourly_prices.append(
                 {
-                    "start_time": start_time,
-                    "end_time": end_time,
+                    "start_time": start_time.isoformat() if start_time else None,
+                    "end_time": end_time.isoformat() if end_time else None,
                     "nord_pool_price": nord_pool_price,
                     "actual_price": actual_price,
                     "tariff": tariff,

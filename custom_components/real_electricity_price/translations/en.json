@@ -30,8 +30,8 @@
                     "night_price_end_hour": "Night Price End Hour (0-23)",
                     "scan_interval": "Scan Interval (seconds)",
                     "update_trigger": "Update Trigger (Advanced)",
-                    "cheap_price_update_trigger": "Cheap Price Update Time",
-                    "cheap_price_threshold": "Cheap Price Threshold (%)"
+                    "cheap_hours_update_trigger": "Cheap Hours Update Time",
+                    "cheap_hours_threshold": "Cheap Hours Threshold (%)"
                 }
             }
         },
@@ -76,8 +76,8 @@
                     "night_price_end_hour": "Night Price End Hour (0-23)",
                     "scan_interval": "Scan Interval (seconds)",
                     "update_trigger": "Update Trigger (Advanced)",
-                    "cheap_price_update_trigger": "Cheap Price Update Time",
-                    "cheap_price_threshold": "Cheap Price Threshold (%)"
+                    "cheap_hours_update_trigger": "Cheap Hours Update Time",
+                    "cheap_hours_threshold": "Cheap Hours Threshold (%)"
                 }
             }
         }

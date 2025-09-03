@@ -35,10 +35,10 @@ NIGHT_PRICE_END_TIME_DEFAULT = "07:00"
 
 # Update intervals
 DEFAULT_SCAN_INTERVAL = 3600  # 1 hour in seconds
-DEFAULT_CHEAP_PRICE_UPDATE_TRIGGER = "14:30"
+DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER = "14:30"
 
 # Analysis settings
-CHEAP_PRICE_THRESHOLD_DEFAULT = 10.0  # percent above minimum price
+CHEAP_HOURS_THRESHOLD_DEFAULT = 10.0  # percent above minimum price
 PRICE_DECIMAL_PRECISION = 6  # Number of decimal places for all price calculations
 
 
@@ -69,8 +69,8 @@ CONF_NIGHT_PRICE_END_TIME = "night_price_end_time"
 
 ## Update configuration
 CONF_SCAN_INTERVAL = "scan_interval"
-CONF_CHEAP_PRICE_UPDATE_TRIGGER = "cheap_price_update_trigger"
-CONF_CHEAP_PRICE_THRESHOLD = "cheap_price_threshold"
+CONF_CHEAP_HOURS_UPDATE_TRIGGER = "cheap_hours_update_trigger"
+CONF_CHEAP_HOURS_THRESHOLD = "cheap_hours_threshold"
 
 ## API configuration
 CONF_DATE = "date"

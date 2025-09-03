@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-import json
 import logging
-import yaml
 from typing import Any
+
+from homeassistant.util import dt as dt_util
 
 from .base import RealElectricityPriceBaseSensor
 
@@ -72,18 +72,20 @@ class HourlyPricesSensor(RealElectricityPriceBaseSensor):
 
             # Get current hour and next few hours for preview
             if data_key in ["today", "tomorrow"] and hourly_prices:
-                from datetime import UTC, datetime
-                now = datetime.now(UTC).replace(minute=0, second=0, microsecond=0)
+                # Use Home Assistant's datetime utility for consistent timezone handling
+                now = dt_util.now().replace(minute=0, second=0, microsecond=0)
                 
                 for price_entry in hourly_prices[:12]:  # Limit to first 12 hours
                     try:
-                        start_time = datetime.fromisoformat(price_entry["start_time"])
-                        if start_time >= now and len(next_hours_preview) < 6:
+                        start_time_str = price_entry["start_time"]
+                        start_time = dt_util.parse_datetime(start_time_str)
+                        
+                        if start_time and start_time >= now and len(next_hours_preview) < 6:
                             next_hours_preview.append({
                                 "start_time": price_entry["start_time"],
                                 "price": self._round_price(price_entry.get("actual_price")) if price_entry.get("actual_price") is not None else None,
                             })
-                        elif start_time == now:
+                        elif start_time and start_time == now:
                             current_hour_info = {
                                 "start_time": price_entry["start_time"],
                                 "price": self._round_price(price_entry.get("actual_price")) if price_entry.get("actual_price") is not None else None,
@@ -101,24 +103,16 @@ class HourlyPricesSensor(RealElectricityPriceBaseSensor):
 
         _LOGGER.debug("Hourly prices attributes size reduced for database efficiency")
         
-        # Convert the result to YAML format for all attributes
-        yaml_result = {}
-        for key, value in result.items():
-            if isinstance(value, (dict, list)):
-                yaml_result[key] = yaml.dump(value, default_flow_style=False, allow_unicode=True)
-            else:
-                yaml_result[key] = value
-        
-        return yaml_result
+        # Return native data structures (no YAML serialization needed)
+        return result
 
     def _get_current_hour_price(self) -> float | None:
         """Get the price for the current hour."""
         if not self.coordinator.data:
             return None
 
-        from datetime import UTC, datetime
-
-        now = datetime.now(UTC).replace(minute=0, second=0, microsecond=0)
+        # Use Home Assistant's datetime utility for consistent timezone handling
+        now = dt_util.now().replace(minute=0, second=0, microsecond=0)
 
         for data_key in ["yesterday", "today", "tomorrow"]:
             day_data = self.coordinator.data.get(data_key)
@@ -128,11 +122,14 @@ class HourlyPricesSensor(RealElectricityPriceBaseSensor):
             hourly_prices = day_data.get("hourly_prices", [])
             for price_entry in hourly_prices:
                 try:
-                    start_time = datetime.fromisoformat(price_entry["start_time"])
-                    end_time = datetime.fromisoformat(price_entry["end_time"])
+                    start_time_str = price_entry["start_time"]
+                    end_time_str = price_entry["end_time"]
+                    
+                    start_time = dt_util.parse_datetime(start_time_str)
+                    end_time = dt_util.parse_datetime(end_time_str)
 
                     if (
-                        start_time <= now < end_time
+                        start_time and end_time and start_time <= now < end_time
                         and price_entry.get("actual_price") is not None
                     ):
                         return price_entry["actual_price"]

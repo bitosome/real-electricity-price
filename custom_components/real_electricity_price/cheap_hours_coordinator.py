@@ -13,9 +13,9 @@ from homeassistant.helpers.event import async_track_time_change
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import (
-    CHEAP_PRICE_THRESHOLD_DEFAULT,
-    CONF_CHEAP_PRICE_THRESHOLD,
-    CONF_CHEAP_PRICE_UPDATE_TRIGGER,
+    CHEAP_HOURS_THRESHOLD_DEFAULT,
+    CONF_CHEAP_HOURS_THRESHOLD,
+    CONF_CHEAP_HOURS_UPDATE_TRIGGER,
     DEFAULT_CHEAP_PRICE_UPDATE_TRIGGER,
     PRICE_DECIMAL_PRECISION,
 )
@@ -31,8 +31,8 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 
-class CheapPriceDataUpdateCoordinator(DataUpdateCoordinator):
-    """Class to manage fetching and updating cheap price data separately from main price data."""
+class CheapHoursDataUpdateCoordinator(DataUpdateCoordinator):
+    """Class to manage fetching and updating cheap hours data separately from main price data."""
 
     def __init__(
         self,
@@ -43,7 +43,7 @@ class CheapPriceDataUpdateCoordinator(DataUpdateCoordinator):
         config_entry: RealElectricityPriceConfigEntry,
         update_method: Any = None,
     ) -> None:
-        """Initialize the cheap price coordinator."""
+        """Initialize the cheap hours coordinator."""
         super().__init__(
             hass=hass,
             logger=logger,
@@ -77,7 +77,7 @@ class CheapPriceDataUpdateCoordinator(DataUpdateCoordinator):
         # Get current config (options override data)
         config = {**self.config_entry.data, **self.config_entry.options}
         trigger_time = config.get(
-            CONF_CHEAP_PRICE_UPDATE_TRIGGER, DEFAULT_CHEAP_PRICE_UPDATE_TRIGGER
+            CONF_CHEAP_HOURS_UPDATE_TRIGGER, DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER
         )
 
         # Remove existing trigger
@@ -163,7 +163,7 @@ class CheapPriceDataUpdateCoordinator(DataUpdateCoordinator):
         """Get the current trigger time configuration."""
         config = {**self.config_entry.data, **self.config_entry.options}
         return config.get(
-            CONF_CHEAP_PRICE_UPDATE_TRIGGER, DEFAULT_CHEAP_PRICE_UPDATE_TRIGGER
+            CONF_CHEAP_HOURS_UPDATE_TRIGGER, DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER
         )
 
     def _analyze_cheap_prices(self, main_data: dict) -> dict[str, Any]:
@@ -225,7 +225,7 @@ class CheapPriceDataUpdateCoordinator(DataUpdateCoordinator):
             # Get threshold from configuration
             config = {**self.config_entry.data, **self.config_entry.options}
             threshold_percent = config.get(
-                CONF_CHEAP_PRICE_THRESHOLD, CHEAP_PRICE_THRESHOLD_DEFAULT
+                CONF_CHEAP_HOURS_THRESHOLD, CHEAP_HOURS_THRESHOLD_DEFAULT
             )
 
             # Calculate maximum price that's considered "cheap"

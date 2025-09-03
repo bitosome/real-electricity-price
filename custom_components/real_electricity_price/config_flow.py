@@ -12,9 +12,9 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import selector
 
 from .const import (
-    CHEAP_PRICE_THRESHOLD_DEFAULT,
-    CONF_CHEAP_PRICE_THRESHOLD,
-    CONF_CHEAP_PRICE_UPDATE_TRIGGER,
+    CHEAP_HOURS_THRESHOLD_DEFAULT,
+    CONF_CHEAP_HOURS_THRESHOLD,
+    CONF_CHEAP_HOURS_UPDATE_TRIGGER,
     CONF_COUNTRY_CODE,
     CONF_GRID,
     CONF_GRID_ELECTRICITY_EXCISE_DUTY,
@@ -38,7 +38,7 @@ from .const import (
     CONF_VAT_SUPPLIER_MARGIN,
     CONF_VAT_SUPPLIER_RENEWABLE_ENERGY_CHARGE,
     COUNTRY_CODE_DEFAULT,
-    DEFAULT_CHEAP_PRICE_UPDATE_TRIGGER,
+    DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
     GRID_DEFAULT,
@@ -110,11 +110,11 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
         msg = "Scan interval must be between 5 minutes (300 seconds) and 24 hours (86400 seconds)"
         raise InvalidScanInterval(msg)
 
-    cheap_price_trigger = _convert_time_format(
-        data.get(CONF_CHEAP_PRICE_UPDATE_TRIGGER, DEFAULT_CHEAP_PRICE_UPDATE_TRIGGER)
+    cheap_hours_trigger = _convert_time_format(
+        data.get(CONF_CHEAP_HOURS_UPDATE_TRIGGER, DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER)
     )
-    if not _validate_time_string(cheap_price_trigger):
-        msg = "Cheap price update time must be a valid time in HH:MM format"
+    if not _validate_time_string(cheap_hours_trigger):
+        msg = "Cheap hours update time must be a valid time in HH:MM format"
         raise InvalidCheapPriceTrigger(msg)
 
     # Validate time settings - handle both new TimeSelector and legacy hour formats

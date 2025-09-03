@@ -1,0 +1,153 @@
+type: custom:apexcharts-card
+header:
+  show: true
+  title: Electricity prices
+  show_states: true
+  colorize_states: true
+graph_span: 48h
+span:
+  start: day
+  offset: +0h
+now:
+  show: true
+  color: "#FF6B6B"
+  label: Now
+apex_config:
+  chart:
+    height: 200
+    stacked: false
+    toolbar:
+      show: false
+  legend:
+    show: false
+  grid:
+    show: true
+    borderColor: "#404040"
+  tooltip:
+    fixed:
+      enabled: true
+      position: topLeft
+    offsetX: -10
+    offsetY: -10
+    shared: false
+    x:
+      format: MMM dd, HH:mm
+    "y":
+      formatter: >
+        EVAL:function(value){if(value===null||typeof
+        value==='undefined'||Number.isNaN(Number(value)))return'';return
+        Number(value).toFixed(6)+' €/kWh';}
+  xaxis:
+    type: datetime
+    tickAmount: 48
+    labels:
+      format: HH:mm
+      datetimeUTC: false
+      rotate: -45
+      offsetX: 0
+      offsetY: 0
+  yaxis:
+    - title:
+        text: Price (€/kWh)
+      labels:
+        formatter: >
+          EVAL:function(value){if(value===null||typeof
+          value==='undefined'||Number.isNaN(Number(value)))return'';return
+          Number(value).toFixed(6)+' €';}
+      min: 0
+  colors:
+    - "#FF6B6B"
+    - "#3AA655"
+    - "#FFA500"
+  plotOptions:
+    bar:
+      columnWidth: 95%
+      endingShape: rounded
+  dataLabels:
+    enabled: false
+  stroke:
+    width: 0
+  fill:
+    opacity: 1
+series:
+  - entity: sensor.real_electricity_price_current_price
+    name: Current
+    type: line
+    stroke_width: 0
+    float_precision: 6
+    unit: €/kWh
+    data_generator: >
+      var out = [];
+      var nowts = new Date().getTime();
+      var v = null;
+      if (entity && entity.state && entity.state !== 'unknown' && entity.state !== 'unavailable') {
+        v = Number(entity.state);
+      }
+      out.push([nowts, v]);
+      return out;
+  - entity: sensor.real_electricity_price_hourly_prices_today
+    type: column
+    name: Hourly Prices (Today)
+    float_precision: 6
+    unit: €/kWh
+    color: "#3AA655"
+    show:
+      in_header: false
+    data_generator: >
+      // Robust access to native array with proper timezone handling
+      if (!entity || !entity.attributes) return [];
+      
+      var arr = entity.attributes.hourly_prices;
+      if (!arr || !Array.isArray(arr)) return [];
+
+      var out = [];
+
+      for (var j = 0; j < arr.length; j++) {
+        var it = arr[j];
+        if (it && it.start_time) {
+          // Parse ISO 8601 timestamp with timezone offset (e.g., "2025-09-03 19:00:00+03:00")
+          var ts = new Date(it.start_time).getTime();
+          
+          var v = (typeof it.actual_price !== 'undefined' && it.actual_price !== null) 
+                  ? Number(it.actual_price) 
+                  : (typeof it.nord_pool_price !== 'undefined' && it.nord_pool_price !== null 
+                     ? Number(it.nord_pool_price) 
+                     : null);
+          out.push([ts, v]);
+        }
+      }
+
+      return out;
+  - entity: sensor.real_electricity_price_hourly_prices_tomorrow
+    type: column
+    name: Hourly Prices (Tomorrow)
+    float_precision: 6
+    unit: €/kWh
+    color: "#FFA500"
+    show:
+      in_header: false
+    data_generator: >
+      // Robust access to native array with proper timezone handling
+      if (!entity || !entity.attributes) return [];
+      
+      var arr = entity.attributes.hourly_prices;
+      if (!arr || !Array.isArray(arr)) return [];
+
+      var out = [];
+
+      for (var j = 0; j < arr.length; j++) {
+        var it = arr[j];
+        if (it && it.start_time) {
+          // Parse ISO 8601 timestamp with timezone offset (e.g., "2025-09-03 19:00:00+03:00")
+          var ts = new Date(it.start_time).getTime();
+          
+          var v = (typeof it.actual_price !== 'undefined' && it.actual_price !== null) 
+                  ? Number(it.actual_price) 
+                  : (typeof it.nord_pool_price !== 'undefined' && it.nord_pool_price !== null 
+                     ? Number(it.nord_pool_price) 
+                     : null);
+          out.push([ts, v]);
+        }
+      }
+
+      return out;

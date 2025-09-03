@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from homeassistant.loader import Integration
 
     from .api import RealElectricityPriceApiClient
-    from .cheap_price_coordinator import CheapPriceDataUpdateCoordinator
+    from .cheap_hours_coordinator import CheapHoursDataUpdateCoordinator
     from .coordinator import RealElectricityPriceDataUpdateCoordinator
 
 
@@ -23,5 +23,5 @@ class RealElectricityPriceData:
 
     client: RealElectricityPriceApiClient
     coordinator: RealElectricityPriceDataUpdateCoordinator
-    cheap_price_coordinator: CheapPriceDataUpdateCoordinator
+    cheap_hours_coordinator: CheapHoursDataUpdateCoordinator
     integration: Integration

@@ -1,6 +1,17 @@
 """Sensor platform for real_electricity_price."""
 
-from __future__ import annotations
+from __future_    "real_electricity_price_cheap_hours": (
+        SENSOR_TYPE_CHEAP_HOURS,
+        CheapHoursSensor,
+    ),
+    "real_electricity_price_cheap_hours_end": (
+        SENSOR_TYPE_CHEAP_HOURS_END,
+        CheapHoursEndSensor,
+    ),
+    "real_electricity_price_cheap_hours_start": (
+        SENSOR_TYPE_CHEAP_HOURS_START,
+        CheapHoursStartSensor,
+    ),otations
 
 import logging
 from typing import TYPE_CHECKING
@@ -10,9 +21,9 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .entity_descriptions import SENSOR_DESCRIPTIONS
 from .sensors import (
-    CheapPricesSensor,
-    CheapPriceEndSensor,
-    CheapPriceStartSensor,
+    CheapHoursSensor,
+    CheapHoursEndSensor,
+    CheapHoursStartSensor,
     CurrentPriceSensor,
     CurrentTariffSensor,
     HourlyPricesYesterdaySensor,
@@ -35,9 +46,9 @@ SENSOR_TYPE_LAST_CHEAP_CALCULATION = "last_cheap_calculation"
 SENSOR_TYPE_HOURLY_PRICES_YESTERDAY = "hourly_prices_yesterday"
 SENSOR_TYPE_HOURLY_PRICES_TODAY = "hourly_prices_today"
 SENSOR_TYPE_HOURLY_PRICES_TOMORROW = "hourly_prices_tomorrow"
-SENSOR_TYPE_CHEAP_PRICES = "cheap_prices"
-SENSOR_TYPE_CHEAP_PRICE_END = "cheap_price_end"
-SENSOR_TYPE_CHEAP_PRICE_START = "cheap_price_start"
+SENSOR_TYPE_CHEAP_HOURS = "cheap_hours"
+SENSOR_TYPE_CHEAP_HOURS_END = "cheap_hours_end"
+SENSOR_TYPE_CHEAP_HOURS_START = "cheap_hours_start"
 
 # Mapping of entity descriptions to sensor types and classes
 SENSOR_MAPPING = {
@@ -65,15 +76,15 @@ SENSOR_MAPPING = {
     ),
     "real_electricity_price_cheap_prices": (
         SENSOR_TYPE_CHEAP_PRICES,
-        CheapPricesSensor,
+        CheapHoursSensor,
     ),
     "real_electricity_price_cheap_price_end": (
         SENSOR_TYPE_CHEAP_PRICE_END,
-        CheapPriceEndSensor,
+        CheapHoursEndSensor,
     ),
     "real_electricity_price_cheap_price_start": (
         SENSOR_TYPE_CHEAP_PRICE_START,
-        CheapPriceStartSensor,
+        CheapHoursStartSensor,
     ),
 }
 
@@ -87,7 +98,7 @@ async def async_setup_entry(
     _LOGGER.debug("Setting up sensor platform for entry: %s", entry.entry_id)
 
     coordinator = entry.runtime_data.coordinator
-    cheap_price_coordinator = entry.runtime_data.cheap_price_coordinator
+    cheap_hours_coordinator = entry.runtime_data.cheap_hours_coordinator
 
     entities = []
 
@@ -104,12 +115,12 @@ async def async_setup_entry(
 
         # Determine which coordinator to use
         if sensor_type in (
-            SENSOR_TYPE_CHEAP_PRICES,
-            SENSOR_TYPE_CHEAP_PRICE_END,
-            SENSOR_TYPE_CHEAP_PRICE_START,
+            SENSOR_TYPE_CHEAP_HOURS,
+            SENSOR_TYPE_CHEAP_HOURS_END,
+            SENSOR_TYPE_CHEAP_HOURS_START,
             SENSOR_TYPE_LAST_CHEAP_CALCULATION,
         ):
-            coord = cheap_price_coordinator  # Use separate coordinator for cheap prices
+            coord = cheap_hours_coordinator  # Use separate coordinator for cheap hours
         else:
             coord = coordinator  # Use main coordinator for other sensors
 

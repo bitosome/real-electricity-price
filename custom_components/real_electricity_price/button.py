@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
     from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-    from .cheap_price_coordinator import CheapPriceDataUpdateCoordinator
+    from .cheap_hours_coordinator import CheapHoursDataUpdateCoordinator
     from .coordinator import RealElectricityPriceDataUpdateCoordinator
     from .data import RealElectricityPriceConfigEntry
 
@@ -70,7 +70,7 @@ class RealElectricityPriceCalculateCheapHoursButton(
     def __init__(
         self,
         coordinator: RealElectricityPriceDataUpdateCoordinator,
-        cheap_coordinator: CheapPriceDataUpdateCoordinator,
+        cheap_coordinator: CheapHoursDataUpdateCoordinator,
     ) -> None:
         """Initialize the button."""
         super().__init__(coordinator)

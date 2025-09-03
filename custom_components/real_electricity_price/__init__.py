@@ -15,9 +15,9 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.loader import async_get_loaded_integration
 
 from .api import RealElectricityPriceApiClient
-from .cheap_price_coordinator import CheapPriceDataUpdateCoordinator
+from .cheap_hours_coordinator import CheapHoursDataUpdateCoordinator
 from .const import (
-    CONF_CHEAP_PRICE_UPDATE_TRIGGER,
+    CONF_CHEAP_HOURS_UPDATE_TRIGGER,
     CONF_SCAN_INTERVAL,
     DEFAULT_CHEAP_PRICE_UPDATE_TRIGGER,
     DEFAULT_SCAN_INTERVAL,
@@ -102,12 +102,12 @@ async def async_setup_entry(
 ) -> bool:
     """Set up this integration using UI."""
     # Migration: Add missing cheap_price_update_trigger parameter to existing configs
-    if CONF_CHEAP_PRICE_UPDATE_TRIGGER not in entry.data:
+    if CONF_CHEAP_HOURS_UPDATE_TRIGGER not in entry.data:
         LOGGER.info(
             "Migrating configuration: adding cheap_price_update_trigger parameter"
         )
         new_data = dict(entry.data)
-        new_data[CONF_CHEAP_PRICE_UPDATE_TRIGGER] = DEFAULT_CHEAP_PRICE_UPDATE_TRIGGER
+        new_data[CONF_CHEAP_HOURS_UPDATE_TRIGGER] = DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER
 
         hass.config_entries.async_update_entry(entry, data=new_data)
 
@@ -127,7 +127,7 @@ async def async_setup_entry(
     )
 
     # Initialize cheap price coordinator
-    cheap_price_coordinator = CheapPriceDataUpdateCoordinator(
+    cheap_hours_coordinator = CheapHoursDataUpdateCoordinator(
         main_coordinator=coordinator,
         config_entry=entry,
         hass=hass,
@@ -136,8 +136,8 @@ async def async_setup_entry(
         update_method=None,  # No default update interval, uses triggers
     )
 
-    # Link coordinators for automatic cheap price updates after data sync
-    coordinator.set_cheap_price_coordinator(cheap_price_coordinator)
+    # Link coordinators for automatic cheap hours updates after data sync
+    coordinator.set_cheap_price_coordinator(cheap_hours_coordinator)
 
     entry.runtime_data = RealElectricityPriceData(
         client=RealElectricityPriceApiClient(
@@ -146,7 +146,7 @@ async def async_setup_entry(
         ),
         integration=async_get_loaded_integration(hass, entry.domain),
         coordinator=coordinator,
-        cheap_price_coordinator=cheap_price_coordinator,
+        cheap_hours_coordinator=cheap_hours_coordinator,
     )
 
     # https://developers.home-assistant.io/docs/integration_fetching_data#coordinated-single-api-poll-for-data-for-all-entities
@@ -159,7 +159,7 @@ async def async_setup_entry(
         hass: HomeAssistant, updated_entry: RealElectricityPriceConfigEntry
     ) -> None:
         """Update trigger configurations when config changes."""
-        cheap_price_coordinator.update_trigger_config()
+        cheap_hours_coordinator.update_trigger_config()
 
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))
 
@@ -172,7 +172,7 @@ async def async_setup_entry(
     async def async_recalculate_cheap_prices(call) -> None:
         """Handle recalculate cheap prices service call."""
         LOGGER.debug("Recalculate cheap prices service called")
-        await cheap_price_coordinator.async_manual_update()
+        await cheap_hours_coordinator.async_manual_update()
 
     hass.services.async_register(
         DOMAIN,

@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import datetime
-import json
 import logging
-import yaml
 from typing import Any
+
+from homeassistant.util import dt as dt_util
 
 from .base import RealElectricityPriceBaseSensor
 
@@ -42,18 +42,19 @@ class DailyHourlyPricesSensor(RealElectricityPriceBaseSensor):
 
         # For "today", try to get current hour price
         if self._day_key == "today":
-            current_time = datetime.datetime.now(datetime.UTC)
+            # Use Home Assistant's datetime utility for consistent timezone handling
+            current_time = dt_util.now()
             for price_entry in hourly_prices:
                 start_time_str = price_entry.get("start_time")
                 end_time_str = price_entry.get("end_time")
                 
                 if start_time_str and end_time_str:
                     try:
-                        # Handle timezone-aware datetime strings
-                        start_time = datetime.datetime.fromisoformat(start_time_str.replace('Z', '+00:00'))
-                        end_time = datetime.datetime.fromisoformat(end_time_str.replace('Z', '+00:00'))
+                        # Parse timezone-aware datetime strings using HA utilities
+                        start_time = dt_util.parse_datetime(start_time_str)
+                        end_time = dt_util.parse_datetime(end_time_str)
                         
-                        if start_time <= current_time < end_time:
+                        if start_time and end_time and start_time <= current_time < end_time:
                             price = price_entry.get("actual_price")
                             if price is not None:
                                 return self._round_price(price)
@@ -138,8 +139,13 @@ class DailyHourlyPricesSensor(RealElectricityPriceBaseSensor):
                 state_description = "Average day price"
 
         return {
-            "hourly_prices": yaml.dump(processed_prices, default_flow_style=False, allow_unicode=True),
-            "statistics": yaml.dump(statistics, default_flow_style=False, allow_unicode=True) if statistics else "{}",
+            "hourly_prices": processed_prices,
+            "statistics": statistics,
+            "date": date,
+            "data_available": data_available,
+            "is_holiday": is_holiday,
+            "is_weekend": is_weekend,
+            "state_description": state_description,
         }
 
 

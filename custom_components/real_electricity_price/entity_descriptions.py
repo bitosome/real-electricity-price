@@ -32,8 +32,8 @@ SENSOR_LAST_SYNC = SensorEntityDescription(
     device_class=SensorDeviceClass.TIMESTAMP,
 )
 
-SENSOR_LAST_CHEAP_CALCULATION = SensorEntityDescription(
-    key="real_electricity_price_last_cheap_calculation",
+SENSOR_LAST_CHEAP_HOURS_CALCULATION = SensorEntityDescription(
+    key="real_electricity_price_last_cheap_hours_calculation",
     name="Last Cheap Hours Calculation",
     icon="mdi:calculator-variant-outline",
     device_class=SensorDeviceClass.TIMESTAMP,
@@ -66,23 +66,23 @@ SENSOR_HOURLY_PRICES_TOMORROW = SensorEntityDescription(
     suggested_display_precision=6,
 )
 
-SENSOR_CHEAP_PRICES = SensorEntityDescription(
-    key="real_electricity_price_cheap_prices",
+SENSOR_CHEAP_HOURS = SensorEntityDescription(
+    key="real_electricity_price_cheap_hours",
     name="Cheap hours",
     icon="mdi:clock-time-twelve",
     native_unit_of_measurement="h",
 )
 
-SENSOR_CHEAP_PRICE_END = SensorEntityDescription(
-    key="real_electricity_price_cheap_price_end",
-    name="Next Cheap Price End",
+SENSOR_CHEAP_HOURS_END = SensorEntityDescription(
+    key="real_electricity_price_cheap_hours_end",
+    name="Next Cheap Hours End",
     icon="mdi:clock-end",
     device_class=SensorDeviceClass.TIMESTAMP,
 )
 
-SENSOR_CHEAP_PRICE_START = SensorEntityDescription(
-    key="real_electricity_price_cheap_price_start",
-    name="Next Cheap Price Start",
+SENSOR_CHEAP_HOURS_START = SensorEntityDescription(
+    key="real_electricity_price_cheap_hours_start",
+    name="Next Cheap Hours Start",
     icon="mdi:clock-start",
     device_class=SensorDeviceClass.TIMESTAMP,
 )
@@ -92,11 +92,11 @@ SENSOR_DESCRIPTIONS = (
     SENSOR_CURRENT_PRICE,
     SENSOR_CURRENT_TARIFF,
     SENSOR_LAST_SYNC,
-    SENSOR_LAST_CHEAP_CALCULATION,
+    SENSOR_LAST_CHEAP_HOURS_CALCULATION,
     SENSOR_HOURLY_PRICES_YESTERDAY,
     SENSOR_HOURLY_PRICES_TODAY,
     SENSOR_HOURLY_PRICES_TOMORROW,
-    SENSOR_CHEAP_PRICES,
-    SENSOR_CHEAP_PRICE_END,
-    SENSOR_CHEAP_PRICE_START,
+    SENSOR_CHEAP_HOURS,
+    SENSOR_CHEAP_HOURS_END,
+    SENSOR_CHEAP_HOURS_START,
 )
