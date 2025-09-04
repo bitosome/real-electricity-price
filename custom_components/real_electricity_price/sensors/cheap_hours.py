@@ -212,9 +212,12 @@ class CheapHoursSensor(RealElectricityPriceBaseSensor):
         last_update = cheap_data.get("last_update")
         trigger_time = cheap_data.get("trigger_time")
 
+        # Calculate total cheap hours by summing hour_count from all ranges
+        total_hours = sum(range_data.get("hour_count", 1) for range_data in cheap_ranges)
+        
         status_info = {
             "current_status": current_status,
-            "total_cheap_hours": len(cheap_ranges),
+            "total_cheap_hours": total_hours,
             "last_calculation": last_update.isoformat()
             if isinstance(last_update, datetime)
             else last_update,
