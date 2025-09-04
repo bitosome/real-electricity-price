@@ -345,11 +345,11 @@ class CheapHoursDataUpdateCoordinator(DataUpdateCoordinator):
                     threshold_percent = CHEAP_HOURS_THRESHOLD_DEFAULT
 
             # Calculate maximum price that's considered "cheap" based on base price and threshold
-            # Cheap period: price ≤ base_price OR price ≤ (base_price × threshold_percent)
-            max_cheap_price_by_threshold = base_price * threshold_percent
+            # Cheap period: price ≤ base_price OR price ≤ (base_price × (1 + threshold_percent/100))
+            max_cheap_price_by_threshold = base_price * (1 + threshold_percent / 100)
             max_cheap_price = max(base_price, max_cheap_price_by_threshold)
 
-            # Filter cheap prices: price ≤ base_price OR price ≤ (base_price × threshold_percent)
+            # Filter cheap prices: price ≤ base_price OR price ≤ (base_price × (1 + threshold_percent/100))
             cheap_prices = [
                 p for p in future_prices 
                 if isinstance(p["price"], (int, float)) and (

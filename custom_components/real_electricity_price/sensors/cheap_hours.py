@@ -281,7 +281,7 @@ class CheapHoursSensor(RealElectricityPriceBaseSensor):
         calculation_info = {
             "base_price": config.cheap_hours_base_price,
             "threshold_percent": config.cheap_price_threshold,
-            "max_cheap_by_threshold": self._round_price(config.cheap_hours_base_price * config.cheap_price_threshold),
+            "max_cheap_by_threshold": self._round_price(config.cheap_hours_base_price * (1 + config.cheap_price_threshold / 100)),
             "calculation_method": "base_price_or_threshold",
         }
 
@@ -363,10 +363,10 @@ class CheapHoursSensor(RealElectricityPriceBaseSensor):
             threshold_percent = config.cheap_price_threshold
 
             # Calculate maximum price that's considered "cheap" based on base price and threshold
-            # Cheap period: price ≤ base_price OR price ≤ (base_price × threshold_percent)
-            max_cheap_price_by_threshold = base_price * threshold_percent
+            # Cheap period: price ≤ base_price OR price ≤ (base_price × (1 + threshold_percent/100))
+            max_cheap_price_by_threshold = base_price * (1 + threshold_percent / 100)
 
-            # Filter cheap prices: price ≤ base_price OR price ≤ (base_price × threshold_percent)
+            # Filter cheap prices: price ≤ base_price OR price ≤ (base_price × (1 + threshold_percent/100))
             cheap_prices = [
                 price_entry for price_entry in all_prices 
                 if price_entry["price"] <= base_price or price_entry["price"] <= max_cheap_price_by_threshold
@@ -515,7 +515,7 @@ class CheapHoursSensor(RealElectricityPriceBaseSensor):
             config = self.get_config()
             base_price = config.cheap_hours_base_price
             threshold_percent = config.cheap_price_threshold
-            max_cheap_by_threshold = base_price * threshold_percent
+            max_cheap_by_threshold = base_price * (1 + threshold_percent / 100)
 
             # Calculate actual analysis period based on future hours only
             total_future_hours = sum(
