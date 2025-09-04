@@ -10,11 +10,11 @@ span:
   offset: +0h
 now:
   show: true
-  color: "#FF6B6B"
+  color: var(--accent-color)
   label: Now
 apex_config:
   chart:
-    height: 200
+    height: 250
     stacked: false
     toolbar:
       show: false
@@ -22,7 +22,7 @@ apex_config:
     show: false
   grid:
     show: true
-    borderColor: "#404040"
+    borderColor: var(--divider-color)
   tooltip:
     fixed:
       enabled: true
@@ -46,6 +46,7 @@ apex_config:
       rotate: -45
       offsetX: 0
       offsetY: 0
+      timezone: Europe/Tallinn
   yaxis:
     - title:
         text: Price (€/kWh)
@@ -56,13 +57,13 @@ apex_config:
           Number(value).toFixed(6)+' €';}
       min: 0
   colors:
-    - "#FF6B6B"
-    - "#3AA655"
-    - "#FFA500"
+    - var(--primary-color)
+    - var(--success-color)
+    - var(--warning-color)
   plotOptions:
     bar:
-      columnWidth: 95%
-      endingShape: rounded
+      columnWidth: 160%
+      endingShape: square
   dataLabels:
     enabled: false
   stroke:
@@ -74,40 +75,44 @@ series:
     name: Current
     type: line
     stroke_width: 0
-    float_precision: 6
+    float_precision: 2
     unit: €/kWh
     data_generator: >
       var out = [];
-      var nowts = new Date().getTime();
+
+      var now = new Date();
+
+      now.setMinutes(0, 0, 0);
+
+      var nowts = now.getTime();
+
       var v = null;
-      if (entity && entity.state && entity.state !== 'unknown' && entity.state !== 'unavailable') {
+
+      if (entity && entity.state && entity.state !== 'unknown' && entity.state
+      !== 'unavailable') {
         v = Number(entity.state);
       }
+
       out.push([nowts, v]);
+
       return out;
   - entity: sensor.real_electricity_price_hourly_prices_today
     type: column
     name: Hourly Prices (Today)
     float_precision: 6
     unit: €/kWh
-    color: "#3AA655"
+    color: var(--success-color)
     show:
       in_header: false
-    data_generator: >
-      // Robust access to native array with proper timezone handling
+    data_generator: |
       if (!entity || !entity.attributes) return [];
-      
       var arr = entity.attributes.hourly_prices;
       if (!arr || !Array.isArray(arr)) return [];
-
       var out = [];
-
       for (var j = 0; j < arr.length; j++) {
         var it = arr[j];
         if (it && it.start_time) {
-          // Parse ISO 8601 timestamp with timezone offset (e.g., "2025-09-03 19:00:00+03:00")
           var ts = new Date(it.start_time).getTime();
-          
           var v = (typeof it.actual_price !== 'undefined' && it.actual_price !== null) 
                   ? Number(it.actual_price) 
                   : (typeof it.nord_pool_price !== 'undefined' && it.nord_pool_price !== null 
@@ -116,31 +121,24 @@ series:
           out.push([ts, v]);
         }
       }
-
       return out;
   - entity: sensor.real_electricity_price_hourly_prices_tomorrow
     type: column
     name: Hourly Prices (Tomorrow)
     float_precision: 6
     unit: €/kWh
-    color: "#FFA500"
+    color: var(--warning-color)
     show:
       in_header: false
-    data_generator: >
-      // Robust access to native array with proper timezone handling
+    data_generator: |
       if (!entity || !entity.attributes) return [];
-      
       var arr = entity.attributes.hourly_prices;
       if (!arr || !Array.isArray(arr)) return [];
-
       var out = [];
-
       for (var j = 0; j < arr.length; j++) {
         var it = arr[j];
         if (it && it.start_time) {
-          // Parse ISO 8601 timestamp with timezone offset (e.g., "2025-09-03 19:00:00+03:00")
           var ts = new Date(it.start_time).getTime();
-          
           var v = (typeof it.actual_price !== 'undefined' && it.actual_price !== null) 
                   ? Number(it.actual_price) 
                   : (typeof it.nord_pool_price !== 'undefined' && it.nord_pool_price !== null 
@@ -149,5 +147,4 @@ series:
           out.push([ts, v]);
         }
       }
-
       return out;
