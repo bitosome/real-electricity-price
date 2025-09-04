@@ -7,7 +7,7 @@
 
 Real-time electricity prices for Nord Pool delivery areas, with transparent component-based calculation, configurable grid/supplier costs and VAT flags, and a dedicated cheap-hours analysis pipeline.
 
-Current version: v1.1.0
+Current version: v1.1.1
 
 ## Overview
 
