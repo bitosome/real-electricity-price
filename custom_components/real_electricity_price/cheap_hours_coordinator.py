@@ -296,11 +296,18 @@ class CheapHoursDataUpdateCoordinator(DataUpdateCoordinator):
                 except Exception:
                     threshold_percent = CHEAP_HOURS_THRESHOLD_DEFAULT
 
-            # Calculate maximum price that's considered "cheap" based on base price
-            max_cheap_price = base_price * (1 + threshold_percent / 100)
+            # Calculate maximum price that's considered "cheap" based on base price and threshold
+            # Cheap period: price ≤ base_price OR price ≤ (base_price × threshold_percent)
+            max_cheap_price_by_threshold = base_price * threshold_percent
+            max_cheap_price = max(base_price, max_cheap_price_by_threshold)
 
-            # Filter cheap prices
-            cheap_prices = [p for p in future_prices if isinstance(p["price"], (int, float)) and p["price"] <= max_cheap_price]
+            # Filter cheap prices: price ≤ base_price OR price ≤ (base_price × threshold_percent)
+            cheap_prices = [
+                p for p in future_prices 
+                if isinstance(p["price"], (int, float)) and (
+                    p["price"] <= base_price or p["price"] <= max_cheap_price_by_threshold
+                )
+            ]
 
             if not cheap_prices:
                 # Calculate actual price statistics for debugging
@@ -311,10 +318,12 @@ class CheapHoursDataUpdateCoordinator(DataUpdateCoordinator):
                         max_price = max(actual_prices)
                         avg_price = sum(actual_prices) / len(actual_prices)
                         _LOGGER.warning(
-                            "No cheap prices found! Current settings: base_price=%.6f, threshold=%s%%, max_cheap_price=%.6f. "
+                            "No cheap prices found! Current settings: base_price=%.6f, threshold=%.1f, "
+                            "max_cheap_by_threshold=%.6f. Logic: price ≤ %.6f OR price ≤ %.6f. "
                             "Actual price range: %.6f - %.6f (avg: %.6f) for %d future hours. "
-                            "Consider setting base price to at least %.6f to find some cheap hours.",
-                            base_price, threshold_percent, max_cheap_price,
+                            "Consider lowering base price to %.6f or increasing threshold.",
+                            base_price, threshold_percent, max_cheap_price_by_threshold,
+                            base_price, max_cheap_price_by_threshold,
                             min_price, max_price, avg_price, len(actual_prices),
                             min_price * 0.9  # Suggest 90% of minimum price
                         )
@@ -327,6 +336,7 @@ class CheapHoursDataUpdateCoordinator(DataUpdateCoordinator):
                     "analysis_info": {
                         "base_price": base_price,
                         "threshold_percent": threshold_percent,
+                        "max_cheap_by_threshold": max_cheap_price_by_threshold,
                     },
                 }
 
@@ -338,18 +348,18 @@ class CheapHoursDataUpdateCoordinator(DataUpdateCoordinator):
 
             analysis_info = {
                 "base_price": round(base_price, PRICE_DECIMAL_PRECISION),
-                "max_cheap_price": round(max_cheap_price, PRICE_DECIMAL_PRECISION),
+                "max_cheap_by_threshold": round(max_cheap_price_by_threshold, PRICE_DECIMAL_PRECISION),
                 "threshold_percent": threshold_percent,
                 "total_cheap_hours": len(cheap_ranges),
                 "analysis_period_hours": analysis_period_hours,
             }
 
             _LOGGER.debug(
-                "Cheap price analysis complete: %d ranges found (base: %.6f, max_cheap: %.6f, threshold: %.1f%%)",
+                "Cheap price analysis complete: %d ranges found (base: %.6f, threshold: %.1f, max_cheap_by_threshold: %.6f)",
                 len(cheap_ranges),
                 base_price,
-                max_cheap_price,
                 threshold_percent,
+                max_cheap_price_by_threshold,
             )
 
             return {

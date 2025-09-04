@@ -231,8 +231,8 @@ class CheapHoursSensor(RealElectricityPriceBaseSensor):
         calculation_info = {
             "base_price": analysis_info.get("base_price", "unknown"),
             "threshold_percent": analysis_info.get("threshold_percent", "unknown"),
-            "max_cheap_price": analysis_info.get("max_cheap_price", "unknown"),
-            "calculation_method": "base_price_plus_threshold",
+            "max_cheap_by_threshold": analysis_info.get("max_cheap_by_threshold", "unknown"),
+            "calculation_method": "base_price_or_threshold",
         }
 
         # Convert all datetime objects to strings before JSON serialization
@@ -272,7 +272,7 @@ class CheapHoursSensor(RealElectricityPriceBaseSensor):
         summary_info = {
             "threshold_percent": config.cheap_price_threshold,
             "base_price": analysis_info.get("base_price"),
-            "max_cheap_price": analysis_info.get("max_cheap_price"),
+            "max_cheap_by_threshold": analysis_info.get("max_cheap_by_threshold"),
             "total_cheap_hours": len(cheap_ranges),
             "analysis_period_hours": analysis_info.get("analysis_period_hours"),
         }
@@ -281,8 +281,8 @@ class CheapHoursSensor(RealElectricityPriceBaseSensor):
         calculation_info = {
             "base_price": config.cheap_hours_base_price,
             "threshold_percent": config.cheap_price_threshold,
-            "max_cheap_price": self._round_price(config.cheap_hours_base_price * (1 + config.cheap_price_threshold / 100)),
-            "calculation_method": "base_price_plus_threshold",
+            "max_cheap_by_threshold": self._round_price(config.cheap_hours_base_price * config.cheap_price_threshold),
+            "calculation_method": "base_price_or_threshold",
         }
 
         return {
@@ -362,19 +362,20 @@ class CheapHoursSensor(RealElectricityPriceBaseSensor):
             base_price = config.cheap_hours_base_price
             threshold_percent = config.cheap_price_threshold
 
-            # Calculate maximum price that's considered "cheap" based on base price
-            max_cheap_price = base_price * (1 + threshold_percent / 100)
+            # Calculate maximum price that's considered "cheap" based on base price and threshold
+            # Cheap period: price ≤ base_price OR price ≤ (base_price × threshold_percent)
+            max_cheap_price_by_threshold = base_price * threshold_percent
 
-            # Filter cheap prices
+            # Filter cheap prices: price ≤ base_price OR price ≤ (base_price × threshold_percent)
             cheap_prices = [
                 price_entry for price_entry in all_prices 
-                if price_entry["price"] <= max_cheap_price
+                if price_entry["price"] <= base_price or price_entry["price"] <= max_cheap_price_by_threshold
             ]
 
             if not cheap_prices:
                 _LOGGER.debug(
-                    "No cheap prices found with base price %.6f and threshold %s%%", 
-                    base_price, threshold_percent
+                    "No cheap prices found with base price %.6f and threshold %.1f (max_cheap_by_threshold: %.6f)", 
+                    base_price, threshold_percent, max_cheap_price_by_threshold
                 )
                 return []
 
@@ -382,11 +383,11 @@ class CheapHoursSensor(RealElectricityPriceBaseSensor):
             cheap_ranges = self._group_consecutive_hours(cheap_prices)
 
             _LOGGER.debug(
-                "Found %d cheap price ranges (base: %.6f, max_cheap: %.6f, threshold: %.1f%%)",
+                "Found %d cheap price ranges (base: %.6f, threshold: %.1f, max_cheap_by_threshold: %.6f)",
                 len(cheap_ranges),
                 base_price,
-                max_cheap_price,
                 threshold_percent,
+                max_cheap_price_by_threshold,
             )
 
             return cheap_ranges
@@ -514,7 +515,7 @@ class CheapHoursSensor(RealElectricityPriceBaseSensor):
             config = self.get_config()
             base_price = config.cheap_hours_base_price
             threshold_percent = config.cheap_price_threshold
-            max_cheap_price = base_price * (1 + threshold_percent / 100)
+            max_cheap_by_threshold = base_price * threshold_percent
 
             # Calculate actual analysis period based on future hours only
             total_future_hours = sum(
@@ -523,7 +524,7 @@ class CheapHoursSensor(RealElectricityPriceBaseSensor):
 
             return {
                 "base_price": self._round_price(base_price),
-                "max_cheap_price": self._round_price(max_cheap_price),
+                "max_cheap_by_threshold": self._round_price(max_cheap_by_threshold),
                 "analysis_period_hours": total_future_hours,
                 "data_sources": future_data_sources,
             }
