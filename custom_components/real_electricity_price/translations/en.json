@@ -7,13 +7,13 @@
                 "data": {
                     "name": "Name",
                     "grid": "Grid Provider",
-                    "grid_electricity_excise_duty": "Grid Electricity Excise Duty (EUR/kWh)",
-                    "grid_renewable_energy_charge": "Grid Renewable Energy Charge (EUR/kWh)",
-                    "grid_electricity_transmission_price_night": "Grid Transmission Price - Night (EUR/kWh)",
-                    "grid_electricity_transmission_price_day": "Grid Transmission Price - Day (EUR/kWh)",
+                    "grid_electricity_excise_duty": "Grid Electricity Excise Duty (€/kWh)",
+                    "grid_renewable_energy_charge": "Grid Renewable Energy Charge (€/kWh)",
+                    "grid_electricity_transmission_price_night": "Grid Transmission Price - Night (€/kWh)",
+                    "grid_electricity_transmission_price_day": "Grid Transmission Price - Day (€/kWh)",
                     "supplier": "Supplier",
-                    "supplier_renewable_energy_charge": "Supplier Renewable Energy Charge (EUR/kWh)",
-                    "supplier_margin": "Supplier Margin (EUR/kWh)",
+                    "supplier_renewable_energy_charge": "Supplier Renewable Energy Charge (€/kWh)",
+                    "supplier_margin": "Supplier Margin (€/kWh)",
                     "country_code": "Nord Pool Area Code (EE, FI, SE1, SE2, NO1, NO2, DK1, DK2, etc.)",
                     "vat": "VAT Percentage (%)",
                     "vat_nord_pool": "Apply VAT to Nord Pool Price",
@@ -30,8 +30,9 @@
                     "night_price_end_hour": "Night Price End Hour (0-23)",
                     "scan_interval": "Scan Interval (seconds)",
                     "update_trigger": "Update Trigger (Advanced)",
-                    "cheap_hours_update_trigger": "Cheap Hours Update Time",
-                    "cheap_hours_threshold": "Cheap Hours Threshold (%)"
+                    "cheap_hours_update_trigger": "Cheap Hours Calculation Time",
+                    "cheap_hours_threshold": "Cheap Hours Threshold (%)",
+                    "cheap_hours_base_price": "Cheap Hours Base Price (€/kWh)"
                 }
             }
         },
@@ -53,13 +54,13 @@
                 "data": {
                     "name": "Name",
                     "grid": "Grid Provider",
-                    "grid_electricity_excise_duty": "Grid Electricity Excise Duty (EUR/kWh)",
-                    "grid_renewable_energy_charge": "Grid Renewable Energy Charge (EUR/kWh)",
-                    "grid_electricity_transmission_price_night": "Grid Transmission Price - Night (EUR/kWh)",
-                    "grid_electricity_transmission_price_day": "Grid Transmission Price - Day (EUR/kWh)",
+                    "grid_electricity_excise_duty": "Grid Electricity Excise Duty (€/kWh)",
+                    "grid_renewable_energy_charge": "Grid Renewable Energy Charge (€/kWh)",
+                    "grid_electricity_transmission_price_night": "Grid Transmission Price - Night (€/kWh)",
+                    "grid_electricity_transmission_price_day": "Grid Transmission Price - Day (€/kWh)",
                     "supplier": "Supplier",
-                    "supplier_renewable_energy_charge": "Supplier Renewable Energy Charge (EUR/kWh)",
-                    "supplier_margin": "Supplier Margin (EUR/kWh)",
+                    "supplier_renewable_energy_charge": "Supplier Renewable Energy Charge (€/kWh)",
+                    "supplier_margin": "Supplier Margin (€/kWh)",
                     "country_code": "Nord Pool Area Code (EE, FI, SE1, SE2, NO1, NO2, DK1, DK2, etc.)",
                     "vat": "VAT Percentage (%)",
                     "vat_nord_pool": "Apply VAT to Nord Pool Price",
@@ -76,8 +77,9 @@
                     "night_price_end_hour": "Night Price End Hour (0-23)",
                     "scan_interval": "Scan Interval (seconds)",
                     "update_trigger": "Update Trigger (Advanced)",
-                    "cheap_hours_update_trigger": "Cheap Hours Update Time",
-                    "cheap_hours_threshold": "Cheap Hours Threshold (%)"
+                    "cheap_hours_update_trigger": "Cheap Hours Calculation Time",
+                    "cheap_hours_threshold": "Cheap Hours Threshold (%)",
+                    "cheap_hours_base_price": "Cheap Hours Base Price (€/kWh)"
                 }
             }
         }

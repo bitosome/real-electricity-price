@@ -8,7 +8,61 @@ from typing import Any
 from homeassistant.components.sensor import SensorEntity, SensorEntityDescription
 from homeassistant.const import CONF_NAME
 
-from ..const import PRICE_DECIMAL_PRECISION, CHEAP_HOURS_BASE_PRICE_DEFAULT
+from ..const import (
+    PRICE_DECIMAL_PRECISION,
+    CHEAP_HOURS_BASE_PRICE_DEFAULT,
+    # Defaults for providers and region
+    GRID_DEFAULT,
+    SUPPLIER_DEFAULT,
+    COUNTRY_CODE_DEFAULT,
+    # Default costs (EUR/kWh)
+    GRID_ELECTRICITY_EXCISE_DUTY_DEFAULT,
+    GRID_RENEWABLE_ENERGY_CHARGE_DEFAULT,
+    GRID_ELECTRICITY_TRANSMISSION_PRICE_NIGHT_DEFAULT,
+    GRID_ELECTRICITY_TRANSMISSION_PRICE_DAY_DEFAULT,
+    SUPPLIER_RENEWABLE_ENERGY_CHARGE_DEFAULT,
+    SUPPLIER_MARGIN_DEFAULT,
+    # Taxes & time
+    VAT_DEFAULT,
+    NIGHT_PRICE_START_TIME_DEFAULT,
+    NIGHT_PRICE_END_TIME_DEFAULT,
+    # Update & analysis
+    DEFAULT_SCAN_INTERVAL,
+    DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER,
+    CHEAP_HOURS_THRESHOLD_DEFAULT,
+    # VAT flags
+    VAT_NORD_POOL_DEFAULT,
+    VAT_GRID_ELECTRICITY_EXCISE_DUTY_DEFAULT,
+    VAT_GRID_RENEWABLE_ENERGY_CHARGE_DEFAULT,
+    VAT_GRID_TRANSMISSION_NIGHT_DEFAULT,
+    VAT_GRID_TRANSMISSION_DAY_DEFAULT,
+    VAT_SUPPLIER_RENEWABLE_ENERGY_CHARGE_DEFAULT,
+    VAT_SUPPLIER_MARGIN_DEFAULT,
+    # Config keys
+    CONF_GRID,
+    CONF_SUPPLIER,
+    CONF_COUNTRY_CODE,
+    CONF_VAT,
+    CONF_GRID_ELECTRICITY_EXCISE_DUTY,
+    CONF_GRID_RENEWABLE_ENERGY_CHARGE,
+    CONF_GRID_ELECTRICITY_TRANSMISSION_PRICE_NIGHT,
+    CONF_GRID_ELECTRICITY_TRANSMISSION_PRICE_DAY,
+    CONF_SUPPLIER_RENEWABLE_ENERGY_CHARGE,
+    CONF_SUPPLIER_MARGIN,
+    CONF_NIGHT_PRICE_START_TIME,
+    CONF_NIGHT_PRICE_END_TIME,
+    CONF_SCAN_INTERVAL,
+    CONF_CHEAP_HOURS_UPDATE_TRIGGER,
+    CONF_CHEAP_HOURS_THRESHOLD,
+    CONF_CHEAP_HOURS_BASE_PRICE,
+    CONF_VAT_NORD_POOL,
+    CONF_VAT_GRID_ELECTRICITY_EXCISE_DUTY,
+    CONF_VAT_GRID_RENEWABLE_ENERGY_CHARGE,
+    CONF_VAT_GRID_TRANSMISSION_NIGHT,
+    CONF_VAT_GRID_TRANSMISSION_DAY,
+    CONF_VAT_SUPPLIER_RENEWABLE_ENERGY_CHARGE,
+    CONF_VAT_SUPPLIER_MARGIN,
+)
 from ..entity import RealElectricityPriceEntity
 from ..models import IntegrationConfig
 
@@ -46,51 +100,71 @@ class RealElectricityPriceBaseSensor(RealElectricityPriceEntity, SensorEntity):
 
         return IntegrationConfig(
             name=config_data.get(CONF_NAME, "Real Electricity Price"),
-            grid=config_data.get("grid", "elektrilevi"),
-            supplier=config_data.get("supplier", "eesti_energia"),
-            country_code=config_data.get("country_code", "EE"),
-            vat_rate=config_data.get("vat", 24.0),
+            grid=config_data.get(CONF_GRID, GRID_DEFAULT),
+            supplier=config_data.get(CONF_SUPPLIER, SUPPLIER_DEFAULT),
+            country_code=config_data.get(CONF_COUNTRY_CODE, COUNTRY_CODE_DEFAULT),
+            vat_rate=config_data.get(CONF_VAT, VAT_DEFAULT),
             grid_electricity_excise_duty=config_data.get(
-                "grid_electricity_excise_duty", 0.0026
+                CONF_GRID_ELECTRICITY_EXCISE_DUTY, GRID_ELECTRICITY_EXCISE_DUTY_DEFAULT
             ),
             grid_renewable_energy_charge=config_data.get(
-                "grid_renewable_energy_charge", 0.0104
+                CONF_GRID_RENEWABLE_ENERGY_CHARGE, GRID_RENEWABLE_ENERGY_CHARGE_DEFAULT
             ),
             grid_transmission_price_night=config_data.get(
-                "grid_electricity_transmission_price_night", 0.026
+                CONF_GRID_ELECTRICITY_TRANSMISSION_PRICE_NIGHT,
+                GRID_ELECTRICITY_TRANSMISSION_PRICE_NIGHT_DEFAULT,
             ),
             grid_transmission_price_day=config_data.get(
-                "grid_electricity_transmission_price_day", 0.0458
+                CONF_GRID_ELECTRICITY_TRANSMISSION_PRICE_DAY,
+                GRID_ELECTRICITY_TRANSMISSION_PRICE_DAY_DEFAULT,
             ),
             supplier_renewable_energy_charge=config_data.get(
-                "supplier_renewable_energy_charge", 0.0
+                CONF_SUPPLIER_RENEWABLE_ENERGY_CHARGE,
+                SUPPLIER_RENEWABLE_ENERGY_CHARGE_DEFAULT,
             ),
-            supplier_margin=config_data.get("supplier_margin", 0.0105),
-            night_price_start_time=config_data.get("night_price_start_time", "22:00"),
-            night_price_end_time=config_data.get("night_price_end_time", "07:00"),
-            scan_interval=config_data.get("scan_interval", 3600),
+            supplier_margin=config_data.get(
+                CONF_SUPPLIER_MARGIN, SUPPLIER_MARGIN_DEFAULT
+            ),
+            night_price_start_time=config_data.get(
+                CONF_NIGHT_PRICE_START_TIME, NIGHT_PRICE_START_TIME_DEFAULT
+            ),
+            night_price_end_time=config_data.get(
+                CONF_NIGHT_PRICE_END_TIME, NIGHT_PRICE_END_TIME_DEFAULT
+            ),
+            scan_interval=config_data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
             cheap_price_update_trigger=config_data.get(
-                "cheap_price_update_trigger", "14:30"
+                CONF_CHEAP_HOURS_UPDATE_TRIGGER, DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER
             ),
-            cheap_price_threshold=config_data.get("cheap_price_threshold", 10.0),
-            cheap_hours_base_price=config_data.get("cheap_hours_base_price", CHEAP_HOURS_BASE_PRICE_DEFAULT),
-            vat_nord_pool=config_data.get("vat_nord_pool", True),
+            cheap_price_threshold=config_data.get(
+                CONF_CHEAP_HOURS_THRESHOLD, CHEAP_HOURS_THRESHOLD_DEFAULT
+            ),
+            cheap_hours_base_price=config_data.get(
+                CONF_CHEAP_HOURS_BASE_PRICE, CHEAP_HOURS_BASE_PRICE_DEFAULT
+            ),
+            vat_nord_pool=config_data.get(
+                CONF_VAT_NORD_POOL, VAT_NORD_POOL_DEFAULT
+            ),
             vat_grid_electricity_excise_duty=config_data.get(
-                "vat_grid_electricity_excise_duty", False
+                CONF_VAT_GRID_ELECTRICITY_EXCISE_DUTY,
+                VAT_GRID_ELECTRICITY_EXCISE_DUTY_DEFAULT,
             ),
             vat_grid_renewable_energy_charge=config_data.get(
-                "vat_grid_renewable_energy_charge", False
+                CONF_VAT_GRID_RENEWABLE_ENERGY_CHARGE,
+                VAT_GRID_RENEWABLE_ENERGY_CHARGE_DEFAULT,
             ),
             vat_grid_transmission_night=config_data.get(
-                "vat_grid_transmission_night", False
+                CONF_VAT_GRID_TRANSMISSION_NIGHT, VAT_GRID_TRANSMISSION_NIGHT_DEFAULT
             ),
             vat_grid_transmission_day=config_data.get(
-                "vat_grid_transmission_day", False
+                CONF_VAT_GRID_TRANSMISSION_DAY, VAT_GRID_TRANSMISSION_DAY_DEFAULT
             ),
             vat_supplier_renewable_energy_charge=config_data.get(
-                "vat_supplier_renewable_energy_charge", False
+                CONF_VAT_SUPPLIER_RENEWABLE_ENERGY_CHARGE,
+                VAT_SUPPLIER_RENEWABLE_ENERGY_CHARGE_DEFAULT,
             ),
-            vat_supplier_margin=config_data.get("vat_supplier_margin", False),
+            vat_supplier_margin=config_data.get(
+                CONF_VAT_SUPPLIER_MARGIN, VAT_SUPPLIER_MARGIN_DEFAULT
+            ),
         )
 
     def _round_price(self, price: float) -> float:

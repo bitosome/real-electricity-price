@@ -9,16 +9,17 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.const import CURRENCY_EURO, UnitOfEnergy
+from .const import PRICE_DECIMAL_PRECISION
 from homeassistant.helpers.entity import EntityCategory
 
 # Price sensors
 SENSOR_CURRENT_PRICE = SensorEntityDescription(
     key="real_electricity_price_current_price",
     name="Current Price",
-    icon="mdi:flash",
+    icon="mdi:currency-eur",
     device_class=SensorDeviceClass.MONETARY,
     native_unit_of_measurement=f"{CURRENCY_EURO}/{UnitOfEnergy.KILO_WATT_HOUR}",
-    suggested_display_precision=6,
+    suggested_display_precision=PRICE_DECIMAL_PRECISION,
 )
 
 SENSOR_CURRENT_TARIFF = SensorEntityDescription(
@@ -49,7 +50,7 @@ SENSOR_HOURLY_PRICES_YESTERDAY = SensorEntityDescription(
     icon="mdi:chart-line",
     device_class=SensorDeviceClass.MONETARY,
     native_unit_of_measurement="€/kWh",
-    suggested_display_precision=6,
+    suggested_display_precision=PRICE_DECIMAL_PRECISION,
 )
 
 SENSOR_HOURLY_PRICES_TODAY = SensorEntityDescription(
@@ -58,7 +59,7 @@ SENSOR_HOURLY_PRICES_TODAY = SensorEntityDescription(
     icon="mdi:chart-line",
     device_class=SensorDeviceClass.MONETARY,
     native_unit_of_measurement="€/kWh",
-    suggested_display_precision=6,
+    suggested_display_precision=PRICE_DECIMAL_PRECISION,
 )
 
 SENSOR_HOURLY_PRICES_TOMORROW = SensorEntityDescription(
@@ -67,13 +68,13 @@ SENSOR_HOURLY_PRICES_TOMORROW = SensorEntityDescription(
     icon="mdi:chart-line",
     device_class=SensorDeviceClass.MONETARY,
     native_unit_of_measurement="€/kWh",
-    suggested_display_precision=6,
+    suggested_display_precision=PRICE_DECIMAL_PRECISION,
 )
 
 SENSOR_CHEAP_HOURS = SensorEntityDescription(
     key="real_electricity_price_cheap_hours",
     name="Cheap Hours",
-    icon="mdi:clock-time-twelve",
+    icon="mdi:timelapse",
     native_unit_of_measurement="h",
     state_class=SensorStateClass.MEASUREMENT,
 )

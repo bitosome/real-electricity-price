@@ -18,11 +18,21 @@ from .api import RealElectricityPriceApiClient
 from .cheap_hours_coordinator import CheapHoursDataUpdateCoordinator
 from .const import (
     CONF_CHEAP_HOURS_UPDATE_TRIGGER,
+    CONF_COUNTRY_CODE,
+    CONF_GRID,
+    CONF_NIGHT_PRICE_END_TIME,
+    CONF_NIGHT_PRICE_START_TIME,
     CONF_SCAN_INTERVAL,
+    CONF_SUPPLIER,
+    COUNTRY_CODE_DEFAULT,
     DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
+    GRID_DEFAULT,
     LOGGER,
+    NIGHT_PRICE_END_TIME_DEFAULT,
+    NIGHT_PRICE_START_TIME_DEFAULT,
+    SUPPLIER_DEFAULT,
 )
 from .coordinator import RealElectricityPriceDataUpdateCoordinator
 from .data import RealElectricityPriceData
@@ -67,13 +77,18 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
 
     # Create config entry data
     entry_data = {
-        "grid": config_data.get("grid", "EE"),
-        "supplier": config_data.get("supplier", "Eesti Energia"),
-        "night_price_start": config_data.get("night_price_start", "22:00"),
-        "night_price_end": config_data.get("night_price_end", "07:00"),
-        "scan_interval": config_data.get("scan_interval", 300),
-        "cheap_price_update_trigger": config_data.get(
-            "cheap_price_update_trigger", "manual"
+        CONF_GRID: config_data.get(CONF_GRID, GRID_DEFAULT),
+        CONF_SUPPLIER: config_data.get(CONF_SUPPLIER, SUPPLIER_DEFAULT),
+        CONF_COUNTRY_CODE: config_data.get(CONF_COUNTRY_CODE, COUNTRY_CODE_DEFAULT),
+        CONF_NIGHT_PRICE_START_TIME: config_data.get(
+            CONF_NIGHT_PRICE_START_TIME, NIGHT_PRICE_START_TIME_DEFAULT
+        ),
+        CONF_NIGHT_PRICE_END_TIME: config_data.get(
+            CONF_NIGHT_PRICE_END_TIME, NIGHT_PRICE_END_TIME_DEFAULT
+        ),
+        CONF_SCAN_INTERVAL: config_data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
+        CONF_CHEAP_HOURS_UPDATE_TRIGGER: config_data.get(
+            CONF_CHEAP_HOURS_UPDATE_TRIGGER, DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER
         ),
     }
 

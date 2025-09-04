@@ -46,15 +46,46 @@ from .const import (
     VAT_NORD_POOL_DEFAULT,
     VAT_SUPPLIER_MARGIN_DEFAULT,
     VAT_SUPPLIER_RENEWABLE_ENERGY_CHARGE_DEFAULT,
+    CONF_NIGHT_PRICE_START_TIME,
+    CONF_NIGHT_PRICE_END_TIME,
+    CONF_NIGHT_PRICE_START_HOUR,
+    CONF_NIGHT_PRICE_END_HOUR,
+    NIGHT_PRICE_START_TIME_DEFAULT,
+    NIGHT_PRICE_END_TIME_DEFAULT,
+    parse_time_string,
+    DEFAULT_BASE_URL,
 )
 
 _LOGGER = logging.getLogger(__name__)
 
 # Constants
-NORD_POOL_API_URL = "https://dataportal-api.nordpoolgroup.com/api/DayAheadPrices"
 API_TIMEOUT = 20
-NIGHT_START_HOUR = 22
-NIGHT_END_HOUR = 7
+
+
+def _resolve_hour(cfg: dict, key_time: str, key_hour: str, default_time: str) -> int:
+    """Resolve an hour (0-23) from config, preferring time strings.
+
+    Order of resolution:
+    1) Dict time selector {"hour": H, "minute": M}
+    2) String time "HH:MM" or "HH:MM:SS"
+    3) Legacy hour field
+    4) Default time string
+    """
+    val = cfg.get(key_time)
+    if isinstance(val, dict):
+        return int(val.get("hour", parse_time_string(default_time)[0]))
+    if isinstance(val, str):
+        try:
+            h, _, _ = parse_time_string(val)
+            return int(h)
+        except Exception:
+            pass
+    if key_hour in cfg:
+        try:
+            return int(cfg.get(key_hour))
+        except Exception:
+            pass
+    return parse_time_string(default_time)[0]
 
 
 class RealElectricityPriceApiClientError(Exception):
@@ -103,7 +134,7 @@ def extract_country_code_from_area(area_code: str) -> str:
 
     """
     if not area_code or len(area_code) < 2:
-        return "EE"  # Default fallback for empty or single character
+        return COUNTRY_CODE_DEFAULT  # Default fallback for empty or single character
 
     # Extract first 2 letters using regex for better validation
     match = re.match(r"^([A-Z]{2})", area_code.upper())
@@ -229,7 +260,7 @@ class RealElectricityPriceApiClient:
         try:
             return await self._api_wrapper(
                 method="get",
-                url=NORD_POOL_API_URL,
+                url=DEFAULT_BASE_URL,
                 params=params,
                 headers=headers,
             )
@@ -241,9 +272,20 @@ class RealElectricityPriceApiClient:
         self, date: datetime.date, area: str
     ) -> dict:
         """Create placeholder day data with time ranges but unavailable prices."""
-        # Get configuration for tariff calculation
-        night_start = self._config.get("night_price_start_hour", 22)
-        night_end = self._config.get("night_price_end_hour", 7)
+        # Get configuration for tariff calculation using time defaults
+
+        night_start = _resolve_hour(
+            self._config,
+            CONF_NIGHT_PRICE_START_TIME,
+            CONF_NIGHT_PRICE_START_HOUR,
+            NIGHT_PRICE_START_TIME_DEFAULT,
+        )
+        night_end = _resolve_hour(
+            self._config,
+            CONF_NIGHT_PRICE_END_TIME,
+            CONF_NIGHT_PRICE_END_HOUR,
+            NIGHT_PRICE_END_TIME_DEFAULT,
+        )
         tz_name = self._config.get("time_zone")
         tzinfo = (
             dt_util.get_time_zone(tz_name) if tz_name else dt_util.DEFAULT_TIME_ZONE
@@ -362,8 +404,18 @@ class RealElectricityPriceApiClient:
         vat_supplier_margin = self._config.get(
             CONF_VAT_SUPPLIER_MARGIN, VAT_SUPPLIER_MARGIN_DEFAULT
         )
-        night_start = self._config.get("night_price_start_hour", 22)
-        night_end = self._config.get("night_price_end_hour", 7)
+        night_start = _resolve_hour(
+            self._config,
+            CONF_NIGHT_PRICE_START_TIME,
+            CONF_NIGHT_PRICE_START_HOUR,
+            NIGHT_PRICE_START_TIME_DEFAULT,
+        )
+        night_end = _resolve_hour(
+            self._config,
+            CONF_NIGHT_PRICE_END_TIME,
+            CONF_NIGHT_PRICE_END_HOUR,
+            NIGHT_PRICE_END_TIME_DEFAULT,
+        )
         tz_name = self._config.get("time_zone")
         tzinfo = (
             dt_util.get_time_zone(tz_name) if tz_name else dt_util.DEFAULT_TIME_ZONE

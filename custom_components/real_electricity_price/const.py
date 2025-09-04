@@ -12,8 +12,8 @@ ATTRIBUTION = "Data provided by Real Electricity Price"
 DEFAULT_BASE_URL = "https://dataportal-api.nordpoolgroup.com/api/DayAheadPrices"
 
 # Default provider configurations
-GRID_DEFAULT = "elektrilevi"
-SUPPLIER_DEFAULT = "eesti_energia"
+GRID_DEFAULT = "Elektrilevi"
+SUPPLIER_DEFAULT = "Enefit"
 COUNTRY_CODE_DEFAULT = "EE"
 
 # Default pricing values (EUR/kWh)
@@ -26,21 +26,31 @@ SUPPLIER_MARGIN_DEFAULT = 0.0105
 
 # Default tax and time settings
 VAT_DEFAULT = 24.00  # percent
-NIGHT_PRICE_START_HOUR_DEFAULT = 22  # 22:00
-NIGHT_PRICE_END_HOUR_DEFAULT = 7  # 07:00
 
-# Time format defaults
+# Time format defaults (used across the integration)
 NIGHT_PRICE_START_TIME_DEFAULT = "22:00"
 NIGHT_PRICE_END_TIME_DEFAULT = "07:00"
 
 # Update intervals
 DEFAULT_SCAN_INTERVAL = 3600  # 1 hour in seconds
+# Scan interval bounds for UI/validation
+SCAN_INTERVAL_MIN = 300
+SCAN_INTERVAL_MAX = 86400
+SCAN_INTERVAL_STEP = 300
 DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER = "14:30"
 
 # Analysis settings
-CHEAP_HOURS_THRESHOLD_DEFAULT = 30.0  # percent above base price
+CHEAP_HOURS_THRESHOLD_DEFAULT = 10.0  # percent above base price
 CHEAP_HOURS_BASE_PRICE_DEFAULT = 0.150000  # EUR/kWh - base price for cheap hours calculation
 PRICE_DECIMAL_PRECISION = 6  # Number of decimal places for all price calculations
+
+# Fallback hours if time parsing fails (safety net)
+FALLBACK_NIGHT_START_HOUR = 22
+FALLBACK_NIGHT_END_HOUR = 7
+
+# Coordinator midnight check window
+MIDNIGHT_WINDOW_START_HOUR = 22
+MIDNIGHT_WINDOW_END_HOUR = 2
 
 
 # Configuration keys

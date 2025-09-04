@@ -12,6 +12,16 @@ from homeassistant.helpers.event import async_track_time_change
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api import RealElectricityPriceApiClientError
+from .const import MIDNIGHT_WINDOW_START_HOUR, MIDNIGHT_WINDOW_END_HOUR
+from .const import (
+    CONF_NIGHT_PRICE_START_TIME,
+    CONF_NIGHT_PRICE_END_TIME,
+    CONF_NIGHT_PRICE_START_HOUR,
+    CONF_NIGHT_PRICE_END_HOUR,
+    NIGHT_PRICE_START_TIME_DEFAULT,
+    NIGHT_PRICE_END_TIME_DEFAULT,
+    parse_time_string,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -89,11 +99,40 @@ class RealElectricityPriceDataUpdateCoordinator(DataUpdateCoordinator):
                 # Include relevant configuration for tariff calculation
                 config_data = dict(self.config_entry.data)
                 config_data.update(self.config_entry.options)  # Options override data
+                # Resolve night hours preferring time string config, fallback to legacy hour fields, then defaults
+                def _resolve_hour(cfg: dict, key_time: str, key_hour: str, default_time: str) -> int:
+                    val = cfg.get(key_time)
+                    if isinstance(val, dict):
+                        return int(val.get("hour", parse_time_string(default_time)[0]))
+                    if isinstance(val, str):
+                        try:
+                            h, _, _ = parse_time_string(val)
+                            return int(h)
+                        except Exception:
+                            pass
+                    if key_hour in cfg:
+                        try:
+                            return int(cfg.get(key_hour))
+                        except Exception:
+                            pass
+                    return parse_time_string(default_time)[0]
+
+                start_hour = _resolve_hour(
+                    config_data,
+                    CONF_NIGHT_PRICE_START_TIME,
+                    CONF_NIGHT_PRICE_START_HOUR,
+                    NIGHT_PRICE_START_TIME_DEFAULT,
+                )
+                end_hour = _resolve_hour(
+                    config_data,
+                    CONF_NIGHT_PRICE_END_TIME,
+                    CONF_NIGHT_PRICE_END_HOUR,
+                    NIGHT_PRICE_END_TIME_DEFAULT,
+                )
+
                 data["config"] = {
-                    "night_price_start_hour": config_data.get(
-                        "night_price_start_hour", 22
-                    ),
-                    "night_price_end_hour": config_data.get("night_price_end_hour", 7),
+                    "night_price_start_hour": start_hour,
+                    "night_price_end_hour": end_hour,
                 }
 
                 # Validate data dates and log any issues
@@ -115,9 +154,9 @@ class RealElectricityPriceDataUpdateCoordinator(DataUpdateCoordinator):
         self, current_time: datetime.datetime
     ) -> None:
         """Schedule an update shortly after midnight to ensure fresh data."""
-        # Check if we're within 2 hours of midnight (22:00-02:00) and haven't scheduled yet
+        # Check if we're within 2 hours of midnight and haven't scheduled yet
         hour = current_time.hour
-        if (hour >= 22 or hour <= 2) and not self._midnight_check_scheduled:
+        if (hour >= MIDNIGHT_WINDOW_START_HOUR or hour <= MIDNIGHT_WINDOW_END_HOUR) and not self._midnight_check_scheduled:
             _LOGGER.debug(
                 "Near midnight (hour %d), will check for fresh data more frequently",
                 hour,
@@ -131,7 +170,7 @@ class RealElectricityPriceDataUpdateCoordinator(DataUpdateCoordinator):
 
             self.hass.loop.call_later(900, schedule_refresh)  # 15 minutes
 
-        elif hour > 2 and hour < 22:
+        elif hour > MIDNIGHT_WINDOW_END_HOUR and hour < MIDNIGHT_WINDOW_START_HOUR:
             # Reset the flag during normal hours
             self._midnight_check_scheduled = False
 

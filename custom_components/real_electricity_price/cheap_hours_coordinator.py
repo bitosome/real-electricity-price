@@ -19,6 +19,7 @@ from .const import (
     CONF_CHEAP_HOURS_UPDATE_TRIGGER,
     DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER,
     PRICE_DECIMAL_PRECISION,
+    parse_time_string,
 )
 
 if TYPE_CHECKING:
@@ -91,7 +92,15 @@ class CheapHoursDataUpdateCoordinator(DataUpdateCoordinator):
     def set_runtime_update_trigger(self, value: dict) -> None:
         """Set the runtime update trigger and update the scheduled trigger."""
         self._runtime_update_trigger = value
-        self.logger.info("Runtime update trigger updated to %02d:%02d", value.get("hour", 14), value.get("minute", 30))
+        try:
+            def_h, def_m, _ = parse_time_string(DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER)
+        except Exception:
+            def_h, def_m = 14, 30
+        self.logger.info(
+            "Runtime update trigger updated to %02d:%02d",
+            value.get("hour", def_h),
+            value.get("minute", def_m),
+        )
         # Update the actual scheduled trigger with the new time
         self._update_trigger_schedule_from_runtime()
 
@@ -136,11 +145,13 @@ class CheapHoursDataUpdateCoordinator(DataUpdateCoordinator):
         # Parse trigger time and set new schedule
         try:
             if isinstance(trigger_time, dict):
-                hour = trigger_time.get("hour", 14)
-                minute = trigger_time.get("minute", 30)
+                def_h, def_m, _ = parse_time_string(DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER)
+                hour = trigger_time.get("hour", def_h)
+                minute = trigger_time.get("minute", def_m)
             else:
-                hour = 14
-                minute = 30
+                def_h, def_m, _ = parse_time_string(DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER)
+                hour = def_h
+                minute = def_m
                 
             if not (0 <= hour <= 23 and 0 <= minute <= 59):
                 raise ValueError(f"Invalid hour/minute: {hour}:{minute}")
@@ -175,15 +186,15 @@ class CheapHoursDataUpdateCoordinator(DataUpdateCoordinator):
         try:
             # Always expect dict format from config entity
             if isinstance(trigger_time, dict):
-                hour = trigger_time.get("hour", 14)
-                minute = trigger_time.get("minute", 30)
+                def_h, def_m, _ = parse_time_string(DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER)
+                hour = trigger_time.get("hour", def_h)
+                minute = trigger_time.get("minute", def_m)
             elif isinstance(trigger_time, str):
                 time_parts = trigger_time.split(":")
                 hour = int(time_parts[0])
                 minute = int(time_parts[1]) if len(time_parts) > 1 else 0
             else:
-                hour = 14
-                minute = 30
+                hour, minute, _ = parse_time_string(DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER)
             if not (0 <= hour <= 23 and 0 <= minute <= 59):
                 raise ValueError(f"Invalid hour/minute: {hour}:{minute}")
             self._trigger_unsub = async_track_time_change(

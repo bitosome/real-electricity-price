@@ -42,14 +42,18 @@ from .const import (
     COUNTRY_CODE_DEFAULT,
     DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER,
     DEFAULT_SCAN_INTERVAL,
+    SCAN_INTERVAL_MIN,
+    SCAN_INTERVAL_MAX,
+    SCAN_INTERVAL_STEP,
     DOMAIN,
     GRID_DEFAULT,
     GRID_ELECTRICITY_EXCISE_DUTY_DEFAULT,
     GRID_ELECTRICITY_TRANSMISSION_PRICE_DAY_DEFAULT,
     GRID_ELECTRICITY_TRANSMISSION_PRICE_NIGHT_DEFAULT,
     GRID_RENEWABLE_ENERGY_CHARGE_DEFAULT,
-    NIGHT_PRICE_END_HOUR_DEFAULT,
-    NIGHT_PRICE_START_HOUR_DEFAULT,
+    # Use time defaults only; derive hours from time strings
+    NIGHT_PRICE_START_TIME_DEFAULT,
+    NIGHT_PRICE_END_TIME_DEFAULT,
     SUPPLIER_DEFAULT,
     SUPPLIER_MARGIN_DEFAULT,
     SUPPLIER_RENEWABLE_ENERGY_CHARGE_DEFAULT,
@@ -108,8 +112,11 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
 
     # Validate scan interval (legacy support)
     scan_interval = data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
-    if not 300 <= scan_interval <= 86400:
-        msg = "Scan interval must be between 5 minutes (300 seconds) and 24 hours (86400 seconds)"
+    if not SCAN_INTERVAL_MIN <= scan_interval <= SCAN_INTERVAL_MAX:
+        msg = (
+            f"Scan interval must be between 5 minutes ({SCAN_INTERVAL_MIN} seconds) "
+            f"and 24 hours ({SCAN_INTERVAL_MAX} seconds)"
+        )
         raise InvalidScanInterval(msg)
 
     cheap_hours_trigger = _convert_time_format(
@@ -122,8 +129,11 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
     # Validate time settings - handle both new TimeSelector and legacy hour formats
     start_time_str = data.get(CONF_NIGHT_PRICE_START_TIME)
     end_time_str = data.get(CONF_NIGHT_PRICE_END_TIME)
-    start_hour = data.get(CONF_NIGHT_PRICE_START_HOUR, NIGHT_PRICE_START_HOUR_DEFAULT)
-    end_hour = data.get(CONF_NIGHT_PRICE_END_HOUR, NIGHT_PRICE_END_HOUR_DEFAULT)
+    # Derive hour defaults from time defaults for legacy hour fields
+    start_hour_default, _, _ = parse_time_string(NIGHT_PRICE_START_TIME_DEFAULT)
+    end_hour_default, _, _ = parse_time_string(NIGHT_PRICE_END_TIME_DEFAULT)
+    start_hour = data.get(CONF_NIGHT_PRICE_START_HOUR, start_hour_default)
+    end_hour = data.get(CONF_NIGHT_PRICE_END_HOUR, end_hour_default)
 
     # If TimeSelector format is provided, validate it and extract hours
     if start_time_str:
@@ -178,7 +188,13 @@ def _convert_time_format(time_value):
         except (ValueError, IndexError):
             pass
     # Return default if conversion fails
-    return {"hour": 14, "minute": 30}
+    try:
+        from .const import DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER, parse_time_string
+        h, m, _ = parse_time_string(DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER)
+        return {"hour": h, "minute": m}
+    except Exception:
+        # final fallback if everything fails
+        return {"hour": 14, "minute": 30}
 
 
 def _validate_time_string(time_str: str | dict) -> bool:
@@ -238,7 +254,7 @@ class RealElectricityPriceFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             try:
                 info = await validate_input(self.hass, user_input)
             except InvalidCheapPriceTrigger as e:
-                self._errors["cheap_price_update_trigger"] = str(e)
+                self._errors[CONF_CHEAP_HOURS_UPDATE_TRIGGER] = str(e)
             except InvalidCountryCode as e:
                 self._errors["country_code"] = str(e)
             except InvalidVatRate as e:
@@ -419,15 +435,19 @@ class RealElectricityPriceFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                 # Time settings - new natural format
                 vol.Optional(
                     CONF_NIGHT_PRICE_START_TIME,
-                    default={"hour": NIGHT_PRICE_START_HOUR_DEFAULT, "minute": 0}
-                    if CONF_NIGHT_PRICE_START_TIME not in user_input
-                    else user_input.get(CONF_NIGHT_PRICE_START_TIME),
+                    default=(
+                        {"hour": parse_time_string(NIGHT_PRICE_START_TIME_DEFAULT)[0], "minute": parse_time_string(NIGHT_PRICE_START_TIME_DEFAULT)[1]}
+                        if CONF_NIGHT_PRICE_START_TIME not in user_input
+                        else user_input.get(CONF_NIGHT_PRICE_START_TIME)
+                    ),
                 ): selector.TimeSelector(),
                 vol.Optional(
                     CONF_NIGHT_PRICE_END_TIME,
-                    default={"hour": NIGHT_PRICE_END_HOUR_DEFAULT, "minute": 0}
-                    if CONF_NIGHT_PRICE_END_TIME not in user_input
-                    else user_input.get(CONF_NIGHT_PRICE_END_TIME),
+                    default=(
+                        {"hour": parse_time_string(NIGHT_PRICE_END_TIME_DEFAULT)[0], "minute": parse_time_string(NIGHT_PRICE_END_TIME_DEFAULT)[1]}
+                        if CONF_NIGHT_PRICE_END_TIME not in user_input
+                        else user_input.get(CONF_NIGHT_PRICE_END_TIME)
+                    ),
                 ): selector.TimeSelector(),
                 # Update interval
                 vol.Optional(
@@ -435,14 +455,19 @@ class RealElectricityPriceFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                     default=user_input.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
                 ): selector.NumberSelector(
                     selector.NumberSelectorConfig(
-                        min=300, max=86400, step=300, mode="box"
+                        min=SCAN_INTERVAL_MIN,
+                        max=SCAN_INTERVAL_MAX,
+                        step=SCAN_INTERVAL_STEP,
+                        mode="box",
                     )  # 5 min to 24 hours
                 ),
                 vol.Optional(
                     CONF_CHEAP_HOURS_UPDATE_TRIGGER,
-                    default={"hour": 14, "minute": 30}
-                    if CONF_CHEAP_HOURS_UPDATE_TRIGGER not in user_input
-                    else user_input.get(CONF_CHEAP_HOURS_UPDATE_TRIGGER),
+                    default=(
+                        (lambda: (lambda h, m, _: {"hour": h, "minute": m})(*parse_time_string(DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER)))()
+                        if CONF_CHEAP_HOURS_UPDATE_TRIGGER not in user_input
+                        else user_input.get(CONF_CHEAP_HOURS_UPDATE_TRIGGER)
+                    ),
                 ): selector.TimeSelector(),
                 # Cheap price analysis
                 vol.Optional(
@@ -483,7 +508,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             try:
                 await validate_input(self.hass, user_input)
             except InvalidCheapPriceTrigger as e:
-                self._errors["cheap_price_update_trigger"] = str(e)
+                self._errors[CONF_CHEAP_HOURS_UPDATE_TRIGGER] = str(e)
             except InvalidCountryCode as e:
                 self._errors["country_code"] = str(e)
             except InvalidVatRate as e:
@@ -705,7 +730,10 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                         CONF_NIGHT_PRICE_START_TIME,
                         current_data.get(
                             CONF_NIGHT_PRICE_START_TIME,
-                            {"hour": NIGHT_PRICE_START_HOUR_DEFAULT, "minute": 0},
+                            {
+                                "hour": parse_time_string(NIGHT_PRICE_START_TIME_DEFAULT)[0],
+                                "minute": parse_time_string(NIGHT_PRICE_START_TIME_DEFAULT)[1],
+                            },
                         ),
                     ),
                 ): selector.TimeSelector(),
@@ -715,7 +743,10 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                         CONF_NIGHT_PRICE_END_TIME,
                         current_data.get(
                             CONF_NIGHT_PRICE_END_TIME,
-                            {"hour": NIGHT_PRICE_END_HOUR_DEFAULT, "minute": 0},
+                            {
+                                "hour": parse_time_string(NIGHT_PRICE_END_TIME_DEFAULT)[0],
+                                "minute": parse_time_string(NIGHT_PRICE_END_TIME_DEFAULT)[1],
+                            },
                         ),
                     ),
                 ): selector.TimeSelector(),
@@ -728,7 +759,10 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     ),
                 ): selector.NumberSelector(
                     selector.NumberSelectorConfig(
-                        min=300, max=86400, step=300, mode="box"
+                        min=SCAN_INTERVAL_MIN,
+                        max=SCAN_INTERVAL_MAX,
+                        step=SCAN_INTERVAL_STEP,
+                        mode="box",
                     )  # 5 min to 24 hours
                 ),
                 vol.Optional(
@@ -736,7 +770,8 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     default=options_data.get(
                         CONF_CHEAP_HOURS_UPDATE_TRIGGER,
                         current_data.get(
-                            CONF_CHEAP_HOURS_UPDATE_TRIGGER, {"hour": 14, "minute": 30}
+                            CONF_CHEAP_HOURS_UPDATE_TRIGGER,
+                            (lambda: (lambda h, m, _: {"hour": h, "minute": m})(*parse_time_string(DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER)))(),
                         ),
                     ),
                 ): selector.TimeSelector(),

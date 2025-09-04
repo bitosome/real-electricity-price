@@ -15,6 +15,8 @@ from .const import (
     CHEAP_HOURS_BASE_PRICE_DEFAULT,
     CHEAP_HOURS_THRESHOLD_DEFAULT,
     DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER,
+    parse_time_string,
+    PRICE_DECIMAL_PRECISION,
 )
 from .entity import RealElectricityPriceEntity
 
@@ -28,10 +30,13 @@ class CheapHoursBasePriceEntity(RealElectricityPriceEntity, NumberEntity):
         self._attr_name = f"{coordinator.config_entry.title} Cheap hour base price"
         self._attr_unique_id = f"{coordinator.config_entry.entry_id}_cheap_hours_base_price"
         self._attr_icon = "mdi:currency-eur"
-        self._attr_native_unit_of_measurement = "EUR/kWh"
+        self._attr_native_unit_of_measurement = "€/kWh"
         self._attr_native_min_value = 0
         self._attr_native_max_value = 1
-        self._attr_native_step = 0.000001
+        try:
+            self._attr_native_step = 10 ** (-PRICE_DECIMAL_PRECISION)
+        except Exception:
+            self._attr_native_step = 0.000001
         self._attr_mode = "box"
         self._attr_native_value = coordinator._cheap_price_coordinator.get_runtime_base_price()
 
@@ -85,20 +90,24 @@ class CheapHoursUpdateTriggerEntity(RealElectricityPriceEntity, TimeEntity):
     def __init__(self, coordinator):
         import datetime
         super().__init__(coordinator)
-        self._attr_name = f"{coordinator.config_entry.title} Cheap hour update trigger"
+        self._attr_name = f"{coordinator.config_entry.title} Cheap hours calculation time"
         self._attr_unique_id = f"{coordinator.config_entry.entry_id}_cheap_hours_update_trigger"
-        self._attr_icon = "mdi:clock"
+        self._attr_icon = "mdi:clock-time-three-outline"
         trigger = coordinator._cheap_price_coordinator.get_runtime_update_trigger()
         self._attr_native_value = self._parse_time(trigger)
 
     def _parse_time(self, value):
         import datetime
         # Always return a datetime.time object for UI, but store as dict
+        try:
+            def_h, def_m, _ = parse_time_string(DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER)
+        except Exception:
+            def_h, def_m = 14, 30
         if isinstance(value, dict):
-            hour = value.get('hour', 14)
-            minute = value.get('minute', 30)
+            hour = value.get('hour', def_h)
+            minute = value.get('minute', def_m)
             if not (0 <= hour <= 23 and 0 <= minute <= 59):
-                return datetime.time(14, 30)
+                return datetime.time(def_h, def_m)
             return datetime.time(hour, minute)
         elif isinstance(value, str):
             try:
@@ -106,13 +115,13 @@ class CheapHoursUpdateTriggerEntity(RealElectricityPriceEntity, TimeEntity):
                 hour = int(parts[0])
                 minute = int(parts[1]) if len(parts) > 1 else 0
                 if not (0 <= hour <= 23 and 0 <= minute <= 59):
-                    return datetime.time(14, 30)
+                    return datetime.time(def_h, def_m)
                 return datetime.time(hour, minute)
             except Exception:
-                return datetime.time(14, 30)
+                return datetime.time(def_h, def_m)
         elif isinstance(value, datetime.time):
             return value
-        return datetime.time(14, 30)
+        return datetime.time(def_h, def_m)
 
     def set_value(self, value):
         """Set new time value (synchronous method called by HA)."""
@@ -126,8 +135,12 @@ class CheapHoursUpdateTriggerEntity(RealElectricityPriceEntity, TimeEntity):
             if "hour" not in value or "minute" not in value:
                 _LOGGER.error(f"Rejected dict missing hour/minute for time entity: {value}")
                 return
-            hour = value.get('hour', 14)
-            minute = value.get('minute', 30)
+            try:
+                def_h, def_m, _ = parse_time_string(DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER)
+            except Exception:
+                def_h, def_m = 14, 30
+            hour = value.get('hour', def_h)
+            minute = value.get('minute', def_m)
         elif isinstance(value, str):
             try:
                 parts = value.split(":")
