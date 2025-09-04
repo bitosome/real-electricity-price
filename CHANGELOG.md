@@ -4,7 +4,10 @@
 
 All notable changes to this project will be documented in this file.
 
-## v1.1.0 - Cheapest Prices Analysis
+## v1.5.0 - 2025-09-04
+- Version bump to v1.5.0
+- For detailed changes, see [GitHub Releases](../../releases/tag/v1.5.0)
+
 - **NEW**: Added Cheapest Prices sensor with pandas-powered analysis
 - **NEW**: Configurable cheap price threshold (default 10% above minimum price)
 - **NEW**: Smart time range grouping for consecutive cheap hours
