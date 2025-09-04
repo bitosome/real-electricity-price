@@ -9,7 +9,7 @@ A comprehensive Home Assistant integration for real-time electricity pricing fro
 
 ## Version
 
-Current version: v1.5.1
+Current version: v2.0.0
 
 ## Latest Features (v1.1.0)
 - **NEW**: Advanced Cheapest Prices sensor with pandas-powered analysis
@@ -29,7 +29,7 @@ A comprehensive Home Assistant integration for real-time electricity pricing fro
 
 ## Version
 
-Current version: v1.5.1
+Current version: v2.0.0
 
 ## Highlights
 - Unified hourly refresh at hh:00 for all sensors, in sync with manual refresh

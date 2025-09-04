@@ -4,7 +4,10 @@
 
 All notable changes to this project will be documented in this file.
 
-## v1.5.1 - 2025-09-04
+## v2.0.0 - 2025-09-04
+- Version bump to v2.0.0
+- For detailed changes, see [GitHub Releases](../../releases/tag/v2.0.0)
+
 - Version bump to v1.5.1
 - For detailed changes, see [GitHub Releases](../../releases/tag/v1.5.1)
 
