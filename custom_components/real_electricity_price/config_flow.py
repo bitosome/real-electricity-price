@@ -13,7 +13,9 @@ from homeassistant.helpers import selector
 
 from .const import (
     CHEAP_HOURS_THRESHOLD_DEFAULT,
+    CHEAP_HOURS_BASE_PRICE_DEFAULT,
     CONF_CHEAP_HOURS_THRESHOLD,
+    CONF_CHEAP_HOURS_BASE_PRICE,
     CONF_CHEAP_HOURS_UPDATE_TRIGGER,
     CONF_COUNTRY_CODE,
     CONF_GRID,
@@ -451,6 +453,14 @@ class RealElectricityPriceFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                 ): selector.NumberSelector(
                     selector.NumberSelectorConfig(min=0, max=100, step=0.1, mode="box")
                 ),
+                vol.Optional(
+                    CONF_CHEAP_HOURS_BASE_PRICE,
+                    default=user_input.get(
+                        CONF_CHEAP_HOURS_BASE_PRICE, CHEAP_HOURS_BASE_PRICE_DEFAULT
+                    ),
+                ): selector.NumberSelector(
+                    selector.NumberSelectorConfig(min=0, max=1, step="any", mode="box")
+                ),
             }
         )
 
@@ -741,6 +751,17 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     ),
                 ): selector.NumberSelector(
                     selector.NumberSelectorConfig(min=0, max=100, step=0.1, mode="box")
+                ),
+                vol.Optional(
+                    CONF_CHEAP_HOURS_BASE_PRICE,
+                    default=options_data.get(
+                        CONF_CHEAP_HOURS_BASE_PRICE,
+                        current_data.get(
+                            CONF_CHEAP_HOURS_BASE_PRICE, CHEAP_HOURS_BASE_PRICE_DEFAULT
+                        ),
+                    ),
+                ): selector.NumberSelector(
+                    selector.NumberSelectorConfig(min=0, max=1, step="any", mode="box")
                 ),
             }
         )

@@ -35,6 +35,8 @@ if TYPE_CHECKING:
 PLATFORMS: list[Platform] = [
     Platform.SENSOR,
     Platform.BUTTON,
+    Platform.NUMBER,  # For config entities
+    Platform.TIME,    # For config entities
 ]
 
 SERVICE_REFRESH_DATA = "refresh_data"

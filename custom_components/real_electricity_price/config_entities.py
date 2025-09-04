@@ -1,0 +1,160 @@
+"""Number and time entities for Real Electricity Price config options."""
+
+from __future__ import annotations
+
+import logging
+from homeassistant.components.number import NumberEntity
+from homeassistant.components.time import TimeEntity
+from homeassistant.core import callback
+from homeassistant.const import CONF_NAME
+from .const import (
+    DOMAIN,
+    CONF_CHEAP_HOURS_BASE_PRICE,
+    CONF_CHEAP_HOURS_THRESHOLD,
+    CONF_CHEAP_HOURS_UPDATE_TRIGGER,
+    CHEAP_HOURS_BASE_PRICE_DEFAULT,
+    CHEAP_HOURS_THRESHOLD_DEFAULT,
+    DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER,
+)
+from .entity import RealElectricityPriceEntity
+
+_LOGGER = logging.getLogger(__name__)
+
+class CheapHoursBasePriceEntity(RealElectricityPriceEntity, NumberEntity):
+    """Entity for cheap hour base price."""
+    
+    def __init__(self, coordinator):
+        super().__init__(coordinator)
+        self._attr_name = f"{coordinator.config_entry.title} Cheap hour base price"
+        self._attr_unique_id = f"{coordinator.config_entry.entry_id}_cheap_hours_base_price"
+        self._attr_icon = "mdi:currency-eur"
+        self._attr_native_unit_of_measurement = "EUR/kWh"
+        self._attr_native_min_value = 0
+        self._attr_native_max_value = 1
+        self._attr_native_step = 0.000001
+        self._attr_mode = "box"
+        self._attr_native_value = coordinator._cheap_price_coordinator.get_runtime_base_price()
+
+    async def async_set_native_value(self, value: float) -> None:
+        """Set new value."""
+        if not isinstance(value, (int, float)) or value < 0 or value > 1:
+            _LOGGER.error("Invalid base price value: %s", value)
+            return
+            
+        try:
+            # Update the coordinator's runtime value without triggering config reload
+            self.coordinator._cheap_price_coordinator.set_runtime_base_price(value)
+            self._attr_native_value = value
+            self.async_write_ha_state()
+            _LOGGER.info("Base price updated to %s - use Calculate Cheap Hours button to recalculate", value)
+        except Exception as e:
+            _LOGGER.error("Error setting base price: %s", e)
+
+class CheapHoursThresholdEntity(RealElectricityPriceEntity, NumberEntity):
+    """Entity for cheap hour threshold."""
+    
+    def __init__(self, coordinator):
+        super().__init__(coordinator)
+        self._attr_name = f"{coordinator.config_entry.title} Cheap hour threshold"
+        self._attr_unique_id = f"{coordinator.config_entry.entry_id}_cheap_hours_threshold"
+        self._attr_icon = "mdi:percent"
+        self._attr_native_unit_of_measurement = "%"
+        self._attr_native_min_value = 0
+        self._attr_native_max_value = 100
+        self._attr_native_step = 0.1
+        self._attr_mode = "box"
+        self._attr_native_value = coordinator._cheap_price_coordinator.get_runtime_threshold()
+
+    async def async_set_native_value(self, value: float) -> None:
+        """Set new value."""
+        if not isinstance(value, (int, float)) or value < 0 or value > 100:
+            _LOGGER.error("Invalid threshold value: %s", value)
+            return
+            
+        try:
+            # Update the coordinator's runtime value without triggering config reload
+            self.coordinator._cheap_price_coordinator.set_runtime_threshold(value)
+            self._attr_native_value = value
+            self.async_write_ha_state()
+            _LOGGER.info("Threshold updated to %s%% - use Calculate Cheap Hours button to recalculate", value)
+        except Exception as e:
+            _LOGGER.error("Error setting threshold: %s", e)
+
+class CheapHoursUpdateTriggerEntity(RealElectricityPriceEntity, TimeEntity):
+    """Entity for cheap hour update trigger time."""
+    def __init__(self, coordinator):
+        import datetime
+        super().__init__(coordinator)
+        self._attr_name = f"{coordinator.config_entry.title} Cheap hour update trigger"
+        self._attr_unique_id = f"{coordinator.config_entry.entry_id}_cheap_hours_update_trigger"
+        self._attr_icon = "mdi:clock"
+        trigger = coordinator._cheap_price_coordinator.get_runtime_update_trigger()
+        self._attr_native_value = self._parse_time(trigger)
+
+    def _parse_time(self, value):
+        import datetime
+        # Always return a datetime.time object for UI, but store as dict
+        if isinstance(value, dict):
+            hour = value.get('hour', 14)
+            minute = value.get('minute', 30)
+            if not (0 <= hour <= 23 and 0 <= minute <= 59):
+                return datetime.time(14, 30)
+            return datetime.time(hour, minute)
+        elif isinstance(value, str):
+            try:
+                parts = value.split(":")
+                hour = int(parts[0])
+                minute = int(parts[1]) if len(parts) > 1 else 0
+                if not (0 <= hour <= 23 and 0 <= minute <= 59):
+                    return datetime.time(14, 30)
+                return datetime.time(hour, minute)
+            except Exception:
+                return datetime.time(14, 30)
+        elif isinstance(value, datetime.time):
+            return value
+        return datetime.time(14, 30)
+
+    async def async_set_native_value(self, value):
+        import datetime
+        # Strictly reject any numeric values that might be prices
+        if isinstance(value, (int, float)):
+            _LOGGER.error(f"Rejected numeric value for time entity: {value} (type: {type(value)})")
+            return
+        # Strictly accept only valid time types
+        if isinstance(value, datetime.time):
+            hour = value.hour
+            minute = value.minute
+        elif isinstance(value, dict):
+            if "hour" not in value or "minute" not in value:
+                _LOGGER.error(f"Rejected dict missing hour/minute for time entity: {value}")
+                return
+            hour = value.get('hour', 14)
+            minute = value.get('minute', 30)
+        elif isinstance(value, str):
+            try:
+                parts = value.split(":")
+                if len(parts) < 2:
+                    _LOGGER.error(f"Rejected invalid time string for time entity: {value}")
+                    return
+                hour = int(parts[0])
+                minute = int(parts[1]) if len(parts) > 1 else 0
+            except Exception:
+                _LOGGER.error(f"Invalid time specified for update trigger: {value}")
+                return
+        else:
+            _LOGGER.error(f"Rejected update trigger: type={type(value)} value={value}")
+            return
+        # Reject floats, ints, or any non-time types
+        if not (isinstance(hour, int) and isinstance(minute, int)):
+            _LOGGER.error(f"Rejected update trigger: hour/minute not int: {hour}, {minute}")
+            return
+        if not (0 <= hour <= 23 and 0 <= minute <= 59):
+            _LOGGER.error(f"Invalid time specified for update trigger: {hour}:{minute}")
+            return
+        
+        # Update the coordinator's runtime value without triggering config reload
+        trigger_dict = {"hour": hour, "minute": minute}
+        self.coordinator._cheap_price_coordinator.set_runtime_update_trigger(trigger_dict)
+        self._attr_native_value = datetime.time(hour, minute)
+        self.async_write_ha_state()
+        _LOGGER.info("Update trigger time updated to %02d:%02d - use Calculate Cheap Hours button to recalculate", hour, minute)

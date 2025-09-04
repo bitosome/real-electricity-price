@@ -8,7 +8,7 @@ from typing import Any
 from homeassistant.components.sensor import SensorEntity, SensorEntityDescription
 from homeassistant.const import CONF_NAME
 
-from ..const import PRICE_DECIMAL_PRECISION
+from ..const import PRICE_DECIMAL_PRECISION, CHEAP_HOURS_BASE_PRICE_DEFAULT
 from ..entity import RealElectricityPriceEntity
 from ..models import IntegrationConfig
 
@@ -73,6 +73,7 @@ class RealElectricityPriceBaseSensor(RealElectricityPriceEntity, SensorEntity):
                 "cheap_price_update_trigger", "14:30"
             ),
             cheap_price_threshold=config_data.get("cheap_price_threshold", 10.0),
+            cheap_hours_base_price=config_data.get("cheap_hours_base_price", CHEAP_HOURS_BASE_PRICE_DEFAULT),
             vat_nord_pool=config_data.get("vat_nord_pool", True),
             vat_grid_electricity_excise_duty=config_data.get(
                 "vat_grid_electricity_excise_duty", False

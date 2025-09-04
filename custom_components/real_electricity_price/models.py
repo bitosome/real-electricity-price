@@ -90,6 +90,7 @@ class IntegrationConfig:
     scan_interval: int
     cheap_price_update_trigger: str
     cheap_price_threshold: float
+    cheap_hours_base_price: float
 
     # VAT settings
     vat_nord_pool: bool = True

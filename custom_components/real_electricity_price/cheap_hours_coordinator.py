@@ -13,7 +13,9 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import (
     CHEAP_HOURS_THRESHOLD_DEFAULT,
+    CHEAP_HOURS_BASE_PRICE_DEFAULT,
     CONF_CHEAP_HOURS_THRESHOLD,
+    CONF_CHEAP_HOURS_BASE_PRICE,
     CONF_CHEAP_HOURS_UPDATE_TRIGGER,
     DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER,
     PRICE_DECIMAL_PRECISION,
@@ -56,6 +58,11 @@ class CheapHoursDataUpdateCoordinator(DataUpdateCoordinator):
         self.config_entry = config_entry
         self._trigger_unsub: Callable[[], None] | None = None
         self._stop_unsub: Callable[[], None] | None = None
+        
+        # Runtime storage for UI-configurable values (to avoid config entry reloads)
+        self._runtime_base_price: float | None = None
+        self._runtime_threshold: float | None = None
+        self._runtime_update_trigger: dict | None = None
 
         # Initialize the time-based trigger
         self.update_trigger_config()
@@ -70,6 +77,49 @@ class CheapHoursDataUpdateCoordinator(DataUpdateCoordinator):
         self._stop_unsub = self.hass.bus.async_listen_once(
             EVENT_HOMEASSISTANT_STOP, _on_stop
         )
+
+    def set_runtime_base_price(self, value: float) -> None:
+        """Set the runtime base price without triggering config reload."""
+        self._runtime_base_price = value
+        self.logger.info("Runtime base price updated to %s", value)
+
+    def set_runtime_threshold(self, value: float) -> None:
+        """Set the runtime threshold without triggering config reload."""
+        self._runtime_threshold = value
+        self.logger.info("Runtime threshold updated to %s%%", value)
+
+    def set_runtime_update_trigger(self, value: dict) -> None:
+        """Set the runtime update trigger without triggering config reload."""
+        self._runtime_update_trigger = value
+        self.logger.info("Runtime update trigger updated to %02d:%02d", value.get("hour", 14), value.get("minute", 30))
+
+    def get_runtime_base_price(self) -> float:
+        """Get the runtime base price, falling back to config if not set."""
+        if self._runtime_base_price is not None:
+            return self._runtime_base_price
+        config = {**self.config_entry.data, **self.config_entry.options}
+        return config.get(CONF_CHEAP_HOURS_BASE_PRICE, CHEAP_HOURS_BASE_PRICE_DEFAULT)
+
+    def get_runtime_threshold(self) -> float:
+        """Get the runtime threshold, falling back to config if not set."""
+        if self._runtime_threshold is not None:
+            return self._runtime_threshold
+        config = {**self.config_entry.data, **self.config_entry.options}
+        return config.get(CONF_CHEAP_HOURS_THRESHOLD, CHEAP_HOURS_THRESHOLD_DEFAULT)
+
+    def get_runtime_update_trigger(self) -> dict:
+        """Get the runtime update trigger, falling back to config if not set."""
+        if self._runtime_update_trigger is not None:
+            return self._runtime_update_trigger
+        config = {**self.config_entry.data, **self.config_entry.options}
+        trigger = config.get(CONF_CHEAP_HOURS_UPDATE_TRIGGER, DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER)
+        if isinstance(trigger, dict):
+            return trigger
+        # Convert string format to dict
+        if isinstance(trigger, str):
+            parts = trigger.split(":")
+            return {"hour": int(parts[0]), "minute": int(parts[1]) if len(parts) > 1 else 0}
+        return DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER
 
     def update_trigger_config(self) -> None:
         """Update the trigger configuration based on current config."""
@@ -86,16 +136,19 @@ class CheapHoursDataUpdateCoordinator(DataUpdateCoordinator):
 
         # Parse trigger time (format: "HH:MM" or {"hour": H, "minute": M})
         try:
+            # Always expect dict format from config entity
             if isinstance(trigger_time, dict):
-                # Handle TimeSelector format
                 hour = trigger_time.get("hour", 14)
                 minute = trigger_time.get("minute", 30)
-            else:
-                # Handle legacy string format (may include seconds like "HH:MM:SS")
-                time_parts = str(trigger_time).split(":")
+            elif isinstance(trigger_time, str):
+                time_parts = trigger_time.split(":")
                 hour = int(time_parts[0])
                 minute = int(time_parts[1]) if len(time_parts) > 1 else 0
-
+            else:
+                hour = 14
+                minute = 30
+            if not (0 <= hour <= 23 and 0 <= minute <= 59):
+                raise ValueError(f"Invalid hour/minute: {hour}:{minute}")
             self._trigger_unsub = async_track_time_change(
                 self.hass,
                 self._handle_trigger,
@@ -103,12 +156,10 @@ class CheapHoursDataUpdateCoordinator(DataUpdateCoordinator):
                 minute=minute,
                 second=0,
             )
-
             _LOGGER.debug(
                 "Cheap price coordinator trigger set for %02d:%02d", hour, minute
             )
-
-        except (ValueError, AttributeError, KeyError, IndexError) as e:
+        except Exception as e:
             _LOGGER.exception("Invalid trigger time format '%s': %s", trigger_time, e)
 
     @callback
@@ -230,29 +281,51 @@ class CheapHoursDataUpdateCoordinator(DataUpdateCoordinator):
                 _LOGGER.debug("No future price data available for cheap price analysis")
                 return {"cheap_ranges": [], "analysis_info": {}}
 
-            # Find minimum price
-            min_price = min(p["price"] for p in future_prices)
+            # Get base price and threshold from runtime storage or configuration
+            base_price = self.get_runtime_base_price()
+            threshold_percent = self.get_runtime_threshold()
+            # Defensive: ensure base_price and threshold_percent are numbers
+            if isinstance(base_price, (dict, str)):
+                try:
+                    base_price = float(base_price)
+                except Exception:
+                    base_price = CHEAP_HOURS_BASE_PRICE_DEFAULT
+            if isinstance(threshold_percent, (dict, str)):
+                try:
+                    threshold_percent = float(threshold_percent)
+                except Exception:
+                    threshold_percent = CHEAP_HOURS_THRESHOLD_DEFAULT
 
-            # Get threshold from configuration
-            config = {**self.config_entry.data, **self.config_entry.options}
-            threshold_percent = config.get(
-                CONF_CHEAP_HOURS_THRESHOLD, CHEAP_HOURS_THRESHOLD_DEFAULT
-            )
-
-            # Calculate maximum price that's considered "cheap"
-            max_cheap_price = min_price * (1 + threshold_percent / 100)
+            # Calculate maximum price that's considered "cheap" based on base price
+            max_cheap_price = base_price * (1 + threshold_percent / 100)
 
             # Filter cheap prices
-            cheap_prices = [p for p in future_prices if p["price"] <= max_cheap_price]
+            cheap_prices = [p for p in future_prices if isinstance(p["price"], (int, float)) and p["price"] <= max_cheap_price]
 
             if not cheap_prices:
-                _LOGGER.debug(
-                    "No cheap prices found with threshold %s%%", threshold_percent
-                )
+                # Calculate actual price statistics for debugging
+                if future_prices:
+                    actual_prices = [p["price"] for p in future_prices if isinstance(p["price"], (int, float))]
+                    if actual_prices:
+                        min_price = min(actual_prices)
+                        max_price = max(actual_prices)
+                        avg_price = sum(actual_prices) / len(actual_prices)
+                        _LOGGER.warning(
+                            "No cheap prices found! Current settings: base_price=%.6f, threshold=%s%%, max_cheap_price=%.6f. "
+                            "Actual price range: %.6f - %.6f (avg: %.6f) for %d future hours. "
+                            "Consider setting base price to at least %.6f to find some cheap hours.",
+                            base_price, threshold_percent, max_cheap_price,
+                            min_price, max_price, avg_price, len(actual_prices),
+                            min_price * 0.9  # Suggest 90% of minimum price
+                        )
+                    else:
+                        _LOGGER.debug("No valid price data available")
+                else:
+                    _LOGGER.debug("No future price data available")
                 return {
                     "cheap_ranges": [],
                     "analysis_info": {
-                        "min_price": min_price,
+                        "base_price": base_price,
                         "threshold_percent": threshold_percent,
                     },
                 }
@@ -264,7 +337,7 @@ class CheapHoursDataUpdateCoordinator(DataUpdateCoordinator):
             analysis_period_hours = len(future_prices)
 
             analysis_info = {
-                "min_price": round(min_price, PRICE_DECIMAL_PRECISION),
+                "base_price": round(base_price, PRICE_DECIMAL_PRECISION),
                 "max_cheap_price": round(max_cheap_price, PRICE_DECIMAL_PRECISION),
                 "threshold_percent": threshold_percent,
                 "total_cheap_hours": len(cheap_ranges),
@@ -272,9 +345,9 @@ class CheapHoursDataUpdateCoordinator(DataUpdateCoordinator):
             }
 
             _LOGGER.debug(
-                "Cheap price analysis complete: %d ranges found (min: %.6f, max_cheap: %.6f, threshold: %.1f%%)",
+                "Cheap price analysis complete: %d ranges found (base: %.6f, max_cheap: %.6f, threshold: %.1f%%)",
                 len(cheap_ranges),
-                min_price,
+                base_price,
                 max_cheap_price,
                 threshold_percent,
             )
