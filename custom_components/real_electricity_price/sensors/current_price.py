@@ -40,11 +40,13 @@ class CurrentPriceSensor(RealElectricityPriceBaseSensor):
 
         config = self.get_config()
         
-        # Get current price components
+        # Get current price components with calculation details
         components = self._get_price_components(config)
+        calculation_details = self._get_calculation_details(config)
         
         return {
             "price_components": components,
+            "calculation_details": calculation_details,
         }
 
     def _get_price_components(self, config: IntegrationConfig) -> dict[str, float]:
@@ -70,6 +72,98 @@ class CurrentPriceSensor(RealElectricityPriceBaseSensor):
             f"{grid_name.lower()}_transmission_price_{current_tariff}": self._round_price(transmission_price),
             f"{supplier_name.lower()}_renewable_energy_charge": self._round_price(config.supplier_renewable_energy_charge),
             f"{supplier_name.lower()}_margin": self._round_price(config.supplier_margin),
+        }
+
+    def _get_calculation_details(self, config: IntegrationConfig) -> dict[str, Any]:
+        """Get detailed calculation information including VAT applications and final sum."""
+        grid_name = config.grid
+        supplier_name = config.supplier
+        
+        # Get current Nord Pool price
+        nord_pool_price = self._get_current_nord_pool_price()
+        if nord_pool_price is None:
+            return {"error": "Nord Pool price not available"}
+            
+        # Get current tariff
+        current_tariff = self._get_current_tariff()
+        transmission_price = (
+            config.grid_transmission_price_night 
+            if current_tariff == "night" 
+            else config.grid_transmission_price_day
+        )
+        
+        # Get VAT configuration
+        vat_percentage = config.vat_rate
+        vat_nord_pool = config.vat_nord_pool
+        vat_grid_excise_duty = config.vat_grid_electricity_excise_duty
+        vat_grid_renewable = config.vat_grid_renewable_energy_charge
+        vat_transmission_night = config.vat_grid_transmission_night
+        vat_transmission_day = config.vat_grid_transmission_day
+        vat_supplier_renewable = config.vat_supplier_renewable_energy_charge
+        vat_supplier_margin = config.vat_supplier_margin
+        
+        # Choose correct transmission VAT based on tariff
+        vat_transmission = vat_transmission_night if current_tariff == "night" else vat_transmission_day
+        
+        # Calculate components with VAT applications
+        base_price_component = nord_pool_price
+        if vat_nord_pool:
+            base_price_component *= (1 + vat_percentage / 100)
+            
+        excise_component = config.grid_electricity_excise_duty
+        if vat_grid_excise_duty:
+            excise_component *= (1 + vat_percentage / 100)
+            
+        renewable_grid_component = config.grid_renewable_energy_charge
+        if vat_grid_renewable:
+            renewable_grid_component *= (1 + vat_percentage / 100)
+            
+        renewable_supplier_component = config.supplier_renewable_energy_charge
+        if vat_supplier_renewable:
+            renewable_supplier_component *= (1 + vat_percentage / 100)
+            
+        margin_component = config.supplier_margin
+        if vat_supplier_margin:
+            margin_component *= (1 + vat_percentage / 100)
+            
+        transmission_component = transmission_price
+        if vat_transmission:
+            transmission_component *= (1 + vat_percentage / 100)
+            
+        # Calculate final price
+        final_price = (
+            base_price_component +
+            excise_component +
+            renewable_grid_component +
+            renewable_supplier_component +
+            margin_component +
+            transmission_component
+        )
+        
+        return {
+            "calculation_method": "component_sum_with_individual_vat",
+            "vat_settings": {
+                "vat_rate": self._round_price(vat_percentage),
+                "vat_nord_pool": vat_nord_pool,
+                f"vat_{grid_name.lower()}_excise_duty": vat_grid_excise_duty,
+                f"vat_{grid_name.lower()}_renewable": vat_grid_renewable,
+                f"vat_{grid_name.lower()}_transmission_{current_tariff}": vat_transmission,
+                f"vat_{supplier_name.lower()}_renewable": vat_supplier_renewable,
+                f"vat_{supplier_name.lower()}_margin": vat_supplier_margin,
+            },
+            "components_with_vat": {
+                "nord_pool_price": self._round_price(base_price_component),
+                f"{grid_name.lower()}_electricity_excise_duty": self._round_price(excise_component),
+                f"{grid_name.lower()}_renewable_energy_charge": self._round_price(renewable_grid_component),
+                f"{grid_name.lower()}_transmission_price_{current_tariff}": self._round_price(transmission_component),
+                f"{supplier_name.lower()}_renewable_energy_charge": self._round_price(renewable_supplier_component),
+                f"{supplier_name.lower()}_margin": self._round_price(margin_component),
+            },
+            "price_calculation": {
+                "final_price": self._round_price(final_price),
+                "current_tariff": current_tariff,
+                "calculation_formula": f"nord_pool({self._round_price(base_price_component)}) + {grid_name.lower()}_excise({self._round_price(excise_component)}) + {grid_name.lower()}_renewable({self._round_price(renewable_grid_component)}) + {grid_name.lower()}_transmission_{current_tariff}({self._round_price(transmission_component)}) + {supplier_name.lower()}_renewable({self._round_price(renewable_supplier_component)}) + {supplier_name.lower()}_margin({self._round_price(margin_component)}) = {self._round_price(final_price)}",
+            },
         }
 
     def _get_current_nord_pool_price(self) -> float | None:
