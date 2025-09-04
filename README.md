@@ -9,6 +9,13 @@ Real-time electricity prices for Nord Pool delivery areas, with transparent comp
 
 Current version: v1.1.1
 
+## Recent Updates (v1.1.1)
+
+- **Fixed cheap hours threshold calculation**: Corrected formula from `base_price * threshold_percent` to `base_price * (1 + threshold_percent / 100)` ensuring accurate identification of cheap hours
+- **Fixed cheap hours sensor state**: Sensor now correctly shows total cheap hours (e.g., 8) instead of number of ranges (e.g., 3)  
+- **Fixed status attributes**: `total_cheap_hours` in sensor attributes now displays actual hour count across all cheap periods
+- **Enhanced calculation transparency**: Cheap hours analysis now properly spans multiple days and includes future periods up to 3 days ahead
+
 ## Overview
 
 - Current price and full day series (yesterday/today/tomorrow)
@@ -65,8 +72,8 @@ Time & refresh
 
 Cheap-hours analysis
 - Base price (`cheap_hours_base_price`, default 0.150000 €/kWh)
-- Threshold multiplier (`cheap_hours_threshold`, default 10.0)
-  - A price is “cheap” if `price ≤ base_price` OR `price ≤ base_price × threshold`.
+- Threshold percent (`cheap_hours_threshold`, default 10.0%)
+  - A price is "cheap" if `price ≤ base_price` OR `price ≤ base_price × (1 + threshold/100)`.
 
 Validation
 - Area code must be one of the supported delivery areas
@@ -84,7 +91,7 @@ Sensors
   - Attributes: `hourly_prices` (start/end, base price, final price, tariff, holiday/weekend), `statistics` (min/max/avg), `data_available`.
 - Last Sync (`sensor.…_last_sync`, timestamp): Time of last successful data fetch. Attributes include `data_sources` summary.
 - Last Cheap Hours Calculation (`sensor.…_last_cheap_calculation`, timestamp): From cheap-hours coordinator; attributes include trigger info.
-- Cheap Hours (`sensor.…_cheap_hours`, hours): Count of upcoming cheap hours from now. Attributes: `cheap_price_ranges`, `status_info`, `analysis_info`, `calculation_info`.
+- Cheap Hours (`sensor.…_cheap_hours`, hours): Total count of cheap hours across all upcoming periods. Attributes: `cheap_price_ranges` (detailed periods with times and prices), `status_info`, `analysis_info`, `calculation_info`.
 - Cheap Hours Start/End (`sensor.…_cheap_hours_start|end`, timestamp): Next cheap period start/end in local time.
 
 Buttons
