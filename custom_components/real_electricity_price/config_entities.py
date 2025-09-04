@@ -114,13 +114,11 @@ class CheapHoursUpdateTriggerEntity(RealElectricityPriceEntity, TimeEntity):
             return value
         return datetime.time(14, 30)
 
-    async def async_set_native_value(self, value):
+    def set_value(self, value):
+        """Set new time value (synchronous method called by HA)."""
         import datetime
-        # Strictly reject any numeric values that might be prices
-        if isinstance(value, (int, float)):
-            _LOGGER.error(f"Rejected numeric value for time entity: {value} (type: {type(value)})")
-            return
-        # Strictly accept only valid time types
+        
+        # Parse the time value
         if isinstance(value, datetime.time):
             hour = value.hour
             minute = value.minute
@@ -144,7 +142,8 @@ class CheapHoursUpdateTriggerEntity(RealElectricityPriceEntity, TimeEntity):
         else:
             _LOGGER.error(f"Rejected update trigger: type={type(value)} value={value}")
             return
-        # Reject floats, ints, or any non-time types
+            
+        # Validate time range
         if not (isinstance(hour, int) and isinstance(minute, int)):
             _LOGGER.error(f"Rejected update trigger: hour/minute not int: {hour}, {minute}")
             return
@@ -156,5 +155,9 @@ class CheapHoursUpdateTriggerEntity(RealElectricityPriceEntity, TimeEntity):
         trigger_dict = {"hour": hour, "minute": minute}
         self.coordinator._cheap_price_coordinator.set_runtime_update_trigger(trigger_dict)
         self._attr_native_value = datetime.time(hour, minute)
-        self.async_write_ha_state()
+        self.schedule_update_ha_state()
         _LOGGER.info("Update trigger time updated to %02d:%02d - use Calculate Cheap Hours button to recalculate", hour, minute)
+
+    async def async_set_native_value(self, value):
+        """Set new time value (async wrapper)."""
+        return self.set_value(value)
