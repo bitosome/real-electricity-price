@@ -43,31 +43,8 @@ class CheapHoursSensor(RealElectricityPriceBaseSensor):
         if not cheap_ranges:
             return 0
 
-        now = dt_util.now()
-        total_cheap_hours = 0
-
-        # Count all future cheap hours
-        for range_data in cheap_ranges:
-            try:
-                start_time = dt_util.parse_datetime(range_data["start_time"])
-                end_time = dt_util.parse_datetime(range_data["end_time"])
-                
-                # Skip if datetime parsing failed
-                if not start_time or not end_time:
-                    continue
-                # If we're currently in a cheap period, count remaining hours + future periods
-                if start_time <= now < end_time:
-                    # Count remaining hours in current period
-                    remaining_hours = int((end_time - now).total_seconds() / 3600)
-                    total_cheap_hours += max(1, remaining_hours)  # At least 1 hour if we're in it
-                    
-                # If this is a future cheap period, count all its hours
-                elif start_time > now:
-                    period_hours = range_data.get("hour_count", 1)
-                    total_cheap_hours += period_hours
-            except (ValueError, KeyError):
-                continue
-
+        # Sum all cheap hours from all ranges
+        total_cheap_hours = sum(range_data.get("hour_count", 1) for range_data in cheap_ranges)
         return total_cheap_hours
 
     def _get_next_cheap_hours_from_ranges(self) -> int | None:
@@ -77,31 +54,8 @@ class CheapHoursSensor(RealElectricityPriceBaseSensor):
         if not cheap_ranges:
             return 0
 
-        now = dt_util.now()
-        total_cheap_hours = 0
-
-        # Count all future cheap hours
-        for range_data in cheap_ranges:
-            try:
-                start_time = dt_util.parse_datetime(range_data["start_time"])
-                end_time = dt_util.parse_datetime(range_data["end_time"])
-                
-                # Skip if datetime parsing failed
-                if not start_time or not end_time:
-                    continue
-                # If we're currently in a cheap period, count remaining hours + future periods
-                if start_time <= now < end_time:
-                    # Count remaining hours in current period
-                    remaining_hours = int((end_time - now).total_seconds() / 3600)
-                    total_cheap_hours += max(1, remaining_hours)  # At least 1 hour if we're in it
-                    
-                # If this is a future cheap period, count all its hours
-                elif start_time > now:
-                    period_hours = range_data.get("hour_count", 1)
-                    total_cheap_hours += period_hours
-            except (ValueError, KeyError):
-                continue
-
+        # Sum all cheap hours from all ranges
+        total_cheap_hours = sum(range_data.get("hour_count", 1) for range_data in cheap_ranges)
         return total_cheap_hours
 
     def _get_next_cheap_period_from_coordinator(self) -> datetime | None:
