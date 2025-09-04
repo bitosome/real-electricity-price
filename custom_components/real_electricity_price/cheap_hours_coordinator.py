@@ -89,9 +89,11 @@ class CheapHoursDataUpdateCoordinator(DataUpdateCoordinator):
         self.logger.info("Runtime threshold updated to %s%%", value)
 
     def set_runtime_update_trigger(self, value: dict) -> None:
-        """Set the runtime update trigger without triggering config reload."""
+        """Set the runtime update trigger and update the scheduled trigger."""
         self._runtime_update_trigger = value
         self.logger.info("Runtime update trigger updated to %02d:%02d", value.get("hour", 14), value.get("minute", 30))
+        # Update the actual scheduled trigger with the new time
+        self._update_trigger_schedule_from_runtime()
 
     def get_runtime_base_price(self) -> float:
         """Get the runtime base price, falling back to config if not set."""
@@ -120,6 +122,41 @@ class CheapHoursDataUpdateCoordinator(DataUpdateCoordinator):
             parts = trigger.split(":")
             return {"hour": int(parts[0]), "minute": int(parts[1]) if len(parts) > 1 else 0}
         return DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER
+
+    def _update_trigger_schedule_from_runtime(self) -> None:
+        """Update the trigger schedule using runtime values (doesn't trigger recalculation)."""
+        # Get runtime trigger time
+        trigger_time = self.get_runtime_update_trigger()
+        
+        # Remove existing trigger
+        if self._trigger_unsub:
+            self._trigger_unsub()
+            self._trigger_unsub = None
+
+        # Parse trigger time and set new schedule
+        try:
+            if isinstance(trigger_time, dict):
+                hour = trigger_time.get("hour", 14)
+                minute = trigger_time.get("minute", 30)
+            else:
+                hour = 14
+                minute = 30
+                
+            if not (0 <= hour <= 23 and 0 <= minute <= 59):
+                raise ValueError(f"Invalid hour/minute: {hour}:{minute}")
+                
+            self._trigger_unsub = async_track_time_change(
+                self.hass,
+                self._handle_trigger,
+                hour=hour,
+                minute=minute,
+                second=0,
+            )
+            _LOGGER.debug(
+                "Cheap price coordinator trigger schedule updated to %02d:%02d", hour, minute
+            )
+        except Exception as e:
+            _LOGGER.exception("Invalid runtime trigger time format '%s': %s", trigger_time, e)
 
     def update_trigger_config(self) -> None:
         """Update the trigger configuration based on current config."""
