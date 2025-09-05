@@ -74,35 +74,49 @@ class HourlyPricesSensor(RealElectricityPriceBaseSensor):
             if data_key in ["today", "tomorrow"] and hourly_prices:
                 # Use Home Assistant's datetime utility for consistent timezone handling
                 now = dt_util.now().replace(minute=0, second=0, microsecond=0)
-                
+
                 for price_entry in hourly_prices[:12]:  # Limit to first 12 hours
                     try:
                         start_time_str = price_entry["start_time"]
                         start_time = dt_util.parse_datetime(start_time_str)
-                        
-                        if start_time and start_time >= now and len(next_hours_preview) < 6:
-                            next_hours_preview.append({
-                                "start_time": price_entry["start_time"],
-                                "price": self._round_price(price_entry.get("actual_price")) if price_entry.get("actual_price") is not None else None,
-                            })
+
+                        if (
+                            start_time
+                            and start_time >= now
+                            and len(next_hours_preview) < 6
+                        ):
+                            next_hours_preview.append(
+                                {
+                                    "start_time": price_entry["start_time"],
+                                    "price": self._round_price(
+                                        price_entry.get("actual_price")
+                                    )
+                                    if price_entry.get("actual_price") is not None
+                                    else None,
+                                }
+                            )
                         elif start_time and start_time == now:
                             current_hour_info = {
                                 "start_time": price_entry["start_time"],
-                                "price": self._round_price(price_entry.get("actual_price")) if price_entry.get("actual_price") is not None else None,
+                                "price": self._round_price(
+                                    price_entry.get("actual_price")
+                                )
+                                if price_entry.get("actual_price") is not None
+                                else None,
                             }
                     except (ValueError, KeyError):
                         continue
 
         result = {"data_sources": data_sources_info}
-        
+
         if current_hour_info:
             result["current_hour"] = current_hour_info
-            
+
         if next_hours_preview:
             result["next_hours_preview"] = next_hours_preview
 
         _LOGGER.debug("Hourly prices attributes size reduced for database efficiency")
-        
+
         # Return native data structures (no YAML serialization needed)
         return result
 
@@ -124,12 +138,14 @@ class HourlyPricesSensor(RealElectricityPriceBaseSensor):
                 try:
                     start_time_str = price_entry["start_time"]
                     end_time_str = price_entry["end_time"]
-                    
+
                     start_time = dt_util.parse_datetime(start_time_str)
                     end_time = dt_util.parse_datetime(end_time_str)
 
                     if (
-                        start_time and end_time and start_time <= now < end_time
+                        start_time
+                        and end_time
+                        and start_time <= now < end_time
                         and price_entry.get("actual_price") is not None
                     ):
                         return price_entry["actual_price"]

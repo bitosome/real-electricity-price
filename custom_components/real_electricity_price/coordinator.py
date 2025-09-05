@@ -13,12 +13,12 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 
 from .api import RealElectricityPriceApiClientError
 from .const import (
-    CONF_NIGHT_PRICE_START_TIME,
+    CONF_NIGHT_PRICE_END_HOUR,
     CONF_NIGHT_PRICE_END_TIME,
     CONF_NIGHT_PRICE_START_HOUR,
-    CONF_NIGHT_PRICE_END_HOUR,
-    NIGHT_PRICE_START_TIME_DEFAULT,
+    CONF_NIGHT_PRICE_START_TIME,
     NIGHT_PRICE_END_TIME_DEFAULT,
+    NIGHT_PRICE_START_TIME_DEFAULT,
     parse_time_string,
 )
 
@@ -52,7 +52,7 @@ class RealElectricityPriceDataUpdateCoordinator(DataUpdateCoordinator):
             minute=0,
             second=0,
         )
-        
+
         # Midnight transition handler for date changes, DST, etc.
         self._midnight_update_unsub = async_track_time_change(
             self.hass,
@@ -82,11 +82,13 @@ class RealElectricityPriceDataUpdateCoordinator(DataUpdateCoordinator):
         _LOGGER.debug("Hourly tick at %s -> updating all entity states (no fetch)", now)
         # This does not fetch data; it only tells all entities to update their state
         self.async_update_listeners()
-    
+
     @callback
     def _handle_midnight_transition(self, now: datetime.datetime) -> None:
         """Handle midnight transition for date changes, DST, etc."""
-        _LOGGER.debug("Midnight transition at %s -> scheduling data refresh for date changes", now)
+        _LOGGER.debug(
+            "Midnight transition at %s -> scheduling data refresh for date changes", now
+        )
         # Schedule a refresh to handle:
         # - Today's data becomes yesterday's data
         # - Tomorrow's data becomes today's data
@@ -98,7 +100,7 @@ class RealElectricityPriceDataUpdateCoordinator(DataUpdateCoordinator):
         """Update data via library."""
         try:
             current_date = datetime.datetime.now(datetime.UTC).date()
-            current_time = datetime.datetime.now(datetime.UTC)
+            datetime.datetime.now(datetime.UTC)
 
             # Check if we need to force update due to date change
             force_update = self._last_update_date != current_date
@@ -109,7 +111,6 @@ class RealElectricityPriceDataUpdateCoordinator(DataUpdateCoordinator):
                     current_date,
                 )
 
-
             data = await self.config_entry.runtime_data.client.async_get_data()
 
             # Add the current timestamp and configuration to the data
@@ -119,8 +120,11 @@ class RealElectricityPriceDataUpdateCoordinator(DataUpdateCoordinator):
                 # Include relevant configuration for tariff calculation
                 config_data = dict(self.config_entry.data)
                 config_data.update(self.config_entry.options)  # Options override data
+
                 # Resolve night hours preferring time string config, fallback to legacy hour fields, then defaults
-                def _resolve_hour(cfg: dict, key_time: str, key_hour: str, default_time: str) -> int:
+                def _resolve_hour(
+                    cfg: dict, key_time: str, key_hour: str, default_time: str
+                ) -> int:
                     val = cfg.get(key_time)
                     if isinstance(val, dict):
                         return int(val.get("hour", parse_time_string(default_time)[0]))
@@ -159,17 +163,18 @@ class RealElectricityPriceDataUpdateCoordinator(DataUpdateCoordinator):
                 self._validate_data_dates(data, current_date)
 
             self._last_update_date = current_date
-            
+
             # Trigger cheap price coordinator update after successful data sync
             if self._cheap_price_coordinator:
-                _LOGGER.debug("Triggering cheap price coordinator update after data sync")
+                _LOGGER.debug(
+                    "Triggering cheap price coordinator update after data sync"
+                )
                 await self._cheap_price_coordinator.async_manual_update()
-            
+
             return data
 
         except RealElectricityPriceApiClientError as exception:
             raise UpdateFailed(exception) from exception
-
 
     def _validate_data_dates(self, data: dict, current_date: datetime.date) -> None:
         """Validate that the data contains the expected dates."""

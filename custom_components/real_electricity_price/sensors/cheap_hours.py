@@ -9,6 +9,7 @@ from typing import Any
 from homeassistant.util import dt as dt_util
 
 from ..entity_descriptions import SENSOR_CHEAP_HOURS
+
 from .base import RealElectricityPriceBaseSensor
 
 _LOGGER = logging.getLogger(__name__)
@@ -17,7 +18,7 @@ _LOGGER = logging.getLogger(__name__)
 class CheapHoursSensor(RealElectricityPriceBaseSensor):
     """Sensor for cheap electricity hours."""
 
-    def __init__(self, coordinator, description):
+    def __init__(self, coordinator, description) -> None:
         """Initialize the cheap hours sensor."""
         super().__init__(coordinator, description)
         # This sensor should use the cheap hours coordinator when available
@@ -39,24 +40,26 @@ class CheapHoursSensor(RealElectricityPriceBaseSensor):
 
         cheap_data = self.coordinator.data
         cheap_ranges = cheap_data.get("cheap_ranges", [])
-        
+
         if not cheap_ranges:
             return 0
 
         # Sum all cheap hours from all ranges
-        total_cheap_hours = sum(range_data.get("hour_count", 1) for range_data in cheap_ranges)
-        return total_cheap_hours
+        return sum(
+            range_data.get("hour_count", 1) for range_data in cheap_ranges
+        )
 
     def _get_next_cheap_hours_from_ranges(self) -> int | None:
         """Get count of next cheap hours by checking ranges manually."""
         cheap_ranges = self._analyze_cheap_prices()
-        
+
         if not cheap_ranges:
             return 0
 
         # Sum all cheap hours from all ranges
-        total_cheap_hours = sum(range_data.get("hour_count", 1) for range_data in cheap_ranges)
-        return total_cheap_hours
+        return sum(
+            range_data.get("hour_count", 1) for range_data in cheap_ranges
+        )
 
     def _get_next_cheap_period_from_coordinator(self) -> datetime | None:
         """Get next cheap period timestamp from cheap price coordinator."""
@@ -65,7 +68,7 @@ class CheapHoursSensor(RealElectricityPriceBaseSensor):
 
         cheap_data = self.coordinator.data
         cheap_ranges = cheap_data.get("cheap_ranges", [])
-        
+
         if not cheap_ranges:
             return None
 
@@ -76,7 +79,7 @@ class CheapHoursSensor(RealElectricityPriceBaseSensor):
             try:
                 start_time = dt_util.parse_datetime(range_data["start_time"])
                 end_time = dt_util.parse_datetime(range_data["end_time"])
-                
+
                 # Skip if datetime parsing failed
                 if not start_time or not end_time:
                     continue
@@ -95,7 +98,7 @@ class CheapHoursSensor(RealElectricityPriceBaseSensor):
     def _get_next_cheap_period_from_ranges(self) -> datetime | None:
         """Get next cheap period timestamp by checking ranges manually."""
         cheap_ranges = self._analyze_cheap_prices()
-        
+
         if not cheap_ranges:
             return None
 
@@ -106,7 +109,7 @@ class CheapHoursSensor(RealElectricityPriceBaseSensor):
             try:
                 start_time = dt_util.parse_datetime(range_data["start_time"])
                 end_time = dt_util.parse_datetime(range_data["end_time"])
-                
+
                 # Skip if datetime parsing failed
                 if not start_time or not end_time:
                     continue
@@ -149,7 +152,7 @@ class CheapHoursSensor(RealElectricityPriceBaseSensor):
         for range_data in cheap_ranges:
             start_time = dt_util.parse_datetime(range_data["start_time"])
             end_time = dt_util.parse_datetime(range_data["end_time"])
-            
+
             # Skip if datetime parsing failed
             if not start_time or not end_time:
                 continue
@@ -167,8 +170,10 @@ class CheapHoursSensor(RealElectricityPriceBaseSensor):
         trigger_time = cheap_data.get("trigger_time")
 
         # Calculate total cheap hours by summing hour_count from all ranges
-        total_hours = sum(range_data.get("hour_count", 1) for range_data in cheap_ranges)
-        
+        total_hours = sum(
+            range_data.get("hour_count", 1) for range_data in cheap_ranges
+        )
+
         status_info = {
             "current_status": current_status,
             "total_cheap_hours": total_hours,
@@ -188,7 +193,9 @@ class CheapHoursSensor(RealElectricityPriceBaseSensor):
         calculation_info = {
             "base_price": analysis_info.get("base_price", "unknown"),
             "threshold_percent": analysis_info.get("threshold_percent", "unknown"),
-            "max_cheap_by_threshold": analysis_info.get("max_cheap_by_threshold", "unknown"),
+            "max_cheap_by_threshold": analysis_info.get(
+                "max_cheap_by_threshold", "unknown"
+            ),
             "calculation_method": "base_price_or_threshold",
         }
 
@@ -219,7 +226,6 @@ class CheapHoursSensor(RealElectricityPriceBaseSensor):
         cheap_ranges = self._analyze_cheap_prices()
 
         config = self.get_config()
-        threshold = config.cheap_price_threshold
 
         # Get analysis info
         analysis_info = self._get_price_analysis_info()
@@ -238,7 +244,9 @@ class CheapHoursSensor(RealElectricityPriceBaseSensor):
         calculation_info = {
             "base_price": config.cheap_hours_base_price,
             "threshold_percent": config.cheap_price_threshold,
-            "max_cheap_by_threshold": self._round_price(config.cheap_hours_base_price * (1 + config.cheap_price_threshold / 100)),
+            "max_cheap_by_threshold": self._round_price(
+                config.cheap_hours_base_price * (1 + config.cheap_price_threshold / 100)
+            ),
             "calculation_method": "base_price_or_threshold",
         }
 
@@ -257,7 +265,7 @@ class CheapHoursSensor(RealElectricityPriceBaseSensor):
         for range_data in cheap_ranges:
             start_time = dt_util.parse_datetime(range_data["start_time"])
             end_time = dt_util.parse_datetime(range_data["end_time"])
-            
+
             # Skip if datetime parsing failed
             if not start_time or not end_time:
                 continue
@@ -325,14 +333,18 @@ class CheapHoursSensor(RealElectricityPriceBaseSensor):
 
             # Filter cheap prices: price ≤ base_price OR price ≤ (base_price × (1 + threshold_percent/100))
             cheap_prices = [
-                price_entry for price_entry in all_prices 
-                if price_entry["price"] <= base_price or price_entry["price"] <= max_cheap_price_by_threshold
+                price_entry
+                for price_entry in all_prices
+                if price_entry["price"] <= base_price
+                or price_entry["price"] <= max_cheap_price_by_threshold
             ]
 
             if not cheap_prices:
                 _LOGGER.debug(
-                    "No cheap prices found with base price %.6f and threshold %.1f (max_cheap_by_threshold: %.6f)", 
-                    base_price, threshold_percent, max_cheap_price_by_threshold
+                    "No cheap prices found with base price %.6f and threshold %.1f (max_cheap_by_threshold: %.6f)",
+                    base_price,
+                    threshold_percent,
+                    max_cheap_price_by_threshold,
                 )
                 return []
 
@@ -353,7 +365,9 @@ class CheapHoursSensor(RealElectricityPriceBaseSensor):
             _LOGGER.exception("Error analyzing cheap prices")
             return []
 
-    def _group_consecutive_hours(self, cheap_prices: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    def _group_consecutive_hours(
+        self, cheap_prices: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """Group consecutive cheap price hours into ranges."""
         if not cheap_prices:
             return []
@@ -494,7 +508,7 @@ class CheapHoursSensor(RealElectricityPriceBaseSensor):
 class NextCheapHoursEndSensor(RealElectricityPriceBaseSensor):
     """Sensor for the end time of the next cheap hours period."""
 
-    def __init__(self, coordinator, description):
+    def __init__(self, coordinator, description) -> None:
         """Initialize the next cheap hours end sensor."""
         super().__init__(coordinator, description)
         # This sensor should use the cheap price coordinator when available
@@ -521,7 +535,7 @@ class NextCheapHoursEndSensor(RealElectricityPriceBaseSensor):
 
         cheap_data = self.coordinator.data
         cheap_ranges = cheap_data.get("cheap_ranges", [])
-        
+
         if not cheap_ranges:
             return None
 
@@ -532,7 +546,7 @@ class NextCheapHoursEndSensor(RealElectricityPriceBaseSensor):
             try:
                 start_time = dt_util.parse_datetime(range_data["start_time"])
                 end_time = dt_util.parse_datetime(range_data["end_time"])
-                
+
                 # Skip if datetime parsing failed
                 if not start_time or not end_time:
                     continue
@@ -551,7 +565,7 @@ class NextCheapHoursEndSensor(RealElectricityPriceBaseSensor):
     def _get_next_cheap_period_end_from_ranges(self) -> datetime | None:
         """Get next cheap period end timestamp by checking ranges manually."""
         cheap_ranges = self._analyze_cheap_prices()
-        
+
         if not cheap_ranges:
             return None
 
@@ -562,7 +576,7 @@ class NextCheapHoursEndSensor(RealElectricityPriceBaseSensor):
             try:
                 start_time = dt_util.parse_datetime(range_data["start_time"])
                 end_time = dt_util.parse_datetime(range_data["end_time"])
-                
+
                 # Skip if datetime parsing failed
                 if not start_time or not end_time:
                     continue
@@ -588,7 +602,7 @@ class NextCheapHoursEndSensor(RealElectricityPriceBaseSensor):
 class NextCheapHoursStartSensor(RealElectricityPriceBaseSensor):
     """Sensor for next cheap electricity hours period start."""
 
-    def __init__(self, coordinator, description):
+    def __init__(self, coordinator, description) -> None:
         """Initialize the next cheap hours start sensor."""
         super().__init__(coordinator, description)
         # This sensor should use the cheap hours coordinator when available
@@ -615,7 +629,7 @@ class NextCheapHoursStartSensor(RealElectricityPriceBaseSensor):
 
         cheap_data = self.coordinator.data
         cheap_ranges = cheap_data.get("cheap_ranges", [])
-        
+
         if not cheap_ranges:
             return None
 
@@ -626,7 +640,7 @@ class NextCheapHoursStartSensor(RealElectricityPriceBaseSensor):
             try:
                 start_time = dt_util.parse_datetime(range_data["start_time"])
                 end_time = dt_util.parse_datetime(range_data["end_time"])
-                
+
                 # Skip if datetime parsing failed
                 if not start_time or not end_time:
                     continue
@@ -646,7 +660,7 @@ class NextCheapHoursStartSensor(RealElectricityPriceBaseSensor):
     def _get_next_cheap_period_start_from_ranges(self) -> datetime | None:
         """Get next cheap period start timestamp by checking ranges manually."""
         cheap_ranges = self._analyze_cheap_prices()
-        
+
         if not cheap_ranges:
             return None
 
@@ -657,7 +671,7 @@ class NextCheapHoursStartSensor(RealElectricityPriceBaseSensor):
             try:
                 start_time = dt_util.parse_datetime(range_data["start_time"])
                 end_time = dt_util.parse_datetime(range_data["end_time"])
-                
+
                 # Skip if datetime parsing failed
                 if not start_time or not end_time:
                     continue

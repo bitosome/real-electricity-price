@@ -12,10 +12,10 @@ from homeassistant.helpers.event import async_track_time_change
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import (
-    CHEAP_HOURS_THRESHOLD_DEFAULT,
     CHEAP_HOURS_BASE_PRICE_DEFAULT,
-    CONF_CHEAP_HOURS_THRESHOLD,
+    CHEAP_HOURS_THRESHOLD_DEFAULT,
     CONF_CHEAP_HOURS_BASE_PRICE,
+    CONF_CHEAP_HOURS_THRESHOLD,
     CONF_CHEAP_HOURS_UPDATE_TRIGGER,
     DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER,
     PRICE_DECIMAL_PRECISION,
@@ -59,7 +59,7 @@ class CheapHoursDataUpdateCoordinator(DataUpdateCoordinator):
         self.config_entry = config_entry
         self._trigger_unsub: Callable[[], None] | None = None
         self._stop_unsub: Callable[[], None] | None = None
-        
+
         # Runtime storage for UI-configurable values (to avoid config entry reloads)
         self._runtime_base_price: float | None = None
         self._runtime_threshold: float | None = None
@@ -123,20 +123,25 @@ class CheapHoursDataUpdateCoordinator(DataUpdateCoordinator):
         if self._runtime_update_trigger is not None:
             return self._runtime_update_trigger
         config = {**self.config_entry.data, **self.config_entry.options}
-        trigger = config.get(CONF_CHEAP_HOURS_UPDATE_TRIGGER, DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER)
+        trigger = config.get(
+            CONF_CHEAP_HOURS_UPDATE_TRIGGER, DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER
+        )
         if isinstance(trigger, dict):
             return trigger
         # Convert string format to dict
         if isinstance(trigger, str):
             parts = trigger.split(":")
-            return {"hour": int(parts[0]), "minute": int(parts[1]) if len(parts) > 1 else 0}
+            return {
+                "hour": int(parts[0]),
+                "minute": int(parts[1]) if len(parts) > 1 else 0,
+            }
         return DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER
 
     def _update_trigger_schedule_from_runtime(self) -> None:
         """Update the trigger schedule using runtime values (doesn't trigger recalculation)."""
         # Get runtime trigger time
         trigger_time = self.get_runtime_update_trigger()
-        
+
         # Remove existing trigger
         if self._trigger_unsub:
             self._trigger_unsub()
@@ -152,10 +157,11 @@ class CheapHoursDataUpdateCoordinator(DataUpdateCoordinator):
                 def_h, def_m, _ = parse_time_string(DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER)
                 hour = def_h
                 minute = def_m
-                
+
             if not (0 <= hour <= 23 and 0 <= minute <= 59):
-                raise ValueError(f"Invalid hour/minute: {hour}:{minute}")
-                
+                msg = f"Invalid hour/minute: {hour}:{minute}"
+                raise ValueError(msg)
+
             self._trigger_unsub = async_track_time_change(
                 self.hass,
                 self._handle_trigger,
@@ -164,10 +170,14 @@ class CheapHoursDataUpdateCoordinator(DataUpdateCoordinator):
                 second=0,
             )
             _LOGGER.debug(
-                "Cheap price coordinator trigger schedule updated to %02d:%02d", hour, minute
+                "Cheap price coordinator trigger schedule updated to %02d:%02d",
+                hour,
+                minute,
             )
         except Exception as e:
-            _LOGGER.exception("Invalid runtime trigger time format '%s': %s", trigger_time, e)
+            _LOGGER.exception(
+                "Invalid runtime trigger time format '%s': %s", trigger_time, e
+            )
 
     def update_trigger_config(self) -> None:
         """Update the trigger configuration based on current config."""
@@ -196,7 +206,8 @@ class CheapHoursDataUpdateCoordinator(DataUpdateCoordinator):
             else:
                 hour, minute, _ = parse_time_string(DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER)
             if not (0 <= hour <= 23 and 0 <= minute <= 59):
-                raise ValueError(f"Invalid hour/minute: {hour}:{minute}")
+                msg = f"Invalid hour/minute: {hour}:{minute}"
+                raise ValueError(msg)
             self._trigger_unsub = async_track_time_change(
                 self.hass,
                 self._handle_trigger,
@@ -309,13 +320,14 @@ class CheapHoursDataUpdateCoordinator(DataUpdateCoordinator):
             for price in all_prices:
                 try:
                     # Parse datetime string
-                    start_time_dt = datetime.datetime.fromisoformat(price["start_time"].replace('Z', '+00:00'))
-                    price_list.append({
-                        **price,
-                        "start_time_dt": start_time_dt
-                    })
+                    start_time_dt = datetime.datetime.fromisoformat(
+                        price["start_time"]
+                    )
+                    price_list.append({**price, "start_time_dt": start_time_dt})
                 except Exception as e:
-                    _LOGGER.warning(f"Failed to parse datetime {price.get('start_time')}: {e}")
+                    _LOGGER.warning(
+                        f"Failed to parse datetime {price.get('start_time')}: {e}"
+                    )
                     continue
 
             # Sort by start time
@@ -323,7 +335,9 @@ class CheapHoursDataUpdateCoordinator(DataUpdateCoordinator):
 
             # Filter for future prices only (NOW onwards)
             current_time = datetime.datetime.now(datetime.UTC)
-            future_prices = [p for p in price_list if p["start_time_dt"] >= current_time]
+            future_prices = [
+                p for p in price_list if p["start_time_dt"] >= current_time
+            ]
 
             if not future_prices:
                 _LOGGER.debug("No future price data available for cheap price analysis")
@@ -347,20 +361,27 @@ class CheapHoursDataUpdateCoordinator(DataUpdateCoordinator):
             # Calculate maximum price that's considered "cheap" based on base price and threshold
             # Cheap period: price ≤ base_price OR price ≤ (base_price × (1 + threshold_percent/100))
             max_cheap_price_by_threshold = base_price * (1 + threshold_percent / 100)
-            max_cheap_price = max(base_price, max_cheap_price_by_threshold)
+            max(base_price, max_cheap_price_by_threshold)
 
             # Filter cheap prices: price ≤ base_price OR price ≤ (base_price × (1 + threshold_percent/100))
             cheap_prices = [
-                p for p in future_prices 
-                if isinstance(p["price"], (int, float)) and (
-                    p["price"] <= base_price or p["price"] <= max_cheap_price_by_threshold
+                p
+                for p in future_prices
+                if isinstance(p["price"], (int, float))
+                and (
+                    p["price"] <= base_price
+                    or p["price"] <= max_cheap_price_by_threshold
                 )
             ]
 
             if not cheap_prices:
                 # Calculate actual price statistics for debugging
                 if future_prices:
-                    actual_prices = [p["price"] for p in future_prices if isinstance(p["price"], (int, float))]
+                    actual_prices = [
+                        p["price"]
+                        for p in future_prices
+                        if isinstance(p["price"], (int, float))
+                    ]
                     if actual_prices:
                         min_price = min(actual_prices)
                         max_price = max(actual_prices)
@@ -370,10 +391,16 @@ class CheapHoursDataUpdateCoordinator(DataUpdateCoordinator):
                             "max_cheap_by_threshold=%.6f. Logic: price ≤ %.6f OR price ≤ %.6f. "
                             "Actual price range: %.6f - %.6f (avg: %.6f) for %d future hours. "
                             "Consider lowering base price to %.6f or increasing threshold.",
-                            base_price, threshold_percent, max_cheap_price_by_threshold,
-                            base_price, max_cheap_price_by_threshold,
-                            min_price, max_price, avg_price, len(actual_prices),
-                            min_price * 0.9  # Suggest 90% of minimum price
+                            base_price,
+                            threshold_percent,
+                            max_cheap_price_by_threshold,
+                            base_price,
+                            max_cheap_price_by_threshold,
+                            min_price,
+                            max_price,
+                            avg_price,
+                            len(actual_prices),
+                            min_price * 0.9,  # Suggest 90% of minimum price
                         )
                     else:
                         _LOGGER.debug("No valid price data available")
@@ -396,7 +423,9 @@ class CheapHoursDataUpdateCoordinator(DataUpdateCoordinator):
 
             analysis_info = {
                 "base_price": round(base_price, PRICE_DECIMAL_PRECISION),
-                "max_cheap_by_threshold": round(max_cheap_price_by_threshold, PRICE_DECIMAL_PRECISION),
+                "max_cheap_by_threshold": round(
+                    max_cheap_price_by_threshold, PRICE_DECIMAL_PRECISION
+                ),
                 "threshold_percent": threshold_percent,
                 "total_cheap_hours": len(cheap_ranges),
                 "analysis_period_hours": analysis_period_hours,
@@ -419,7 +448,9 @@ class CheapHoursDataUpdateCoordinator(DataUpdateCoordinator):
             _LOGGER.error("Error analyzing cheap prices: %s", e, exc_info=True)
             return {"cheap_ranges": [], "analysis_info": {}}
 
-    def _group_consecutive_hours(self, cheap_prices: list[dict]) -> list[dict[str, Any]]:
+    def _group_consecutive_hours(
+        self, cheap_prices: list[dict]
+    ) -> list[dict[str, Any]]:
         """Group consecutive cheap hours into time ranges."""
         if not cheap_prices:
             return []
@@ -446,14 +477,20 @@ class CheapHoursDataUpdateCoordinator(DataUpdateCoordinator):
             else:
                 # Check if this hour is consecutive to the current range
                 try:
-                    current_end_dt = datetime.datetime.fromisoformat(current_range["end_time"].replace('Z', '+00:00'))
+                    current_end_dt = datetime.datetime.fromisoformat(
+                        current_range["end_time"]
+                    )
                     if start_time_dt == current_end_dt:
                         # Extend current range
                         current_range["end_time"] = price_data["end_time"]
                         current_range["hour_count"] += 1
                         current_range["prices"].append(price)
-                        current_range["min_price"] = min(current_range["min_price"], price)
-                        current_range["max_price"] = max(current_range["max_price"], price)
+                        current_range["min_price"] = min(
+                            current_range["min_price"], price
+                        )
+                        current_range["max_price"] = max(
+                            current_range["max_price"], price
+                        )
                         current_range["avg_price"] = sum(current_range["prices"]) / len(
                             current_range["prices"]
                         )
@@ -474,11 +511,13 @@ class CheapHoursDataUpdateCoordinator(DataUpdateCoordinator):
                             "prices": [price],
                         }
                 except Exception as e:
-                    _LOGGER.warning(f"Error parsing datetime for consecutive check: {e}")
+                    _LOGGER.warning(
+                        f"Error parsing datetime for consecutive check: {e}"
+                    )
                     # Start new range on error
                     current_range.pop("prices", None)
                     ranges.append(current_range)
-                    
+
                     current_range = {
                         "start_time": price_data["start_time"],
                         "end_time": price_data["end_time"],

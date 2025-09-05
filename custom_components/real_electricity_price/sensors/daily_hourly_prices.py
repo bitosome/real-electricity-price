@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import datetime
 import logging
 from typing import Any
 
@@ -16,11 +15,13 @@ _LOGGER = logging.getLogger(__name__)
 class DailyHourlyPricesSensor(RealElectricityPriceBaseSensor):
     """Base sensor for daily hourly electricity prices."""
 
-    def __init__(self, coordinator, description, day_key: str):
+    def __init__(self, coordinator, description, day_key: str) -> None:
         """Initialize the daily hourly prices sensor."""
         super().__init__(coordinator, description)
         self._day_key = day_key
-        _LOGGER.info("DAILY SENSOR CREATED: %s with day_key: %s", description.key, day_key)
+        _LOGGER.info(
+            "DAILY SENSOR CREATED: %s with day_key: %s", description.key, day_key
+        )
 
     @property
     def native_value(self) -> float | None:
@@ -47,19 +48,25 @@ class DailyHourlyPricesSensor(RealElectricityPriceBaseSensor):
             for price_entry in hourly_prices:
                 start_time_str = price_entry.get("start_time")
                 end_time_str = price_entry.get("end_time")
-                
+
                 if start_time_str and end_time_str:
                     try:
                         # Parse timezone-aware datetime strings using HA utilities
                         start_time = dt_util.parse_datetime(start_time_str)
                         end_time = dt_util.parse_datetime(end_time_str)
-                        
-                        if start_time and end_time and start_time <= current_time < end_time:
+
+                        if (
+                            start_time
+                            and end_time
+                            and start_time <= current_time < end_time
+                        ):
                             price = price_entry.get("actual_price")
                             if price is not None:
                                 return self._round_price(price)
                     except (ValueError, TypeError) as e:
-                        _LOGGER.debug("Failed to parse time for current hour lookup: %s", e)
+                        _LOGGER.debug(
+                            "Failed to parse time for current hour lookup: %s", e
+                        )
                         continue
 
         # For yesterday/tomorrow, or if current hour not found for today, return average price
@@ -98,7 +105,7 @@ class DailyHourlyPricesSensor(RealElectricityPriceBaseSensor):
             actual_price = price_entry.get("actual_price")
             if actual_price is not None:
                 valid_hours += 1
-                
+
             processed_entry = {
                 "start_time": price_entry.get("start_time"),
                 "end_time": price_entry.get("end_time"),
@@ -152,7 +159,7 @@ class DailyHourlyPricesSensor(RealElectricityPriceBaseSensor):
 class HourlyPricesYesterdaySensor(DailyHourlyPricesSensor):
     """Sensor for yesterday's hourly electricity prices."""
 
-    def __init__(self, coordinator, description):
+    def __init__(self, coordinator, description) -> None:
         """Initialize the yesterday hourly prices sensor."""
         super().__init__(coordinator, description, "yesterday")
 
@@ -160,7 +167,7 @@ class HourlyPricesYesterdaySensor(DailyHourlyPricesSensor):
 class HourlyPricesTodaySensor(DailyHourlyPricesSensor):
     """Sensor for today's hourly electricity prices."""
 
-    def __init__(self, coordinator, description):
+    def __init__(self, coordinator, description) -> None:
         """Initialize the today hourly prices sensor."""
         super().__init__(coordinator, description, "today")
 
@@ -168,6 +175,6 @@ class HourlyPricesTodaySensor(DailyHourlyPricesSensor):
 class HourlyPricesTomorrowSensor(DailyHourlyPricesSensor):
     """Sensor for tomorrow's hourly electricity prices."""
 
-    def __init__(self, coordinator, description):
+    def __init__(self, coordinator, description) -> None:
         """Initialize the tomorrow hourly prices sensor."""
         super().__init__(coordinator, description, "tomorrow")

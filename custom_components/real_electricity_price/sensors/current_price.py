@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from homeassistant.util import dt as dt_util
 
@@ -15,8 +14,11 @@ from ..const import (
     NIGHT_PRICE_START_TIME_DEFAULT,
     parse_time_string,
 )
-from ..models import IntegrationConfig
+
 from .base import RealElectricityPriceBaseSensor
+
+if TYPE_CHECKING:
+    from ..models import IntegrationConfig
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -48,11 +50,11 @@ class CurrentPriceSensor(RealElectricityPriceBaseSensor):
             return {}
 
         config = self.get_config()
-        
+
         # Get current price components with calculation details
         components = self._get_price_components(config)
         calculation_details = self._get_calculation_details(config)
-        
+
         return {
             "price_components": components,
             "calculation_details": calculation_details,
@@ -62,45 +64,57 @@ class CurrentPriceSensor(RealElectricityPriceBaseSensor):
         """Get all price components used in calculation."""
         grid_name = config.grid
         supplier_name = config.supplier
-        
+
         # Get current Nord Pool price
         nord_pool_price = self._get_current_nord_pool_price()
-        
+
         # Get current tariff to determine transmission price
         current_tariff = self._get_current_tariff()
         transmission_price = (
-            config.grid_transmission_price_night 
-            if current_tariff == "night" 
+            config.grid_transmission_price_night
+            if current_tariff == "night"
             else config.grid_transmission_price_day
         )
-        
+
         return {
-            "nord_pool_price": self._round_price(nord_pool_price) if nord_pool_price is not None else None,
-            f"{grid_name.lower()}_electricity_excise_duty": self._round_price(config.grid_electricity_excise_duty),
-            f"{grid_name.lower()}_renewable_energy_charge": self._round_price(config.grid_renewable_energy_charge),
-            f"{grid_name.lower()}_transmission_price_{current_tariff}": self._round_price(transmission_price),
-            f"{supplier_name.lower()}_renewable_energy_charge": self._round_price(config.supplier_renewable_energy_charge),
-            f"{supplier_name.lower()}_margin": self._round_price(config.supplier_margin),
+            "nord_pool_price": self._round_price(nord_pool_price)
+            if nord_pool_price is not None
+            else None,
+            f"{grid_name.lower()}_electricity_excise_duty": self._round_price(
+                config.grid_electricity_excise_duty
+            ),
+            f"{grid_name.lower()}_renewable_energy_charge": self._round_price(
+                config.grid_renewable_energy_charge
+            ),
+            f"{grid_name.lower()}_transmission_price_{current_tariff}": self._round_price(
+                transmission_price
+            ),
+            f"{supplier_name.lower()}_renewable_energy_charge": self._round_price(
+                config.supplier_renewable_energy_charge
+            ),
+            f"{supplier_name.lower()}_margin": self._round_price(
+                config.supplier_margin
+            ),
         }
 
     def _get_calculation_details(self, config: IntegrationConfig) -> dict[str, Any]:
         """Get detailed calculation information including VAT applications and final sum."""
         grid_name = config.grid
         supplier_name = config.supplier
-        
+
         # Get current Nord Pool price
         nord_pool_price = self._get_current_nord_pool_price()
         if nord_pool_price is None:
             return {"error": "Nord Pool price not available"}
-            
+
         # Get current tariff
         current_tariff = self._get_current_tariff()
         transmission_price = (
-            config.grid_transmission_price_night 
-            if current_tariff == "night" 
+            config.grid_transmission_price_night
+            if current_tariff == "night"
             else config.grid_transmission_price_day
         )
-        
+
         # Get VAT configuration
         vat_percentage = config.vat_rate
         vat_nord_pool = config.vat_nord_pool
@@ -110,45 +124,49 @@ class CurrentPriceSensor(RealElectricityPriceBaseSensor):
         vat_transmission_day = config.vat_grid_transmission_day
         vat_supplier_renewable = config.vat_supplier_renewable_energy_charge
         vat_supplier_margin = config.vat_supplier_margin
-        
+
         # Choose correct transmission VAT based on tariff
-        vat_transmission = vat_transmission_night if current_tariff == "night" else vat_transmission_day
-        
+        vat_transmission = (
+            vat_transmission_night
+            if current_tariff == "night"
+            else vat_transmission_day
+        )
+
         # Calculate components with VAT applications
         base_price_component = nord_pool_price
         if vat_nord_pool:
-            base_price_component *= (1 + vat_percentage / 100)
-            
+            base_price_component *= 1 + vat_percentage / 100
+
         excise_component = config.grid_electricity_excise_duty
         if vat_grid_excise_duty:
-            excise_component *= (1 + vat_percentage / 100)
-            
+            excise_component *= 1 + vat_percentage / 100
+
         renewable_grid_component = config.grid_renewable_energy_charge
         if vat_grid_renewable:
-            renewable_grid_component *= (1 + vat_percentage / 100)
-            
+            renewable_grid_component *= 1 + vat_percentage / 100
+
         renewable_supplier_component = config.supplier_renewable_energy_charge
         if vat_supplier_renewable:
-            renewable_supplier_component *= (1 + vat_percentage / 100)
-            
+            renewable_supplier_component *= 1 + vat_percentage / 100
+
         margin_component = config.supplier_margin
         if vat_supplier_margin:
-            margin_component *= (1 + vat_percentage / 100)
-            
+            margin_component *= 1 + vat_percentage / 100
+
         transmission_component = transmission_price
         if vat_transmission:
-            transmission_component *= (1 + vat_percentage / 100)
-            
+            transmission_component *= 1 + vat_percentage / 100
+
         # Calculate final price
         final_price = (
-            base_price_component +
-            excise_component +
-            renewable_grid_component +
-            renewable_supplier_component +
-            margin_component +
-            transmission_component
+            base_price_component
+            + excise_component
+            + renewable_grid_component
+            + renewable_supplier_component
+            + margin_component
+            + transmission_component
         )
-        
+
         return {
             "calculation_method": "component_sum_with_individual_vat",
             "vat_settings": {
@@ -162,10 +180,18 @@ class CurrentPriceSensor(RealElectricityPriceBaseSensor):
             },
             "components_with_vat": {
                 "nord_pool_price": self._round_price(base_price_component),
-                f"{grid_name.lower()}_electricity_excise_duty": self._round_price(excise_component),
-                f"{grid_name.lower()}_renewable_energy_charge": self._round_price(renewable_grid_component),
-                f"{grid_name.lower()}_transmission_price_{current_tariff}": self._round_price(transmission_component),
-                f"{supplier_name.lower()}_renewable_energy_charge": self._round_price(renewable_supplier_component),
+                f"{grid_name.lower()}_electricity_excise_duty": self._round_price(
+                    excise_component
+                ),
+                f"{grid_name.lower()}_renewable_energy_charge": self._round_price(
+                    renewable_grid_component
+                ),
+                f"{grid_name.lower()}_transmission_price_{current_tariff}": self._round_price(
+                    transmission_component
+                ),
+                f"{supplier_name.lower()}_renewable_energy_charge": self._round_price(
+                    renewable_supplier_component
+                ),
                 f"{supplier_name.lower()}_margin": self._round_price(margin_component),
             },
             "price_calculation": {
@@ -194,11 +220,11 @@ class CurrentPriceSensor(RealElectricityPriceBaseSensor):
                     # Native datetime objects from attributes (no string parsing needed)
                     start_time_str = price_entry["start_time"]
                     end_time_str = price_entry["end_time"]
-                    
+
                     # Parse ISO format datetime strings consistently
                     start_time = dt_util.parse_datetime(start_time_str)
                     end_time = dt_util.parse_datetime(end_time_str)
-                    
+
                     if start_time and end_time and start_time <= now < end_time:
                         return price_entry.get("nord_pool_price")
                 except (ValueError, KeyError):
@@ -231,7 +257,10 @@ class CurrentPriceSensor(RealElectricityPriceBaseSensor):
                 night_end, _, _ = parse_time_string(NIGHT_PRICE_END_TIME_DEFAULT)
             except Exception:
                 # Last resort: use parsed values from default time strings
-                night_start, night_end = _DEFAULT_NIGHT_START_HOUR, _DEFAULT_NIGHT_END_HOUR
+                night_start, night_end = (
+                    _DEFAULT_NIGHT_START_HOUR,
+                    _DEFAULT_NIGHT_END_HOUR,
+                )
 
         # Get current local time in the configured country
         tz_name = self._get_timezone_for_country(config.country_code)
@@ -286,7 +315,7 @@ class CurrentPriceSensor(RealElectricityPriceBaseSensor):
                     # Parse ISO format datetime strings consistently
                     start_time_str = price_entry["start_time"]
                     end_time_str = price_entry["end_time"]
-                    
+
                     start_time = dt_util.parse_datetime(start_time_str)
                     end_time = dt_util.parse_datetime(end_time_str)
 
@@ -356,7 +385,10 @@ class CurrentTariffSensor(RealElectricityPriceBaseSensor):
                 night_end, _, _ = parse_time_string(NIGHT_PRICE_END_TIME_DEFAULT)
             except Exception:
                 # Last resort: use parsed values from default time strings
-                night_start, night_end = _DEFAULT_NIGHT_START_HOUR, _DEFAULT_NIGHT_END_HOUR
+                night_start, night_end = (
+                    _DEFAULT_NIGHT_START_HOUR,
+                    _DEFAULT_NIGHT_END_HOUR,
+                )
 
         # Get current local time in the configured country
         tz_name = self._get_timezone_for_country(config.country_code)

@@ -131,7 +131,7 @@ logger:
     custom_components.real_electricity_price: debug
 ```
 
-## 🔄 Recent Updates (v1.1.1)
+## 🔄 Recent Updates (v1.0.0)
 
 - **Fixed cheap hours threshold calculation**: Corrected formula ensuring accurate identification
 - **Fixed cheap hours sensor state**: Now shows total hours instead of number of ranges

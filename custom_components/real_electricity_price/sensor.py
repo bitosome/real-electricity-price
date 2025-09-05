@@ -5,24 +5,24 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
-
 from .entity_descriptions import SENSOR_DESCRIPTIONS
 from .sensors import (
     CheapHoursSensor,
-    NextCheapHoursEndSensor,
-    NextCheapHoursStartSensor,
     CurrentPriceSensor,
     CurrentTariffSensor,
-    HourlyPricesYesterdaySensor,
     HourlyPricesTodaySensor,
     HourlyPricesTomorrowSensor,
+    HourlyPricesYesterdaySensor,
     LastCheapCalculationSensor,
     LastSyncSensor,
+    NextCheapHoursEndSensor,
+    NextCheapHoursStartSensor,
 )
 
 if TYPE_CHECKING:
+    from homeassistant.core import HomeAssistant
+    from homeassistant.helpers.entity_platform import AddEntitiesCallback
+
     from .data import RealElectricityPriceConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
@@ -97,17 +97,17 @@ async def async_setup_entry(
     # Add main coordinator sensors (excluding cheap hours sensors)
     cheap_hours_keys = {
         "real_electricity_price_cheap_hours",
-        "real_electricity_price_next_cheap_hours_start", 
+        "real_electricity_price_next_cheap_hours_start",
         "real_electricity_price_next_cheap_hours_end",
-        "real_electricity_price_last_cheap_calculation"
+        "real_electricity_price_last_cheap_calculation",
     }
-    
+
     for description in SENSOR_DESCRIPTIONS:
         key = description.key
         # Skip cheap hours sensors - they'll be added separately with the cheap hours coordinator
         if key in cheap_hours_keys:
             continue
-            
+
         if key in SENSOR_REGISTRY:
             sensor_type, sensor_class = SENSOR_REGISTRY[key]
             _LOGGER.debug("Creating sensor: %s (type: %s)", key, sensor_type)
@@ -136,10 +136,12 @@ async def async_setup_entry(
             if desc.key == key:
                 description = desc
                 break
-        
+
         if description and key in SENSOR_REGISTRY:
             sensor_type, sensor_class = SENSOR_REGISTRY[key]
-            _LOGGER.debug("Creating cheap hours sensor: %s (type: %s)", key, sensor_type)
+            _LOGGER.debug(
+                "Creating cheap hours sensor: %s (type: %s)", key, sensor_type
+            )
 
             entities.append(
                 sensor_class(

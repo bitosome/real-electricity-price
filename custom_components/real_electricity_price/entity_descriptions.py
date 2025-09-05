@@ -1,5 +1,7 @@
-"""Entity descriptions for Real ElSENSOR_LAST_CHEAP_CALCULATION = SensorEntityDescription(
-    key="real_electricity_price_last_cheap_calculation",tricity Price integration."""
+"""
+Entity descriptions for Real ElSENSOR_LAST_CHEAP_CALCULATION = SensorEntityDescription(
+key="real_electricity_price_last_cheap_calculation",tricity Price integration.
+"""
 
 from __future__ import annotations
 
@@ -9,8 +11,9 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.const import CURRENCY_EURO, UnitOfEnergy
-from .const import PRICE_DECIMAL_PRECISION
 from homeassistant.helpers.entity import EntityCategory
+
+from .const import PRICE_DECIMAL_PRECISION
 
 # Price sensors
 SENSOR_CURRENT_PRICE = SensorEntityDescription(

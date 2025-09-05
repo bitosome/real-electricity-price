@@ -20,6 +20,10 @@ from .const import (
     CONF_GRID_ELECTRICITY_TRANSMISSION_PRICE_DAY,
     CONF_GRID_ELECTRICITY_TRANSMISSION_PRICE_NIGHT,
     CONF_GRID_RENEWABLE_ENERGY_CHARGE,
+    CONF_NIGHT_PRICE_END_HOUR,
+    CONF_NIGHT_PRICE_END_TIME,
+    CONF_NIGHT_PRICE_START_HOUR,
+    CONF_NIGHT_PRICE_START_TIME,
     CONF_SUPPLIER_MARGIN,
     CONF_SUPPLIER_RENEWABLE_ENERGY_CHARGE,
     CONF_VAT,
@@ -31,10 +35,13 @@ from .const import (
     CONF_VAT_SUPPLIER_MARGIN,
     CONF_VAT_SUPPLIER_RENEWABLE_ENERGY_CHARGE,
     COUNTRY_CODE_DEFAULT,
+    DEFAULT_BASE_URL,
     GRID_ELECTRICITY_EXCISE_DUTY_DEFAULT,
     GRID_ELECTRICITY_TRANSMISSION_PRICE_DAY_DEFAULT,
     GRID_ELECTRICITY_TRANSMISSION_PRICE_NIGHT_DEFAULT,
     GRID_RENEWABLE_ENERGY_CHARGE_DEFAULT,
+    NIGHT_PRICE_END_TIME_DEFAULT,
+    NIGHT_PRICE_START_TIME_DEFAULT,
     PRICE_DECIMAL_PRECISION,
     SUPPLIER_MARGIN_DEFAULT,
     SUPPLIER_RENEWABLE_ENERGY_CHARGE_DEFAULT,
@@ -46,14 +53,7 @@ from .const import (
     VAT_NORD_POOL_DEFAULT,
     VAT_SUPPLIER_MARGIN_DEFAULT,
     VAT_SUPPLIER_RENEWABLE_ENERGY_CHARGE_DEFAULT,
-    CONF_NIGHT_PRICE_START_TIME,
-    CONF_NIGHT_PRICE_END_TIME,
-    CONF_NIGHT_PRICE_START_HOUR,
-    CONF_NIGHT_PRICE_END_HOUR,
-    NIGHT_PRICE_START_TIME_DEFAULT,
-    NIGHT_PRICE_END_TIME_DEFAULT,
     parse_time_string,
-    DEFAULT_BASE_URL,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -63,7 +63,8 @@ API_TIMEOUT = 20
 
 
 def _resolve_hour(cfg: dict, key_time: str, key_hour: str, default_time: str) -> int:
-    """Resolve an hour (0-23) from config, preferring time strings.
+    """
+    Resolve an hour (0-23) from config, preferring time strings.
 
     Order of resolution:
     1) Dict time selector {"hour": H, "minute": M}
@@ -464,7 +465,11 @@ class RealElectricityPriceApiClient:
                             block_start = dt_util.parse_datetime(block_start_str)
                             block_end = dt_util.parse_datetime(block_end_str)
 
-                            if block_start and block_end and block_start <= dt < block_end:
+                            if (
+                                block_start
+                                and block_end
+                                and block_start <= dt < block_end
+                            ):
                                 block_name = block.get("blockName", "")
                                 tariff = "day" if block_name == "Peak" else "night"
                                 break
@@ -532,22 +537,24 @@ class RealElectricityPriceApiClient:
             # Convert Nord Pool string timestamps to timezone-aware datetime objects
             start_time_str = entry.get("deliveryStart")
             end_time_str = entry.get("deliveryEnd")
-            
+
             # Convert string timestamps to datetime objects in local timezone
             if start_time_str:
                 start_iso = start_time_str.replace("Z", "+00:00")
                 start_time_utc = dt_util.parse_datetime(start_iso)
-                start_time = start_time_utc.astimezone(tzinfo) if start_time_utc else None
+                start_time = (
+                    start_time_utc.astimezone(tzinfo) if start_time_utc else None
+                )
             else:
                 start_time = None
-                
+
             if end_time_str:
                 end_iso = end_time_str.replace("Z", "+00:00")
                 end_time_utc = dt_util.parse_datetime(end_iso)
                 end_time = end_time_utc.astimezone(tzinfo) if end_time_utc else None
             else:
                 end_time = None
-                
+
             nord_pool_price = entry.get("price_raw_kwh", 0)
             actual_price = entry["entryPerArea"].get(area, 0)
             hourly_prices.append(

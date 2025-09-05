@@ -18,6 +18,11 @@ NC='\033[0m' # No Color
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
+# Activate virtual environment if it exists
+if [ -f "$PROJECT_ROOT/venv/bin/activate" ]; then
+    source "$PROJECT_ROOT/venv/bin/activate"
+fi
+
 print_status() {
     echo -e "${BLUE}[INFO]${NC} $1"
 }
@@ -49,7 +54,7 @@ syntax_check() {
     for file in "$PROJECT_ROOT/custom_components/real_electricity_price"/*.py; do
         if [ -f "$file" ]; then
             print_status "Checking $(basename "$file")..."
-            if ! python -m py_compile "$file"; then
+            if ! python3 -m py_compile "$file"; then
                 print_error "Syntax error in $(basename "$file")"
                 failed=1
             fi
@@ -75,7 +80,7 @@ import_test() {
     
     export PYTHONPATH="${PYTHONPATH}:${PROJECT_ROOT}/custom_components"
     
-    if python -c "import real_electricity_price; print('✅ Integration imports successfully')"; then
+    if python3 -c "import real_electricity_price; print('✅ Integration imports successfully')"; then
         print_success "Import test passed"
     else
         print_error "Import test failed"
@@ -91,7 +96,7 @@ config_validation() {
     
     if [ -f "$manifest_file" ]; then
         print_status "Validating manifest.json..."
-        if python -c "import json; json.load(open('$manifest_file'))"; then
+        if python3 -c "import json; json.load(open('$manifest_file'))"; then
             print_success "manifest.json is valid"
         else
             print_error "manifest.json is invalid"

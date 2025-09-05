@@ -41,7 +41,9 @@ DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER = "15:00"
 
 # Analysis settings
 CHEAP_HOURS_THRESHOLD_DEFAULT = 10.0  # percent above base price
-CHEAP_HOURS_BASE_PRICE_DEFAULT = 0.150000  # EUR/kWh - base price for cheap hours calculation
+CHEAP_HOURS_BASE_PRICE_DEFAULT = (
+    0.150000  # EUR/kWh - base price for cheap hours calculation
+)
 PRICE_DECIMAL_PRECISION = 6  # Number of decimal places for all price calculations
 
 # Configuration keys
