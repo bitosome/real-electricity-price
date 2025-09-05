@@ -37,21 +37,12 @@ DEFAULT_SCAN_INTERVAL = 3600  # 1 hour in seconds
 SCAN_INTERVAL_MIN = 300
 SCAN_INTERVAL_MAX = 86400
 SCAN_INTERVAL_STEP = 300
-DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER = "14:30"
+DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER = "15:00"
 
 # Analysis settings
 CHEAP_HOURS_THRESHOLD_DEFAULT = 10.0  # percent above base price
 CHEAP_HOURS_BASE_PRICE_DEFAULT = 0.150000  # EUR/kWh - base price for cheap hours calculation
 PRICE_DECIMAL_PRECISION = 6  # Number of decimal places for all price calculations
-
-# Fallback hours if time parsing fails (safety net)
-FALLBACK_NIGHT_START_HOUR = 22
-FALLBACK_NIGHT_END_HOUR = 7
-
-# Coordinator midnight check window
-MIDNIGHT_WINDOW_START_HOUR = 22
-MIDNIGHT_WINDOW_END_HOUR = 2
-
 
 # Configuration keys
 ## Basic configuration

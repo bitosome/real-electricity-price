@@ -14,13 +14,20 @@ from ..const import (
     NIGHT_PRICE_END_TIME_DEFAULT,
     NIGHT_PRICE_START_TIME_DEFAULT,
     parse_time_string,
-    FALLBACK_NIGHT_START_HOUR,
-    FALLBACK_NIGHT_END_HOUR,
 )
 from ..models import IntegrationConfig
 from .base import RealElectricityPriceBaseSensor
 
 _LOGGER = logging.getLogger(__name__)
+
+# Parse default time strings once at module level for fallback use
+try:
+    _DEFAULT_NIGHT_START_HOUR, _, _ = parse_time_string(NIGHT_PRICE_START_TIME_DEFAULT)
+    _DEFAULT_NIGHT_END_HOUR, _, _ = parse_time_string(NIGHT_PRICE_END_TIME_DEFAULT)
+except Exception:
+    # Should never happen with hardcoded values, but just in case
+    _DEFAULT_NIGHT_START_HOUR = 22
+    _DEFAULT_NIGHT_END_HOUR = 7
 
 
 class CurrentPriceSensor(RealElectricityPriceBaseSensor):
@@ -223,7 +230,8 @@ class CurrentPriceSensor(RealElectricityPriceBaseSensor):
                 night_start, _, _ = parse_time_string(NIGHT_PRICE_START_TIME_DEFAULT)
                 night_end, _, _ = parse_time_string(NIGHT_PRICE_END_TIME_DEFAULT)
             except Exception:
-                night_start, night_end = FALLBACK_NIGHT_START_HOUR, FALLBACK_NIGHT_END_HOUR
+                # Last resort: use parsed values from default time strings
+                night_start, night_end = _DEFAULT_NIGHT_START_HOUR, _DEFAULT_NIGHT_END_HOUR
 
         # Get current local time in the configured country
         tz_name = self._get_timezone_for_country(config.country_code)
@@ -347,7 +355,8 @@ class CurrentTariffSensor(RealElectricityPriceBaseSensor):
                 night_start, _, _ = parse_time_string(NIGHT_PRICE_START_TIME_DEFAULT)
                 night_end, _, _ = parse_time_string(NIGHT_PRICE_END_TIME_DEFAULT)
             except Exception:
-                night_start, night_end = FALLBACK_NIGHT_START_HOUR, FALLBACK_NIGHT_END_HOUR
+                # Last resort: use parsed values from default time strings
+                night_start, night_end = _DEFAULT_NIGHT_START_HOUR, _DEFAULT_NIGHT_END_HOUR
 
         # Get current local time in the configured country
         tz_name = self._get_timezone_for_country(config.country_code)

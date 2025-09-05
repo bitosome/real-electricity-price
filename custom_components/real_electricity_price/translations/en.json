@@ -40,7 +40,15 @@
             "auth": "Authentication failed.",
             "connection": "Unable to connect to the server.",
             "unknown": "Unknown error occurred.",
-            "invalid_input": "Invalid input provided."
+            "invalid_input": "Invalid input provided.",
+            "cannot_connect": "Cannot connect to Nord Pool API. Please check your internet connection and try again.",
+            "invalid_country_code": "Invalid Nord Pool area code. Must be one of: EE, FI, LV, LT, SE1-SE4, NO1-NO5, DK1-DK2.",
+            "invalid_vat_rate": "VAT rate must be a number between 0% and 100%.",
+            "invalid_scan_interval": "Scan interval must be between 5 minutes (300 seconds) and 24 hours (86400 seconds).",
+            "invalid_hour_range": "Night price hours must be valid hours between 00 and 23.",
+            "invalid_night_hours": "Night price start and end times cannot be the same (except when ending at midnight).",
+            "invalid_time_format": "Time must be in HH:MM format (24-hour time). Examples: 22:00, 07:30.",
+            "invalid_cheap_price_trigger": "Cheap hours calculation time must be in HH:MM format. Example: 15:00."
         },
         "abort": {
             "already_configured": "This entry is already configured."
@@ -81,6 +89,53 @@
                     "cheap_hours_threshold": "Cheap Hours Threshold (%)",
                     "cheap_hours_base_price": "Cheap Hours Base Price (€/kWh)"
                 }
+            }
+        }
+    },
+    "entity": {
+        "sensor": {
+            "current_price": {
+                "name": "Current Price"
+            },
+            "current_tariff": {
+                "name": "Current Tariff"
+            },
+            "last_sync": {
+                "name": "Last Sync"
+            },
+            "last_cheap_calculation": {
+                "name": "Last Cheap Hours Calculation"
+            },
+            "hourly_prices_yesterday": {
+                "name": "Hourly Prices Yesterday"
+            },
+            "hourly_prices_today": {
+                "name": "Hourly Prices Today"
+            },
+            "hourly_prices_tomorrow": {
+                "name": "Hourly Prices Tomorrow"
+            },
+            "cheap_hours": {
+                "name": "Cheap Hours"
+            },
+            "next_cheap_hours_end": {
+                "name": "Next Cheap Hours End"
+            },
+            "next_cheap_hours_start": {
+                "name": "Next Cheap Hours Start"
+            }
+        },
+        "button": {
+            "calculate_cheap_hours": {
+                "name": "Calculate Cheap Hours"
+            }
+        },
+        "number": {
+            "cheap_hour_threshold": {
+                "name": "Cheap hour threshold"
+            },
+            "cheap_hour_base_price": {
+                "name": "Cheap hour base price"
             }
         }
     }

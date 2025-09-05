@@ -1,166 +1,186 @@
-# Real Electricity Price (Home Assistant)
+# ⚡ Real Electricity Price
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/custom-components/hacs)
 [![GitHub Release][releases-shield]][releases]
 [![Tests](https://github.com/bitosome/real-electricity-price/actions/workflows/test.yml/badge.svg)](https://github.com/bitosome/real-electricity-price/actions/workflows/test.yml)
 [![License][license-shield]](LICENSE)
 
-Real-time electricity prices for Nord Pool delivery areas, with transparent component-based calculation, configurable grid/supplier costs and VAT flags, and a dedicated cheap-hours analysis pipeline.
+A comprehensive Home Assistant integration providing real-time electricity prices for Nord Pool delivery areas with transparent cost calculations and intelligent cheap-hours analysis.
 
-Current version: v1.1.1
+## ✨ Features
 
-## Recent Updates (v1.1.1)
+- **Real-time Nord Pool prices** for all delivery areas (EE, FI, LV, LT, SE1-4, NO1-5, DK1-2)
+- **Component-based pricing** with separate grid, supplier, and market costs
+- **Flexible VAT configuration** per cost component
+- **Smart cheap-hours analysis** with configurable thresholds and automatic recalculation
+- **Weekend/holiday awareness** for accurate tariff calculations
+- **Multiple time zones** support with DST handling
+- **Rich sensor data** including current prices, daily series, and price predictions
 
-- **Fixed cheap hours threshold calculation**: Corrected formula from `base_price * threshold_percent` to `base_price * (1 + threshold_percent / 100)` ensuring accurate identification of cheap hours
-- **Fixed cheap hours sensor state**: Sensor now correctly shows total cheap hours (e.g., 8) instead of number of ranges (e.g., 3)  
-- **Fixed status attributes**: `total_cheap_hours` in sensor attributes now displays actual hour count across all cheap periods
-- **Enhanced calculation transparency**: Cheap hours analysis now properly spans multiple days and includes future periods up to 3 days ahead
+## 📦 Installation
 
-## Overview
+### HACS (Recommended)
 
-- Current price and full day series (yesterday/today/tomorrow)
-- Per-component price model (grid, supplier, market base) with per-component VAT
-- Dual coordinators: price data and cheap-hours analysis
-- Time-based cheap-hours recalculation (default 14:30) and manual controls
-- Weekend/holiday-aware tariff calculation and solid timezone handling
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=bitosome&repository=real-electricity-price&category=integration)
 
-Data source: Nord Pool Day-Ahead Prices.
+1. Install [HACS](https://hacs.xyz) if you haven't already
+2. Click the badge above or manually add this repository to HACS:
+   - HACS → Integrations → ⋮ → Custom repositories
+   - Repository: `https://github.com/bitosome/real-electricity-price`
+   - Category: Integration
+3. Search for "Real Electricity Price" and install
+4. Restart Home Assistant
+5. Add the integration: Settings → Devices & Services → Add Integration → "Real Electricity Price"
 
-## Installation
+### Manual Installation
 
-HACS (recommended)
-- HACS → Integrations → ⋮ → Custom repositories → add `https://github.com/bitosome/real-electricity-price` (Integration)
-- Install “Real Electricity Price”, restart Home Assistant
-- Settings → Devices & Services → Add Integration → “Real Electricity Price”
+1. Download the latest release from the [releases page][releases]
+2. Copy the `custom_components/real_electricity_price` folder to your Home Assistant `custom_components` directory
+3. Restart Home Assistant
+4. Add the integration via the UI
 
-Manual
-- Copy `custom_components/real_electricity_price` into your Home Assistant `custom_components` directory
-- Restart Home Assistant and add the integration from the UI
+## ⚙️ Configuration
 
-## Configuration (UI config flow)
+The integration is configured entirely through the Home Assistant UI. After installation:
 
-Basic
-- Name: Device name for grouping entities (default: “Real Electricity Price”)
-- Country/Area code: One of `EE, FI, LV, LT, SE1, SE2, SE3, SE4, NO1, NO2, NO3, NO4, NO5, DK1, DK2` (default: EE)
-- Grid: Grid operator name (default: `Elektrilevi`)
-- Supplier: Supplier name (default: `Enefit`)
+1. Go to **Settings** → **Devices & Services**
+2. Click **Add Integration** and search for "Real Electricity Price"
+3. Follow the configuration steps:
 
-Costs (€/kWh)
-- Grid excise duty (`grid_electricity_excise_duty`, default 0.0026)
-- Grid renewable charge (`grid_renewable_energy_charge`, default 0.0104)
-- Grid transmission night (`grid_electricity_transmission_price_night`, default 0.0260)
-- Grid transmission day (`grid_electricity_transmission_price_day`, default 0.0458)
-- Supplier renewable charge (`supplier_renewable_energy_charge`, default 0.0000)
-- Supplier margin (`supplier_margin`, default 0.0105)
+### Basic Settings
+- **Name**: Device name for grouping entities
+- **Country/Area**: Nord Pool delivery area (EE, FI, LV, LT, SE1-4, NO1-5, DK1-2)
+- **Grid Provider**: Your grid operator name
+- **Supplier**: Your electricity supplier name
 
-Tax
-- VAT % (`vat`, default 24.0)
-- VAT flags (apply VAT to component):
-  - `vat_nord_pool` (default true)
-  - `vat_grid_electricity_excise_duty` (default false)
-  - `vat_grid_renewable_energy_charge` (default false)
-  - `vat_grid_transmission_night` (default false)
-  - `vat_grid_transmission_day` (default false)
-  - `vat_supplier_renewable_energy_charge` (default false)
-  - `vat_supplier_margin` (default false)
+### Cost Configuration
+Configure your local electricity costs in €/kWh:
+- Grid excise duty, renewable charges, transmission prices (day/night)
+- Supplier renewable charges and margin
+- VAT percentage and per-component VAT flags
 
-Time & refresh
-- Night price start time (`night_price_start_time`, default 22:00)
-- Night price end time (`night_price_end_time`, default 07:00)
-- Data scan interval seconds (`scan_interval`, 300–86400; default 3600)
-- Cheap-hours daily update trigger (`cheap_hours_update_trigger`, default 14:30)
+### Time Settings
+- **Night tariff hours**: Define when night prices apply (default: 22:00-07:00)
+- **Update intervals**: Data refresh frequency (default: 1 hour)
+- **Cheap hours calculation**: Daily recalculation time (default: 15:00)
 
-Cheap-hours analysis
-- Base price (`cheap_hours_base_price`, default 0.150000 €/kWh)
-- Threshold percent (`cheap_hours_threshold`, default 10.0%)
-  - A price is "cheap" if `price ≤ base_price` OR `price ≤ base_price × (1 + threshold/100)`.
+### Cheap Hours Analysis
+- **Base price**: Reference price for cheap hour calculations (€/kWh)
+- **Threshold**: Percentage above base price still considered "cheap"
 
-Validation
-- Area code must be one of the supported delivery areas
-- VAT must be 0–100
-- `scan_interval` must be 300–86400 seconds
-- Time selectors accept valid times; start/end times can cross midnight
+## 🔧 Sensors & Entities
 
-## Entities
+The integration provides comprehensive sensor data:
 
-Sensors
-- Current Price (`sensor.…_current_price`, €/kWh): Current hour final price. Attributes include `price_components` and `calculation_details`.
-- Current Tariff (`sensor.…_current_tariff`): “day” or “night”, weekend/holiday aware, local timezone.
-- Hourly Prices Yesterday/Today/Tomorrow (`sensor.…_hourly_prices_*`, €/kWh):
-  - Today: state = current hour price; Yesterday/Tomorrow: state = average when available.
-  - Attributes: `hourly_prices` (start/end, base price, final price, tariff, holiday/weekend), `statistics` (min/max/avg), `data_available`.
-- Last Sync (`sensor.…_last_sync`, timestamp): Time of last successful data fetch. Attributes include `data_sources` summary.
-- Last Cheap Hours Calculation (`sensor.…_last_cheap_calculation`, timestamp): From cheap-hours coordinator; attributes include trigger info.
-- Cheap Hours (`sensor.…_cheap_hours`, hours): Total count of cheap hours across all upcoming periods. Attributes: `cheap_price_ranges` (detailed periods with times and prices), `status_info`, `analysis_info`, `calculation_info`.
-- Cheap Hours Start/End (`sensor.…_cheap_hours_start|end`, timestamp): Next cheap period start/end in local time.
+### Price Sensors
+- **Current Price**: Real-time electricity price including all components
+- **Current Tariff**: Active tariff (day/night) based on your configuration
+- **Hourly Prices**: Yesterday, today, and tomorrow price series
 
-Buttons
-- Sync data (`button.…_sync_data`): Triggers an immediate data refresh.
-- Calculate Cheap Hours (`button.…_calculate_cheap_hours`): Re-runs cheap-hours analysis immediately.
+### Analysis Sensors  
+- **Cheap Hours**: Number of cheap hours in upcoming periods
+- **Next Cheap Hours Start/End**: When the next cheap period begins/ends
+- **Last Sync**: When price data was last updated
 
-Runtime config helpers
-- Number: Cheap hour base price
-- Number: Cheap hour threshold (%)
-- Time: Cheap hours calculation time
+### Control Entities
+- **Cheap Hours Threshold**: Adjustable threshold percentage
+- **Cheap Hours Base Price**: Adjustable base price for calculations
+- **Calculate Cheap Hours**: Manual recalculation button
 
-Note: Entity IDs are derived from your chosen device name; all entities are grouped under a single device.
+## 🛠️ Advanced Features
 
-## Data refresh & timing
+### Dual Coordinator Architecture
+- **Price Coordinator**: Handles Nord Pool data fetching and caching
+- **Cheap Hours Coordinator**: Manages cheap hours analysis and scheduling
 
-- Network fetch: Controlled by `scan_interval` (default hourly). Each fetch pulls yesterday, today, and tomorrow (if available) from Nord Pool.
-- Hourly tick: At every hh:00, all entities re-render without network calls to reflect the new hour.
-- Midnight: When near midnight (22:00–02:00), an extra refresh is scheduled to catch the date rollover.
-- Tomorrow’s data: Usually published around 14:00 CET. Until then, a placeholder for tomorrow is exposed (time ranges, tariffs; prices unavailable).
-- Cheap-hours: Recalculated daily at `cheap_hours_update_trigger` and after a successful data sync; can be triggered via button or service.
+### Smart Scheduling
+- Automatic midnight updates for date transitions
+- Configurable daily recalculation of cheap hours
+- DST and timezone transition handling
 
-## Price calculation
-
-Units
-- Nord Pool is returned in EUR/MWh and converted to €/kWh.
-- All configured costs are €/kWh.
-
-Computation
-- Base: `base_kwh = price_mwh / 1000` and if `vat_nord_pool` then `base_kwh *= (1 + vat/100)`.
-- Grid components (each optionally VAT’ed): excise, renewable (grid), transmission (night/day).
-- Supplier components (each optionally VAT’ed): renewable (supplier), margin.
-- Final (€/kWh): Sum of base (after optional VAT) + all components (each with optional VAT). No single VAT is applied to the entire sum.
-
-## Regions
-
-Supported delivery areas: `EE, FI, LV, LT, SE1, SE2, SE3, SE4, NO1, NO2, NO3, NO4, NO5, DK1, DK2`.
-
-## Services
-
-- `real_electricity_price.refresh_data` → refresh data now
-- `real_electricity_price.recalculate_cheap_prices` → recompute cheap hours now
-
-## Troubleshooting
-
-- Tomorrow missing: Published ~14:00 CET; press Sync data afterwards.
-- No/incorrect prices: Verify delivery area, VAT %, costs, and internet access; check logs.
-- Tariff off: Night hours are local-time based; verify `night_price_start_time`/`night_price_end_time`.
-- Only some entities visible: Open the device page for the integration and verify all sensors, buttons, and helper entities.
-
-Debug logging
-```yaml
-logger:
-  default: warning
-  logs:
-    custom_components.real_electricity_price: debug
-    custom_components.real_electricity_price.api: debug
-    custom_components.real_electricity_price.coordinator: debug
-    custom_components.real_electricity_price.cheap_hours_coordinator: debug
+### Transparent Calculations
+All price components are clearly separated and configurable:
+```
+Total Price = Nord Pool + Grid Costs + Supplier Costs + VAT
 ```
 
-## Notes
+## 🐛 Troubleshooting
 
-- Weekend/holiday detection uses the country derived from the area code (e.g., `SE` from `SE3`).
-- Timezone handling uses Home Assistant’s configured timezone, with explicit per-country defaults where relevant.
+### Common Issues
 
-## License
+**Integration not appearing**
+- Ensure HACS is installed and configured
+- Check that the repository was added as "Integration" category
+- Restart Home Assistant after installation
 
-MIT License — see `LICENSE`.
+**No price data**
+- Verify your area code is correct (case-sensitive)
+- Check internet connectivity
+- Nord Pool API may have temporary outages
 
-[releases-shield]: https://img.shields.io/github/release/bitosome/real-electricity-price.svg?style=for-the-badge
+**Incorrect cheap hours**
+- Verify base price and threshold settings match your expectations
+- Check that calculation time allows for complete price data
+- Use the manual "Calculate Cheap Hours" button for immediate updates
+
+### Debug Logging
+Add to your `configuration.yaml`:
+```yaml
+logger:
+  logs:
+    custom_components.real_electricity_price: debug
+```
+
+## 🔄 Recent Updates (v1.1.1)
+
+- **Fixed cheap hours threshold calculation**: Corrected formula ensuring accurate identification
+- **Fixed cheap hours sensor state**: Now shows total hours instead of number of ranges
+- **Enhanced calculation transparency**: Analysis now spans multiple days with future periods
+- **Improved midnight transition handling**: Native Home Assistant time tracking
+
+## 🤝 Contributing
+
+Contributions are welcome! Please:
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes with tests
+4. Submit a pull request
+
+### Development Setup
+```bash
+git clone https://github.com/bitosome/real-electricity-price.git
+cd real-electricity-price
+pip install -r requirements.txt
+pip install -r tests/test-requirements.txt
+```
+
+### Running Tests
+```bash
+cd tests
+./test.sh
+```
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Credits
+
+- Data provided by [Nord Pool](https://www.nordpoolgroup.com/)
+- Built for the [Home Assistant](https://www.home-assistant.io/) community
+- Inspired by the need for transparent electricity pricing in the Nordics
+
+---
+
+<div align="center">
+
+**[Documentation](https://github.com/bitosome/real-electricity-price/wiki)** • 
+**[Issues](https://github.com/bitosome/real-electricity-price/issues)** • 
+**[Discussions](https://github.com/bitosome/real-electricity-price/discussions)**
+
+</div>
+
+[releases-shield]: https://img.shields.io/github/v/release/bitosome/real-electricity-price?style=flat-square
 [releases]: https://github.com/bitosome/real-electricity-price/releases
-[license-shield]: https://img.shields.io/github/license/bitosome/real-electricity-price.svg?style=for-the-badge
+[license-shield]: https://img.shields.io/github/license/bitosome/real-electricity-price?style=flat-square

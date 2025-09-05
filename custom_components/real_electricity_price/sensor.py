@@ -11,8 +11,8 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from .entity_descriptions import SENSOR_DESCRIPTIONS
 from .sensors import (
     CheapHoursSensor,
-    CheapHoursEndSensor,
-    CheapHoursStartSensor,
+    NextCheapHoursEndSensor,
+    NextCheapHoursStartSensor,
     CurrentPriceSensor,
     CurrentTariffSensor,
     HourlyPricesYesterdaySensor,
@@ -36,8 +36,8 @@ SENSOR_TYPE_HOURLY_PRICES_YESTERDAY = "hourly_prices_yesterday"
 SENSOR_TYPE_LAST_SYNC = "last_sync"
 SENSOR_TYPE_LAST_CHEAP_CALCULATION = "last_cheap_calculation"
 SENSOR_TYPE_CHEAP_HOURS = "cheap_hours"
-SENSOR_TYPE_CHEAP_HOURS_START = "cheap_hours_start"
-SENSOR_TYPE_CHEAP_HOURS_END = "cheap_hours_end"
+SENSOR_TYPE_NEXT_CHEAP_HOURS_START = "next_cheap_hours_start"
+SENSOR_TYPE_NEXT_CHEAP_HOURS_END = "next_cheap_hours_end"
 
 # Sensor registry mapping sensor keys to their types and classes
 SENSOR_REGISTRY = {
@@ -73,13 +73,13 @@ SENSOR_REGISTRY = {
         SENSOR_TYPE_CHEAP_HOURS,
         CheapHoursSensor,
     ),
-    "real_electricity_price_cheap_hours_end": (
-        SENSOR_TYPE_CHEAP_HOURS_END,
-        CheapHoursEndSensor,
+    "real_electricity_price_next_cheap_hours_end": (
+        SENSOR_TYPE_NEXT_CHEAP_HOURS_END,
+        NextCheapHoursEndSensor,
     ),
-    "real_electricity_price_cheap_hours_start": (
-        SENSOR_TYPE_CHEAP_HOURS_START,
-        CheapHoursStartSensor,
+    "real_electricity_price_next_cheap_hours_start": (
+        SENSOR_TYPE_NEXT_CHEAP_HOURS_START,
+        NextCheapHoursStartSensor,
     ),
 }
 
@@ -97,8 +97,8 @@ async def async_setup_entry(
     # Add main coordinator sensors (excluding cheap hours sensors)
     cheap_hours_keys = {
         "real_electricity_price_cheap_hours",
-        "real_electricity_price_cheap_hours_start", 
-        "real_electricity_price_cheap_hours_end",
+        "real_electricity_price_next_cheap_hours_start", 
+        "real_electricity_price_next_cheap_hours_end",
         "real_electricity_price_last_cheap_calculation"
     }
     
@@ -124,8 +124,8 @@ async def async_setup_entry(
     # Add cheap hours coordinator sensors
     cheap_hours_sensors = [
         "real_electricity_price_cheap_hours",
-        "real_electricity_price_cheap_hours_start",
-        "real_electricity_price_cheap_hours_end",
+        "real_electricity_price_next_cheap_hours_start",
+        "real_electricity_price_next_cheap_hours_end",
         "real_electricity_price_last_cheap_calculation",
     ]
 

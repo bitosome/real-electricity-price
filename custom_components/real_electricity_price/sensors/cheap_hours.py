@@ -491,11 +491,11 @@ class CheapHoursSensor(RealElectricityPriceBaseSensor):
             return {}
 
 
-class CheapHoursEndSensor(RealElectricityPriceBaseSensor):
+class NextCheapHoursEndSensor(RealElectricityPriceBaseSensor):
     """Sensor for the end time of the next cheap hours period."""
 
     def __init__(self, coordinator, description):
-        """Initialize the cheap hours end sensor."""
+        """Initialize the next cheap hours end sensor."""
         super().__init__(coordinator, description)
         # This sensor should use the cheap price coordinator when available
         self._use_cheap_coordinator = hasattr(coordinator, "get_current_cheap_price")
@@ -585,7 +585,7 @@ class CheapHoursEndSensor(RealElectricityPriceBaseSensor):
         return temp_sensor._analyze_cheap_prices()
 
 
-class CheapHoursStartSensor(RealElectricityPriceBaseSensor):
+class NextCheapHoursStartSensor(RealElectricityPriceBaseSensor):
     """Sensor for next cheap electricity hours period start."""
 
     def __init__(self, coordinator, description):

@@ -254,21 +254,21 @@ class RealElectricityPriceFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             try:
                 info = await validate_input(self.hass, user_input)
             except InvalidCheapPriceTrigger as e:
-                self._errors[CONF_CHEAP_HOURS_UPDATE_TRIGGER] = str(e)
+                self._errors[CONF_CHEAP_HOURS_UPDATE_TRIGGER] = "invalid_cheap_price_trigger"
             except InvalidCountryCode as e:
-                self._errors["country_code"] = str(e)
+                self._errors["country_code"] = "invalid_country_code"
             except InvalidVatRate as e:
-                self._errors["vat"] = str(e)
+                self._errors["vat"] = "invalid_vat_rate"
             except InvalidScanInterval as e:
-                self._errors["scan_interval"] = str(e)
+                self._errors["scan_interval"] = "invalid_scan_interval"
             except InvalidHourRange as e:
-                self._errors["base"] = str(e)
+                self._errors["base"] = "invalid_hour_range"
             except InvalidNightHours as e:
-                self._errors["base"] = str(e)
+                self._errors["base"] = "invalid_night_hours"
             except InvalidTimeFormat as e:
-                self._errors["base"] = str(e)
+                self._errors["base"] = "invalid_time_format"
             except CannotConnect as e:
-                self._errors["base"] = str(e)
+                self._errors["base"] = "cannot_connect"
             except Exception:  # pylint: disable=broad-except
                 _LOGGER.exception("Unexpected exception")
                 self._errors["base"] = "unknown"
@@ -508,21 +508,21 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             try:
                 await validate_input(self.hass, user_input)
             except InvalidCheapPriceTrigger as e:
-                self._errors[CONF_CHEAP_HOURS_UPDATE_TRIGGER] = str(e)
+                self._errors[CONF_CHEAP_HOURS_UPDATE_TRIGGER] = "invalid_cheap_price_trigger"
             except InvalidCountryCode as e:
-                self._errors["country_code"] = str(e)
+                self._errors["country_code"] = "invalid_country_code"
             except InvalidVatRate as e:
-                self._errors["vat"] = str(e)
+                self._errors["vat"] = "invalid_vat_rate"
             except InvalidScanInterval as e:
-                self._errors["scan_interval"] = str(e)
+                self._errors["scan_interval"] = "invalid_scan_interval"
             except InvalidHourRange as e:
-                self._errors["base"] = str(e)
+                self._errors["base"] = "invalid_hour_range"
             except InvalidNightHours as e:
-                self._errors["base"] = str(e)
+                self._errors["base"] = "invalid_night_hours"
             except InvalidTimeFormat as e:
-                self._errors["base"] = str(e)
+                self._errors["base"] = "invalid_time_format"
             except CannotConnect as e:
-                self._errors["base"] = str(e)
+                self._errors["base"] = "cannot_connect"
             except Exception:  # pylint: disable=broad-except
                 _LOGGER.exception("Unexpected exception")
                 self._errors["base"] = "unknown"

@@ -12,7 +12,6 @@ from homeassistant.helpers.event import async_track_time_change
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api import RealElectricityPriceApiClientError
-from .const import MIDNIGHT_WINDOW_START_HOUR, MIDNIGHT_WINDOW_END_HOUR
 from .const import (
     CONF_NIGHT_PRICE_START_TIME,
     CONF_NIGHT_PRICE_END_TIME,
@@ -41,8 +40,8 @@ class RealElectricityPriceDataUpdateCoordinator(DataUpdateCoordinator):
         """Initialize the coordinator."""
         super().__init__(*args, **kwargs)
         self._last_update_date = None
-        self._midnight_check_scheduled = False
         self._hourly_update_unsub: Callable[[], None] | None = None
+        self._midnight_update_unsub: Callable[[], None] | None = None
         self._stop_unsub: Callable[[], None] | None = None
         self._cheap_price_coordinator = None  # Will be set after initialization
 
@@ -53,13 +52,25 @@ class RealElectricityPriceDataUpdateCoordinator(DataUpdateCoordinator):
             minute=0,
             second=0,
         )
+        
+        # Midnight transition handler for date changes, DST, etc.
+        self._midnight_update_unsub = async_track_time_change(
+            self.hass,
+            self._handle_midnight_transition,
+            hour=0,
+            minute=0,
+            second=0,
+        )
 
-        # Clean up the hourly tick on HA stop
+        # Clean up the time trackers on HA stop
         @callback
         def _on_stop(event) -> None:
             if self._hourly_update_unsub:
                 self._hourly_update_unsub()
                 self._hourly_update_unsub = None
+            if self._midnight_update_unsub:
+                self._midnight_update_unsub()
+                self._midnight_update_unsub = None
 
         self._stop_unsub = self.hass.bus.async_listen_once(
             EVENT_HOMEASSISTANT_STOP, _on_stop
@@ -71,6 +82,17 @@ class RealElectricityPriceDataUpdateCoordinator(DataUpdateCoordinator):
         _LOGGER.debug("Hourly tick at %s -> updating all entity states (no fetch)", now)
         # This does not fetch data; it only tells all entities to update their state
         self.async_update_listeners()
+    
+    @callback
+    def _handle_midnight_transition(self, now: datetime.datetime) -> None:
+        """Handle midnight transition for date changes, DST, etc."""
+        _LOGGER.debug("Midnight transition at %s -> scheduling data refresh for date changes", now)
+        # Schedule a refresh to handle:
+        # - Today's data becomes yesterday's data
+        # - Tomorrow's data becomes today's data
+        # - DST transitions
+        # - New year transitions
+        self.hass.async_create_task(self.async_request_refresh())
 
     async def _async_update_data(self) -> Any:
         """Update data via library."""
@@ -87,8 +109,6 @@ class RealElectricityPriceDataUpdateCoordinator(DataUpdateCoordinator):
                     current_date,
                 )
 
-            # Schedule additional update shortly after midnight if we're close
-            self._schedule_midnight_update_if_needed(current_time)
 
             data = await self.config_entry.runtime_data.client.async_get_data()
 
@@ -150,29 +170,6 @@ class RealElectricityPriceDataUpdateCoordinator(DataUpdateCoordinator):
         except RealElectricityPriceApiClientError as exception:
             raise UpdateFailed(exception) from exception
 
-    def _schedule_midnight_update_if_needed(
-        self, current_time: datetime.datetime
-    ) -> None:
-        """Schedule an update shortly after midnight to ensure fresh data."""
-        # Check if we're within 2 hours of midnight and haven't scheduled yet
-        hour = current_time.hour
-        if (hour >= MIDNIGHT_WINDOW_START_HOUR or hour <= MIDNIGHT_WINDOW_END_HOUR) and not self._midnight_check_scheduled:
-            _LOGGER.debug(
-                "Near midnight (hour %d), will check for fresh data more frequently",
-                hour,
-            )
-            self._midnight_check_scheduled = True
-
-            # Schedule a refresh in 15 minutes to catch midnight transition
-            def schedule_refresh() -> None:
-                if self.hass and not self.hass.is_stopping:
-                    self.hass.async_create_task(self.async_request_refresh())
-
-            self.hass.loop.call_later(900, schedule_refresh)  # 15 minutes
-
-        elif hour > MIDNIGHT_WINDOW_END_HOUR and hour < MIDNIGHT_WINDOW_START_HOUR:
-            # Reset the flag during normal hours
-            self._midnight_check_scheduled = False
 
     def _validate_data_dates(self, data: dict, current_date: datetime.date) -> None:
         """Validate that the data contains the expected dates."""

@@ -79,16 +79,16 @@ SENSOR_CHEAP_HOURS = SensorEntityDescription(
     state_class=SensorStateClass.MEASUREMENT,
 )
 
-SENSOR_CHEAP_HOURS_END = SensorEntityDescription(
-    key="real_electricity_price_cheap_hours_end",
-    name="Cheap Hours End",
+SENSOR_NEXT_CHEAP_HOURS_END = SensorEntityDescription(
+    key="real_electricity_price_next_cheap_hours_end",
+    name="Next Cheap Hours End",
     icon="mdi:clock-end",
     device_class=SensorDeviceClass.TIMESTAMP,
 )
 
-SENSOR_CHEAP_HOURS_START = SensorEntityDescription(
-    key="real_electricity_price_cheap_hours_start",
-    name="Cheap Hours Start",
+SENSOR_NEXT_CHEAP_HOURS_START = SensorEntityDescription(
+    key="real_electricity_price_next_cheap_hours_start",
+    name="Next Cheap Hours Start",
     icon="mdi:clock-start",
     device_class=SensorDeviceClass.TIMESTAMP,
 )
@@ -103,6 +103,6 @@ SENSOR_DESCRIPTIONS = (
     SENSOR_HOURLY_PRICES_TODAY,
     SENSOR_HOURLY_PRICES_TOMORROW,
     SENSOR_CHEAP_HOURS,
-    SENSOR_CHEAP_HOURS_END,
-    SENSOR_CHEAP_HOURS_START,
+    SENSOR_NEXT_CHEAP_HOURS_END,
+    SENSOR_NEXT_CHEAP_HOURS_START,
 )

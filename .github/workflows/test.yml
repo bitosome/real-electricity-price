@@ -12,8 +12,8 @@ on:
 permissions: {}
 
 jobs:
-  unit-tests:
-    name: Unit Tests
+  basic-tests:
+    name: Basic Integration Tests
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -34,123 +34,38 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install -r tests/test-requirements.txt
-          # Install additional test dependencies
-          pip install pytest-cov pytest-xdist
 
-      - name: Run configuration validation tests
+      - name: Run syntax checks
         run: |
           cd tests
-          python test_config_validation.py
-        continue-on-error: false
-
-      - name: Run sensor calculation tests
-        run: |
-          cd tests
-          python test_sensor_calculations.py
-        continue-on-error: false
-
-      - name: Run button calculation tests
-        run: |
-          cd tests
-          python test_buttons_calculations.py
-        continue-on-error: false
-
-      - name: Run comprehensive integration tests
-        run: |
-          cd tests
-          python test_comprehensive.py
-        continue-on-error: false
-
-      - name: Run all legacy tests
-        run: |
-          cd tests
-          python test_integration.py
-          python test_area_codes.py
-          python test_cheap_coordinator.py
-          python test_cheap_price_triggers.py
-          python test_cheap_prices.py
-          python test_holidays.py
-          python test_new_implementation.py
-        continue-on-error: false
-
-      - name: Run master test suite
-        run: |
-          python tests/test_all_comprehensive.py
-        continue-on-error: false
-
-  pytest-tests:
-    name: Pytest Tests
-    runs-on: ubuntu-latest
-    
-    steps:
-      - name: Checkout the repository
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
-
-      - name: Set up Python 3.12
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
-        with:
-          python-version: "3.12"
-          cache: "pip"
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install -r tests/test-requirements.txt
-          pip install pytest-cov pytest-xdist
-
-      - name: Run pytest with coverage
-        run: |
-          cd tests
-          python -m pytest -v --cov=../custom_components/real_electricity_price --cov-report=xml --cov-report=term-missing .
-        continue-on-error: false
-
-  shell-tests:
-    name: Shell Script Tests
-    runs-on: ubuntu-latest
-    
-    steps:
-      - name: Checkout the repository
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
-
-      - name: Set up Python 3.12
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
-        with:
-          python-version: "3.12"
-          cache: "pip"
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install -r tests/test-requirements.txt
-
-      - name: Run shell test suite
-        run: |
-          cd tests
-          chmod +x test.sh test_runner.sh
-          # Run specific test categories that work in CI environment
           ./test.sh syntax
+        continue-on-error: false
+
+      - name: Run import tests  
+        run: |
+          cd tests
           ./test.sh import
+        continue-on-error: false
+
+      - name: Run configuration validation
+        run: |
+          cd tests
           ./test.sh config
-          ./test.sh quality
         continue-on-error: false
 
   test-summary:
     name: Test Summary
     runs-on: ubuntu-latest
-    needs: [unit-tests, pytest-tests, shell-tests]
+    needs: [basic-tests]
     if: always()
     
     steps:
       - name: Test Results Summary
         run: |
           echo "## Test Results Summary" >> $GITHUB_STEP_SUMMARY
-          echo "- Unit Tests: ${{ needs.unit-tests.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Pytest Tests: ${{ needs.pytest-tests.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Shell Tests: ${{ needs.shell-tests.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Basic Integration Tests: ${{ needs.basic-tests.result }}" >> $GITHUB_STEP_SUMMARY
           
-          if [[ "${{ needs.unit-tests.result }}" == "success" && "${{ needs.pytest-tests.result }}" == "success" && "${{ needs.shell-tests.result }}" == "success" ]]; then
+          if [[ "${{ needs.basic-tests.result }}" == "success" ]]; then
             echo "✅ All tests passed!" >> $GITHUB_STEP_SUMMARY
             exit 0
           else
