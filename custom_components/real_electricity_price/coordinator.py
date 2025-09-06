@@ -114,6 +114,28 @@ class RealElectricityPriceDataUpdateCoordinator(DataUpdateCoordinator):
 
             data = await self.config_entry.runtime_data.client.async_get_data()
 
+            # Handle case where API returns None (failed to fetch today's data)
+            if data is None:
+                # If we have existing data, preserve it to avoid data gaps (but check if it's not too stale)
+                if self.data is not None:
+                    last_sync = self.data.get("last_sync")
+                    if last_sync:
+                        # Only preserve data if it's less than 6 hours old
+                        time_since_sync = datetime.datetime.now(datetime.UTC) - last_sync
+                        if time_since_sync.total_seconds() < 6 * 3600:  # 6 hours
+                            _LOGGER.warning(
+                                "API returned no data but preserving recent data from %s to avoid sensor unavailability", 
+                                last_sync
+                            )
+                            return self.data
+                        else:
+                            _LOGGER.error("Last data is too stale (%s), not preserving", last_sync)
+                    else:
+                        _LOGGER.error("No timestamp in existing data, not preserving")
+                else:
+                    _LOGGER.error("No current data available and no previous data to preserve")
+                return None
+
             # Add the current timestamp and configuration to the data
             if data is not None:
                 data["last_sync"] = datetime.datetime.now(datetime.UTC)
@@ -173,8 +195,19 @@ class RealElectricityPriceDataUpdateCoordinator(DataUpdateCoordinator):
                 await self._cheap_price_coordinator.async_manual_update()
 
             return data
-
+        
         except RealElectricityPriceApiClientError as exception:
+            # If we have existing data, preserve it during API failures to avoid data gaps
+            if self.data is not None:
+                last_sync = self.data.get("last_sync")
+                if last_sync:
+                    time_since_sync = datetime.datetime.now(datetime.UTC) - last_sync
+                    if time_since_sync.total_seconds() < 6 * 3600:  # 6 hours
+                        _LOGGER.warning(
+                            "API failed but preserving recent data from %s to avoid sensor unavailability",
+                            last_sync
+                        )
+                        return self.data
             raise UpdateFailed(exception) from exception
 
     def _validate_data_dates(self, data: dict, current_date: datetime.date) -> None:
