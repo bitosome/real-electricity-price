@@ -12,10 +12,12 @@ A comprehensive Home Assistant integration providing real-time electricity price
 - **Real-time Nord Pool prices** for all delivery areas (EE, FI, LV, LT, SE1-4, NO1-5, DK1-2)
 - **Component-based pricing** with separate grid, supplier, and market costs
 - **Flexible VAT configuration** per cost component
-- **Smart cheap-hours analysis** with configurable thresholds and automatic recalculation
+- **Smart cheap-hours analysis** with intelligent triggering and configurable thresholds
+- **High reliability** with intelligent data retention during API outages
 - **Weekend/holiday awareness** for accurate tariff calculations
-- **Multiple time zones** support with DST handling
+- **Multiple time zones** support with DST handling and timezone consistency
 - **Rich sensor data** including current prices, daily series, and price predictions
+- **Performance optimized** with reduced API calls and eliminated cascading failures
 
 ## 📦 Installation
 
@@ -67,6 +69,10 @@ Configure your local electricity costs in €/kWh:
 ### Cheap Hours Analysis
 - **Base price**: Reference price for cheap hour calculations (€/kWh)
 - **Threshold**: Percentage above base price still considered "cheap"
+- **Smart calculation**: Only triggers in 3 scenarios for optimal performance:
+  1. **Integration startup** (when tomorrow's prices are available)
+  2. **Manual trigger** (button press or service call)  
+  3. **Scheduled time** (daily at configured time, default: 15:00)
 
 ## 🔧 Sensors & Entities
 
@@ -90,13 +96,15 @@ The integration provides comprehensive sensor data:
 ## 🛠️ Advanced Features
 
 ### Dual Coordinator Architecture
-- **Price Coordinator**: Handles Nord Pool data fetching and caching
-- **Cheap Hours Coordinator**: Manages cheap hours analysis and scheduling
+- **Price Coordinator**: Handles Nord Pool data fetching with intelligent caching and failure recovery
+- **Cheap Hours Coordinator**: Independent analysis scheduling with anti-cascade failure protection
 
-### Smart Scheduling
-- Automatic midnight updates for date transitions
-- Configurable daily recalculation of cheap hours
-- DST and timezone transition handling
+### Smart Scheduling & Reliability
+- **Timezone-aware updates**: Consistent date handling across all time zones
+- **Intelligent data retention**: Preserves recent data during temporary API outages (up to 6 hours)
+- **Anti-cascade protection**: Coordinators don't trigger redundant API calls during failures
+- **Optimized calculation timing**: Cheap hours analysis only when necessary, not on every data sync
+- **Midnight transition handling**: Native Home Assistant time tracking with DST support
 
 ### Transparent Calculations
 All price components are clearly separated and configurable:
@@ -116,12 +124,14 @@ Total Price = Nord Pool + Grid Costs + Supplier Costs + VAT
 **No price data**
 - Verify your area code is correct (case-sensitive)
 - Check internet connectivity
-- Nord Pool API may have temporary outages
+- Nord Pool API may have temporary outages (integration preserves recent data for up to 6 hours)
+- For persistent issues, use the "Sync data" button for manual refresh
 
 **Incorrect cheap hours**
 - Verify base price and threshold settings match your expectations
 - Check that calculation time allows for complete price data
 - Use the manual "Calculate Cheap Hours" button for immediate updates
+- Calculations now trigger only in 3 scenarios: startup, manual trigger, or scheduled time (15:00 by default)
 
 ### Debug Logging
 Add to your `configuration.yaml`:
@@ -131,8 +141,23 @@ logger:
     custom_components.real_electricity_price: debug
 ```
 
-## 🔄 Recent Updates (v1.0.0)
+**Note**: Recent updates have significantly reduced log noise. Most API-related warnings are now debug-level messages, with only critical issues logged as warnings or errors.
 
+## 🔄 Recent Updates (v1.1.1)
+
+### Bug Fixes & Reliability Improvements
+- **Fixed timezone consistency**: Eliminated date mismatch warnings at timezone boundaries
+- **Improved API failure handling**: Prevents data gaps during Nord Pool API outages with intelligent data retention
+- **Enhanced error categorization**: Reduced log noise while preserving critical error information
+- **Fixed cheap hours calculation timing**: Now triggers only when needed (startup, manual, or scheduled time)
+
+### Performance Optimizations  
+- **Reduced cheap hours calculations by ~90%**: From 24+ times/day to only when necessary
+- **Eliminated cascading API failures**: Coordinators no longer conflict during API outages
+- **Improved system stability**: Better handling of API rate limits and temporary outages
+- **Smarter data preservation**: Maintains sensor availability during short API failures (up to 6 hours)
+
+### Previous Fixes (v1.0.0)
 - **Fixed cheap hours threshold calculation**: Corrected formula ensuring accurate identification
 - **Fixed cheap hours sensor state**: Now shows total hours instead of number of ranges
 - **Enhanced calculation transparency**: Analysis now spans multiple days with future periods
