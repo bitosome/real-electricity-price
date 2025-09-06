@@ -10,7 +10,7 @@ from .const import CONF_CALCULATE_CHEAP_HOURS
 
 
 async def async_setup_entry(
-    hass: HomeAssistant, entry, async_add_entities: AddEntitiesCallback
+    _hass: HomeAssistant, entry: object, async_add_entities: AddEntitiesCallback
 ) -> None:
     """Set up time entities (update trigger)."""
     cfg = {**entry.data, **entry.options}

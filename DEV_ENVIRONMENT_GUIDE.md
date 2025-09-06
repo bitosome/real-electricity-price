@@ -211,7 +211,7 @@ If changes aren't reflected:
 5. Monitor coordinator updates
 
 ### 4. Version Control
-- Current version: 1.0.0 (in manifest.json)
+- Current version: 1.1.0 (in manifest.json)
 - Always test before committing
 - Document breaking changes
 - Update version appropriately

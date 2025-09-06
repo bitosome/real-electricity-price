@@ -7,6 +7,9 @@ from typing import Any
 
 from homeassistant.util import dt as dt_util
 
+# Constants
+MAX_HOURS_PREVIEW = 6
+
 from .base import RealElectricityPriceBaseSensor
 
 _LOGGER = logging.getLogger(__name__)
@@ -83,7 +86,7 @@ class HourlyPricesSensor(RealElectricityPriceBaseSensor):
                         if (
                             start_time
                             and start_time >= now
-                            and len(next_hours_preview) < 6
+                            and len(next_hours_preview) < MAX_HOURS_PREVIEW
                         ):
                             next_hours_preview.append(
                                 {

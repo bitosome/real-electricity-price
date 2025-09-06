@@ -54,6 +54,12 @@ TARIFF_OFF_PEAK = "off_peak"
 TARIFF_PEAK = "peak"
 TARIFF_FIXED = "fixed"
 
+# Off-peak calculation strategy
+CONF_OFFPEAK_STRATEGY = "offpeak_strategy"
+OFFPEAK_STRATEGY_NIGHT_WINDOW = "night_window"
+OFFPEAK_STRATEGY_NP_BLOCKS = "nordpool_blocks"
+OFFPEAK_STRATEGY_DEFAULT = OFFPEAK_STRATEGY_NIGHT_WINDOW
+
 # Configuration keys
 ## Basic configuration
 CONF_GRID = "grid"
@@ -68,6 +74,17 @@ CONF_GRID_ELECTRICITY_TRANSMISSION_PRICE_NIGHT = (
     "grid_electricity_transmission_price_night"
 )
 CONF_GRID_ELECTRICITY_TRANSMISSION_PRICE_DAY = "grid_electricity_transmission_price_day"
+
+# Extended grid transmission price configuration (for block-aligned tariffs)
+CONF_GRID_ELECTRICITY_TRANSMISSION_PRICE_OFFPEAK1 = (
+    "grid_electricity_transmission_price_offpeak1"
+)
+CONF_GRID_ELECTRICITY_TRANSMISSION_PRICE_PEAK = (
+    "grid_electricity_transmission_price_peak"
+)
+CONF_GRID_ELECTRICITY_TRANSMISSION_PRICE_OFFPEAK2 = (
+    "grid_electricity_transmission_price_offpeak2"
+)
 
 ## Supplier costs configuration
 CONF_SUPPLIER_RENEWABLE_ENERGY_CHARGE = "supplier_renewable_energy_charge"
@@ -119,6 +136,10 @@ HAS_NIGHT_TARIFF_DEFAULT = True  # Most suppliers have night/day tariffs
 NIGHT_TARIFF_SATURDAY_DEFAULT = True
 NIGHT_TARIFF_SUNDAY_DEFAULT = True
 NIGHT_TARIFF_PUBLIC_HOLIDAY_DEFAULT = True
+
+# Regional holiday code for subdivision-specific holidays (e.g., US state codes like CA, NY, DE or Canadian provinces like ON, BC)
+CONF_REGIONAL_HOLIDAY_CODE = "regional_holiday_code"
+REGIONAL_HOLIDAY_CODE_DEFAULT = ""
 
 
 def parse_time_string(time_str: str) -> tuple[int, int, int]:

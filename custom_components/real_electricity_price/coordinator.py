@@ -125,13 +125,12 @@ class RealElectricityPriceDataUpdateCoordinator(DataUpdateCoordinator):
                         time_since_sync = datetime.datetime.now(datetime.UTC) - last_sync
                         if time_since_sync.total_seconds() < 6 * 3600:  # 6 hours
                             _LOGGER.warning(
-                                "API returned no data but preserving recent data from %s to avoid sensor unavailability", 
+                                "API returned no data but preserving recent data from %s to avoid sensor unavailability",
                                 last_sync
                             )
                             # Don't trigger cheap hours update when preserving old data
                             return self.data
-                        else:
-                            _LOGGER.error("Last data is too stale (%s), not preserving", last_sync)
+                        _LOGGER.error("Last data is too stale (%s), not preserving", last_sync)
                     else:
                         _LOGGER.error("No timestamp in existing data, not preserving")
                 else:
@@ -196,7 +195,7 @@ class RealElectricityPriceDataUpdateCoordinator(DataUpdateCoordinator):
                     hourly_prices = tomorrow_data.get("hourly_prices", [])
                     # Check if tomorrow's prices are actually available (not just placeholder)
                     has_real_prices = any(
-                        entry.get("actual_price") is not None 
+                        entry.get("actual_price") is not None
                         for entry in hourly_prices
                     )
                     if has_real_prices:
@@ -206,11 +205,11 @@ class RealElectricityPriceDataUpdateCoordinator(DataUpdateCoordinator):
                         _LOGGER.debug("Integration startup: tomorrow's prices not yet available")
                 else:
                     _LOGGER.debug("Integration startup: no tomorrow data available")
-                
+
                 self._is_startup = False  # Only trigger once at startup
 
             return data
-        
+
         except RealElectricityPriceApiClientError as exception:
             # If we have existing data, preserve it during API failures to avoid data gaps
             if self.data is not None:

@@ -231,7 +231,7 @@ class CheapHoursDataUpdateCoordinator(DataUpdateCoordinator):
     async def async_manual_update(self) -> None:
         """
         Manually trigger cheap hours calculation.
-        
+
         This should only be called in 3 scenarios:
         1) Integration startup (when tomorrow's prices are available)
         2) Manual trigger via button/service call

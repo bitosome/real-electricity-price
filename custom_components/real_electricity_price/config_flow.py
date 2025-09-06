@@ -14,8 +14,8 @@ from homeassistant.helpers import selector
 from .const import (
     CHEAP_HOURS_BASE_PRICE_DEFAULT,
     CHEAP_HOURS_THRESHOLD_DEFAULT,
-    CONF_CHEAP_HOURS_BASE_PRICE,
     CONF_CALCULATE_CHEAP_HOURS,
+    CONF_CHEAP_HOURS_BASE_PRICE,
     CONF_CHEAP_HOURS_THRESHOLD,
     CONF_CHEAP_HOURS_UPDATE_TRIGGER,
     CONF_COUNTRY_CODE,
@@ -23,15 +23,20 @@ from .const import (
     CONF_GRID_ELECTRICITY_EXCISE_DUTY,
     CONF_GRID_ELECTRICITY_TRANSMISSION_PRICE_DAY,
     CONF_GRID_ELECTRICITY_TRANSMISSION_PRICE_NIGHT,
+    CONF_GRID_ELECTRICITY_TRANSMISSION_PRICE_OFFPEAK1,
+    CONF_GRID_ELECTRICITY_TRANSMISSION_PRICE_OFFPEAK2,
+    CONF_GRID_ELECTRICITY_TRANSMISSION_PRICE_PEAK,
     CONF_GRID_RENEWABLE_ENERGY_CHARGE,
     CONF_HAS_NIGHT_TARIFF,
     CONF_NIGHT_PRICE_END_HOUR,
     CONF_NIGHT_PRICE_END_TIME,
     CONF_NIGHT_PRICE_START_HOUR,
     CONF_NIGHT_PRICE_START_TIME,
+    CONF_NIGHT_TARIFF_PUBLIC_HOLIDAY,
     CONF_NIGHT_TARIFF_SATURDAY,
     CONF_NIGHT_TARIFF_SUNDAY,
-    CONF_NIGHT_TARIFF_PUBLIC_HOLIDAY,
+    CONF_OFFPEAK_STRATEGY,
+    CONF_REGIONAL_HOLIDAY_CODE,
     CONF_SCAN_INTERVAL,
     CONF_SUPPLIER,
     CONF_SUPPLIER_MARGIN,
@@ -57,9 +62,12 @@ from .const import (
     NIGHT_PRICE_END_TIME_DEFAULT,
     # Use time defaults only; derive hours from time strings
     NIGHT_PRICE_START_TIME_DEFAULT,
+    NIGHT_TARIFF_PUBLIC_HOLIDAY_DEFAULT,
     NIGHT_TARIFF_SATURDAY_DEFAULT,
     NIGHT_TARIFF_SUNDAY_DEFAULT,
-    NIGHT_TARIFF_PUBLIC_HOLIDAY_DEFAULT,
+    OFFPEAK_STRATEGY_DEFAULT,
+    OFFPEAK_STRATEGY_NIGHT_WINDOW,
+    OFFPEAK_STRATEGY_NP_BLOCKS,
     SCAN_INTERVAL_MAX,
     SCAN_INTERVAL_MIN,
     SCAN_INTERVAL_STEP,
@@ -98,6 +106,14 @@ VALID_COUNTRY_CODES = [
     "NO5",
     "DK1",
     "DK2",
+    # Extended Central-Western Europe day-ahead areas supported by Nord Pool
+    "DE-LU",
+    "NL",
+    "BE",
+    "FR",
+    "AT",
+    "PL",
+    "GB",
 ]
 
 
@@ -141,9 +157,10 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
             msg = "Cheap hours update time must be a valid time in HH:MM format"
             raise InvalidCheapPriceTrigger(msg)
 
-    # Handle time settings based on night tariff toggle
+    # Handle time settings based on night tariff toggle and chosen strategy
     has_night_tariff = data.get(CONF_HAS_NIGHT_TARIFF, HAS_NIGHT_TARIFF_DEFAULT)
-    if has_night_tariff:
+    strategy = data.get(CONF_OFFPEAK_STRATEGY, OFFPEAK_STRATEGY_DEFAULT)
+    if has_night_tariff and strategy == OFFPEAK_STRATEGY_NIGHT_WINDOW:
         # Handle both new TimeSelector and legacy hour formats
         start_time_str = data.get(CONF_NIGHT_PRICE_START_TIME)
         end_time_str = data.get(CONF_NIGHT_PRICE_END_TIME)
@@ -204,7 +221,7 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
         if start_hour == end_hour and end_hour != 0:
             msg = "Night price start and end times cannot be the same"
             raise InvalidNightHours(msg)
-    else:
+    elif not has_night_tariff:
         # Night tariff is disabled — do not require or validate times.
         # Normalize to defaults if missing/empty/invalid; never raise.
         start_time = data.get(CONF_NIGHT_PRICE_START_TIME)
@@ -243,6 +260,21 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
                 end_time if isinstance(end_time, str) else "",
                 NIGHT_PRICE_END_TIME_DEFAULT,
             )
+    else:
+        # has_night_tariff is True but strategy is block-aligned -> skip window time validation entirely
+        # Validate block tariff numeric fields if provided
+        for key in (
+            CONF_GRID_ELECTRICITY_TRANSMISSION_PRICE_OFFPEAK1,
+            CONF_GRID_ELECTRICITY_TRANSMISSION_PRICE_PEAK,
+            CONF_GRID_ELECTRICITY_TRANSMISSION_PRICE_OFFPEAK2,
+        ):
+            val = data.get(key)
+            if val is not None:
+                try:
+                    float(val)
+                except (TypeError, ValueError):
+                    msg = f"{key} must be a number"
+                    raise InvalidTimeFormat(msg)
 
     # Test connection to Nord Pool API
     try:
@@ -332,10 +364,10 @@ class RealElectricityPriceFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         self._errors = {}
 
         if user_input is not None:
-            # If night tariff is enabled, collect night times in a dedicated step
+            # If night tariff is enabled, branch to choose strategy first
             if user_input.get(CONF_HAS_NIGHT_TARIFF, HAS_NIGHT_TARIFF_DEFAULT):
                 self._user_data = user_input
-                return await self.async_step_night_times()
+                return await self.async_step_offpeak_strategy()
 
             # Night tariff disabled; if cheap hours is enabled, go to cheap hours step
             if user_input.get(CONF_CALCULATE_CHEAP_HOURS, False):
@@ -387,6 +419,152 @@ class RealElectricityPriceFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         return self.async_show_form(
             step_id="user",
             data_schema=self._get_user_schema(user_input),
+            errors=self._errors,
+        )
+
+    async def async_step_offpeak_strategy(
+        self, user_input: dict | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Choose how to determine off-peak periods."""
+        _LOGGER.debug("async_step_offpeak_strategy called with user_input: %s", user_input)
+        self._errors = {}
+
+        if user_input is not None:
+            merged = {**self._user_data, **user_input}
+            self._user_data = merged
+            strategy = merged.get(CONF_OFFPEAK_STRATEGY, OFFPEAK_STRATEGY_DEFAULT)
+            if strategy == OFFPEAK_STRATEGY_NP_BLOCKS:
+                return await self.async_step_block_tariffs()
+            # Default to night window times step
+            return await self.async_step_night_times()
+
+        schema = vol.Schema(
+            {
+                vol.Required(
+                    CONF_OFFPEAK_STRATEGY,
+                    default=self._user_data.get(
+                        CONF_OFFPEAK_STRATEGY, OFFPEAK_STRATEGY_DEFAULT
+                    ),
+                ): selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=[OFFPEAK_STRATEGY_NIGHT_WINDOW, OFFPEAK_STRATEGY_NP_BLOCKS],
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                )
+            }
+        )
+        return self.async_show_form(
+            step_id="offpeak_strategy",
+            data_schema=schema,
+            errors=self._errors,
+        )
+
+    async def async_step_block_tariffs(
+        self, user_input: dict | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Collect per-block transmission prices when using Nord Pool blocks."""
+        _LOGGER.debug("async_step_block_tariffs called with user_input: %s", user_input)
+        self._errors = {}
+
+        if user_input is not None:
+            merged = {**self._user_data, **user_input}
+            try:
+                # With block strategy, skip time validation (times may be absent)
+                info = await validate_input(self.hass, merged)
+            except InvalidCheapPriceTrigger:
+                self._errors[CONF_CHEAP_HOURS_UPDATE_TRIGGER] = (
+                    "invalid_cheap_price_trigger"
+                )
+            except InvalidCountryCode:
+                self._errors["country_code"] = "invalid_country_code"
+            except InvalidVatRate:
+                self._errors["vat"] = "invalid_vat_rate"
+            except InvalidScanInterval:
+                self._errors["scan_interval"] = "invalid_scan_interval"
+            except CannotConnect:
+                self._errors["base"] = "cannot_connect"
+            except Exception:  # pylint: disable=broad-except
+                _LOGGER.exception("Unexpected exception")
+                self._errors["base"] = "unknown"
+            else:
+                # Proceed to cheap hours step if enabled
+                if merged.get(CONF_CALCULATE_CHEAP_HOURS, False):
+                    self._user_data = merged
+                    return await self.async_step_cheap_hours()
+
+                name = merged.get(CONF_NAME, "Real Electricity Price")
+                grid = merged.get(CONF_GRID, GRID_DEFAULT)
+                supplier = merged.get(CONF_SUPPLIER, SUPPLIER_DEFAULT)
+                country = merged.get(CONF_COUNTRY_CODE, COUNTRY_CODE_DEFAULT)
+
+                unique_id = f"real_electricity_price_{name}_{grid}_{supplier}_{country}".lower().replace(
+                    " ", "_"
+                )
+                await self.async_set_unique_id(unique_id)
+                self._abort_if_unique_id_configured()
+
+                return self.async_create_entry(title=info["title"], data=merged)
+
+        schema = vol.Schema(
+            {
+                vol.Optional(
+                    CONF_GRID_ELECTRICITY_TRANSMISSION_PRICE_OFFPEAK1,
+                    default=self._user_data.get(
+                        CONF_GRID_ELECTRICITY_TRANSMISSION_PRICE_OFFPEAK1,
+                        GRID_ELECTRICITY_TRANSMISSION_PRICE_NIGHT_DEFAULT,
+                    ),
+                ): selector.NumberSelector(
+                    selector.NumberSelectorConfig(min=0, max=1, step="any", mode="box")
+                ),
+                vol.Optional(
+                    CONF_GRID_ELECTRICITY_TRANSMISSION_PRICE_PEAK,
+                    default=self._user_data.get(
+                        CONF_GRID_ELECTRICITY_TRANSMISSION_PRICE_PEAK,
+                        GRID_ELECTRICITY_TRANSMISSION_PRICE_DAY_DEFAULT,
+                    ),
+                ): selector.NumberSelector(
+                    selector.NumberSelectorConfig(min=0, max=1, step="any", mode="box")
+                ),
+                vol.Optional(
+                    CONF_GRID_ELECTRICITY_TRANSMISSION_PRICE_OFFPEAK2,
+                    default=self._user_data.get(
+                        CONF_GRID_ELECTRICITY_TRANSMISSION_PRICE_OFFPEAK2,
+                        GRID_ELECTRICITY_TRANSMISSION_PRICE_NIGHT_DEFAULT,
+                    ),
+                ): selector.NumberSelector(
+                    selector.NumberSelectorConfig(min=0, max=1, step="any", mode="box")
+                ),
+                vol.Optional(
+                    CONF_NIGHT_TARIFF_SATURDAY,
+                    default=self._user_data.get(
+                        CONF_NIGHT_TARIFF_SATURDAY, NIGHT_TARIFF_SATURDAY_DEFAULT
+                    ),
+                ): selector.BooleanSelector(),
+                vol.Optional(
+                    CONF_NIGHT_TARIFF_SUNDAY,
+                    default=self._user_data.get(
+                        CONF_NIGHT_TARIFF_SUNDAY, NIGHT_TARIFF_SUNDAY_DEFAULT
+                    ),
+                ): selector.BooleanSelector(),
+                vol.Optional(
+                    CONF_NIGHT_TARIFF_PUBLIC_HOLIDAY,
+                    default=self._user_data.get(
+                        CONF_NIGHT_TARIFF_PUBLIC_HOLIDAY,
+                        NIGHT_TARIFF_PUBLIC_HOLIDAY_DEFAULT,
+                    ),
+                ): selector.BooleanSelector(),
+                vol.Optional(
+                    CONF_REGIONAL_HOLIDAY_CODE,
+                    default=self._user_data.get(
+                        CONF_REGIONAL_HOLIDAY_CODE, ""
+                    ),
+                ): selector.TextSelector(),
+            }
+        )
+
+        return self.async_show_form(
+            step_id="block_tariffs",
+            data_schema=schema,
             errors=self._errors,
         )
 
@@ -653,6 +831,12 @@ class RealElectricityPriceFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                         NIGHT_TARIFF_PUBLIC_HOLIDAY_DEFAULT,
                     ),
                 ): selector.BooleanSelector(),
+                vol.Optional(
+                    CONF_REGIONAL_HOLIDAY_CODE,
+                    default=self._user_data.get(
+                        CONF_REGIONAL_HOLIDAY_CODE, ""
+                    ),
+                ): selector.TextSelector(),
             }
         )
 
@@ -800,16 +984,20 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
     def _get_options_schema(self, current_data: dict, options_data: dict) -> vol.Schema:
         """Get the options schema."""
-        # Check if night tariff is enabled to conditionally show time fields
+        # Check if night tariff is enabled to conditionally show fields
         has_night_tariff = options_data.get(
             CONF_HAS_NIGHT_TARIFF,
             current_data.get(CONF_HAS_NIGHT_TARIFF, HAS_NIGHT_TARIFF_DEFAULT),
+        )
+        strategy = options_data.get(
+            CONF_OFFPEAK_STRATEGY,
+            current_data.get(CONF_OFFPEAK_STRATEGY, OFFPEAK_STRATEGY_DEFAULT),
         )
         calculate_cheap = options_data.get(
             CONF_CALCULATE_CHEAP_HOURS,
             current_data.get(CONF_CALCULATE_CHEAP_HOURS, True),
         )
-        
+
         schema_dict = {
                 vol.Optional(
                     CONF_NAME,
@@ -817,6 +1005,20 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                         CONF_NAME, current_data.get(CONF_NAME, "Real Electricity Price")
                     ),
                 ): selector.TextSelector(),
+                vol.Optional(
+                    CONF_OFFPEAK_STRATEGY,
+                    default=options_data.get(
+                        CONF_OFFPEAK_STRATEGY,
+                        current_data.get(
+                            CONF_OFFPEAK_STRATEGY, OFFPEAK_STRATEGY_DEFAULT
+                        ),
+                    ),
+                ): selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=[OFFPEAK_STRATEGY_NIGHT_WINDOW, OFFPEAK_STRATEGY_NP_BLOCKS],
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                ),
                 # Grid parameters
                 vol.Optional(
                     CONF_GRID,
@@ -1023,9 +1225,9 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     )  # 5 min to 24 hours
                 ),
         }
-        
+
         # Only add time fields when night tariff is enabled; omit entirely when disabled
-        if has_night_tariff:
+        if has_night_tariff and strategy == OFFPEAK_STRATEGY_NIGHT_WINDOW:
             schema_dict.update({
                 vol.Optional(
                     CONF_NIGHT_PRICE_START_TIME,
@@ -1086,6 +1288,88 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                         ),
                     ),
                 ): selector.BooleanSelector(),
+                vol.Optional(
+                    CONF_REGIONAL_HOLIDAY_CODE,
+                    default=options_data.get(
+                        CONF_REGIONAL_HOLIDAY_CODE,
+                        current_data.get(CONF_REGIONAL_HOLIDAY_CODE, ""),
+                    ),
+                ): selector.TextSelector(),
+            })
+        elif has_night_tariff and strategy == OFFPEAK_STRATEGY_NP_BLOCKS:
+            # Show per-block transmission price fields and weekend/holiday settings
+            schema_dict.update({
+                vol.Optional(
+                    CONF_GRID_ELECTRICITY_TRANSMISSION_PRICE_OFFPEAK1,
+                    default=options_data.get(
+                        CONF_GRID_ELECTRICITY_TRANSMISSION_PRICE_OFFPEAK1,
+                        current_data.get(
+                            CONF_GRID_ELECTRICITY_TRANSMISSION_PRICE_OFFPEAK1,
+                            GRID_ELECTRICITY_TRANSMISSION_PRICE_NIGHT_DEFAULT,
+                        ),
+                    ),
+                ): selector.NumberSelector(
+                    selector.NumberSelectorConfig(min=0, max=1, step="any", mode="box")
+                ),
+                vol.Optional(
+                    CONF_GRID_ELECTRICITY_TRANSMISSION_PRICE_PEAK,
+                    default=options_data.get(
+                        CONF_GRID_ELECTRICITY_TRANSMISSION_PRICE_PEAK,
+                        current_data.get(
+                            CONF_GRID_ELECTRICITY_TRANSMISSION_PRICE_PEAK,
+                            GRID_ELECTRICITY_TRANSMISSION_PRICE_DAY_DEFAULT,
+                        ),
+                    ),
+                ): selector.NumberSelector(
+                    selector.NumberSelectorConfig(min=0, max=1, step="any", mode="box")
+                ),
+                vol.Optional(
+                    CONF_GRID_ELECTRICITY_TRANSMISSION_PRICE_OFFPEAK2,
+                    default=options_data.get(
+                        CONF_GRID_ELECTRICITY_TRANSMISSION_PRICE_OFFPEAK2,
+                        current_data.get(
+                            CONF_GRID_ELECTRICITY_TRANSMISSION_PRICE_OFFPEAK2,
+                            GRID_ELECTRICITY_TRANSMISSION_PRICE_NIGHT_DEFAULT,
+                        ),
+                    ),
+                ): selector.NumberSelector(
+                    selector.NumberSelectorConfig(min=0, max=1, step="any", mode="box")
+                ),
+                vol.Optional(
+                    CONF_NIGHT_TARIFF_SATURDAY,
+                    default=options_data.get(
+                        CONF_NIGHT_TARIFF_SATURDAY,
+                        current_data.get(
+                            CONF_NIGHT_TARIFF_SATURDAY, NIGHT_TARIFF_SATURDAY_DEFAULT
+                        ),
+                    ),
+                ): selector.BooleanSelector(),
+                vol.Optional(
+                    CONF_NIGHT_TARIFF_SUNDAY,
+                    default=options_data.get(
+                        CONF_NIGHT_TARIFF_SUNDAY,
+                        current_data.get(
+                            CONF_NIGHT_TARIFF_SUNDAY, NIGHT_TARIFF_SUNDAY_DEFAULT
+                        ),
+                    ),
+                ): selector.BooleanSelector(),
+                vol.Optional(
+                    CONF_NIGHT_TARIFF_PUBLIC_HOLIDAY,
+                    default=options_data.get(
+                        CONF_NIGHT_TARIFF_PUBLIC_HOLIDAY,
+                        current_data.get(
+                            CONF_NIGHT_TARIFF_PUBLIC_HOLIDAY,
+                            NIGHT_TARIFF_PUBLIC_HOLIDAY_DEFAULT,
+                        ),
+                    ),
+                ): selector.BooleanSelector(),
+                vol.Optional(
+                    CONF_REGIONAL_HOLIDAY_CODE,
+                    default=options_data.get(
+                        CONF_REGIONAL_HOLIDAY_CODE,
+                        current_data.get(CONF_REGIONAL_HOLIDAY_CODE, ""),
+                    ),
+                ): selector.TextSelector(),
             })
         else:
             _LOGGER.debug("Night tariff disabled in options; omitting night time fields")
@@ -1156,7 +1440,10 @@ class InvalidCountryCode(data_entry_flow.AbortFlow):
 
     def __init__(
         self,
-        message: str = "Country code must be one of: EE, FI, LV, LT, SE1, SE2, SE3, SE4, NO1, NO2, NO3, NO4, NO5, DK1, DK2",
+        message: str = (
+            "Country code must be one of: EE, FI, LV, LT, SE1, SE2, SE3, SE4, "
+            "NO1, NO2, NO3, NO4, NO5, DK1, DK2, DE-LU, NL, BE, FR, AT, PL, GB"
+        ),
     ) -> None:
         super().__init__(message)
 

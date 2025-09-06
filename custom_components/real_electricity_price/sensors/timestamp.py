@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from .base import RealElectricityPriceBaseSensor
+
+if TYPE_CHECKING:
+    from homeassistant.components.sensor import SensorEntityDescription
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -61,7 +64,7 @@ class LastSyncSensor(RealElectricityPriceBaseSensor):
 class LastCheapCalculationSensor(RealElectricityPriceBaseSensor):
     """Sensor for last cheap price calculation timestamp."""
 
-    def __init__(self, coordinator, description) -> None:
+    def __init__(self, coordinator: object, description: SensorEntityDescription) -> None:
         """Initialize the sensor."""
         super().__init__(coordinator, description)
         # This sensor should use the cheap price coordinator

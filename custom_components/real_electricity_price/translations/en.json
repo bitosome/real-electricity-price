@@ -24,11 +24,16 @@
                     "vat_supplier_renewable_energy_charge": "Apply VAT to Supplier Renewable Energy Charge",
                     "vat_supplier_margin": "Apply VAT to Supplier Margin",
                     "has_night_tariff": "Has Off-peak/Peak Tariff",
+                    "offpeak_strategy": "Off-peak Strategy",
                     "time_format_24h": "Use 24-hour time format",
                     "night_price_start_time": "Off-peak Start Time (only used if off-peak/peak tariff is enabled)",
                     "night_price_end_time": "Off-peak End Time (only used if off-peak/peak tariff is enabled)",
                     "night_price_start_hour": "Off-peak Start Hour (0-23)",
                     "night_price_end_hour": "Off-peak End Hour (0-23)",
+                    "grid_electricity_transmission_price_offpeak1": "Transmission Price - Off-peak 1 (€/kWh)",
+                    "grid_electricity_transmission_price_peak": "Transmission Price - Peak (€/kWh)",
+                    "grid_electricity_transmission_price_offpeak2": "Transmission Price - Off-peak 2 (€/kWh)",
+                    "regional_holiday_code": "Regional Holiday Code (optional - Germany: BW, BY, BE | France: GP, RE | Norway: 03, 11)",
                     "scan_interval": "Scan Interval (seconds)",
                     "update_trigger": "Update Trigger (Advanced)",
                     "cheap_hours_update_trigger": "Cheap Hours Calculation Time",
@@ -38,9 +43,37 @@
                 }
             }
             ,
+            "offpeak_strategy": {
+                "title": "Off-peak Strategy",
+                "description": "Choose how to determine off-peak periods.",
+                "data": {
+                    "offpeak_strategy": "Off-peak Strategy"
+                },
+                "options": {
+                    "offpeak_strategy": {
+                        "night_window": "Night Window (fixed time periods)",
+                        "nordpool_blocks": "Nord Pool Blocks (Off-peak 1, Peak, Off-peak 2)"
+                    }
+                }
+            }
+            ,
+            "block_tariffs": {
+                "title": "Block Tariffs",
+                "description": "Configure per-block transmission prices and weekend/holiday behavior. Regional Holiday Code: Germany (BW=Baden-Württemberg, BY=Bavaria), France (GP=Guadeloupe, RE=Réunion), Norway (03=Oslo, 11=Rogaland).",
+                "data": {
+                    "grid_electricity_transmission_price_offpeak1": "Transmission Price - Off-peak 1 (€/kWh)",
+                    "grid_electricity_transmission_price_peak": "Transmission Price - Peak (€/kWh)",
+                    "grid_electricity_transmission_price_offpeak2": "Transmission Price - Off-peak 2 (€/kWh)",
+                    "night_tariff_saturday": "Use off-peak all day on Saturdays",
+                    "night_tariff_sunday": "Use off-peak all day on Sundays",
+                    "night_tariff_public_holiday": "Use off-peak all day on public holidays",
+                    "regional_holiday_code": "Regional Holiday Code (optional - Germany: BW, BY, BE | France: GP, RE | Norway: 03, 11)"
+                }
+            }
+            ,
             "night_times": {
                 "title": "Off-peak Tariff Times",
-                "description": "Specify off-peak start and end times (24-hour format).",
+                "description": "Specify off-peak start and end times (24-hour format). Regional Holiday Code: Germany (BW=Baden-Württemberg, BY=Bavaria), France (GP=Guadeloupe, RE=Réunion), Norway (03=Oslo, 11=Rogaland).",
                 "data": {
                     "night_price_start_time": "Off-peak Start Time",
                     "night_price_end_time": "Off-peak End Time",
@@ -72,10 +105,21 @@
             "invalid_hour_range": "Night price hours must be valid hours between 00 and 23.",
             "invalid_night_hours": "Night price start and end times cannot be the same (except when ending at midnight).",
             "invalid_time_format": "Time must be valid. For night/day tariff configuration, use 24-hour format (00:00 to 23:59). Example: 22:00 for night start, 07:00 for night end.",
-            "invalid_cheap_price_trigger": "Cheap hours calculation time must be in HH:MM format. Example: 15:00."
+            "invalid_cheap_price_trigger": "Cheap hours calculation time must be in HH:MM format. Example: 15:00.",
+            "invalid_country_code": "Invalid Nord Pool area code. Please check the supported areas.",
+            "invalid_vat_rate": "VAT rate must be between 0 and 100 percent.",
+            "invalid_scan_interval": "Scan interval must be a positive number in seconds."
         },
         "abort": {
             "already_configured": "This entry is already configured."
+        },
+        "selector": {
+            "offpeak_strategy": {
+                "options": {
+                    "night_window": "Night Window (fixed time periods)",
+                    "nordpool_blocks": "Nord Pool Blocks (Off-peak 1, Peak, Off-peak 2)"
+                }
+            }
         }
     },
     "options": {

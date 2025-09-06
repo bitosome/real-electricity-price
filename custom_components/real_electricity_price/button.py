@@ -8,8 +8,8 @@ from typing import TYPE_CHECKING
 from homeassistant.components.button import ButtonEntity
 from homeassistant.const import CONF_NAME
 
-from .entity import RealElectricityPriceEntity
 from .const import CONF_CALCULATE_CHEAP_HOURS
+from .entity import RealElectricityPriceEntity
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant

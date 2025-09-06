@@ -9,9 +9,12 @@ A comprehensive Home Assistant integration providing real-time electricity price
 
 ## ✨ Features
 
-- **Real-time Nord Pool prices** for all delivery areas (EE, FI, LV, LT, SE1-4, NO1-5, DK1-2)
+- **Real-time Nord Pool prices** for all delivery areas (Nordic/Baltic + Central-Western Europe)
+- **Dual off-peak strategies**: Fixed time windows OR Nord Pool blocks (Off-peak 1, Peak, Off-peak 2)
+- **Extended area support**: EE, FI, LV, LT, SE1-4, NO1-5, DK1-2, DE-LU, NL, BE, FR, AT, PL, GB
 - **Component-based pricing** with separate grid, supplier, and market costs
-- **Flexible VAT configuration** per cost component
+- **Flexible VAT configuration** per cost component  
+- **Regional holiday support** with subdivision codes (German states, French territories, Norwegian counties)
 - **Smart cheap-hours analysis** with intelligent triggering and configurable thresholds
 - **High reliability** with intelligent data retention during API outages
 - **Weekend/holiday awareness** for accurate tariff calculations
@@ -51,7 +54,9 @@ The integration is configured entirely through the Home Assistant UI. After inst
 
 ### Basic Settings
 - **Name**: Device name for grouping entities
-- **Country/Area**: Nord Pool delivery area (EE, FI, LV, LT, SE1-4, NO1-5, DK1-2)
+- **Country/Area**: Nord Pool delivery area covering:
+  - **Nordic/Baltic**: EE, FI, LV, LT, SE1-4, NO1-5, DK1-2
+  - **Central-Western Europe**: DE-LU, NL, BE, FR, AT, PL, GB
 - **Grid Provider**: Your grid operator name
 - **Supplier**: Your electricity supplier name
 
@@ -61,8 +66,25 @@ Configure your local electricity costs in €/kWh:
 - Supplier renewable charges and margin
 - VAT percentage and per-component VAT flags
 
-### Time Settings
+### Off-peak Strategy Configuration
+Choose how off-peak periods are determined:
+
+#### Night Window Strategy (Default)
 - **Night tariff hours**: Define when night prices apply (default: 22:00-07:00)
+- **Weekend/holiday behavior**: Apply off-peak rates all day on weekends/holidays
+- **Regional holidays**: Optional subdivision codes for specific regional holidays:
+  - **Germany**: BW (Baden-Württemberg), BY (Bavaria), BE (Berlin), etc.
+  - **France**: GP (Guadeloupe), RE (Réunion) for overseas territories
+  - **Norway**: 03 (Oslo), 11 (Rogaland) for county-specific holidays
+
+#### Nord Pool Blocks Strategy  
+- **Block-based pricing**: Aligns with Nord Pool's Off-peak 1, Peak, Off-peak 2 structure
+- **Per-block transmission prices**: Configure separate rates for each block period
+- **Automatic block detection**: Uses Nord Pool's `blockPriceAggregates` when available
+- **Fallback time mapping**: 00-07h (Off-peak 1), 08-19h (Peak), 20-23h (Off-peak 2)
+- **Weekend/holiday override**: Apply off-peak rates all day when enabled
+
+### Update Settings
 - **Update intervals**: Data refresh frequency (default: 1 hour)
 - **Cheap hours calculation**: Daily recalculation time (default: 15:00)
 
@@ -143,7 +165,27 @@ logger:
 
 **Note**: Recent updates have significantly reduced log noise. Most API-related warnings are now debug-level messages, with only critical issues logged as warnings or errors.
 
-## 🔄 Recent Updates (v1.1.1)
+## 🆕 Latest Features (v1.1.0)
+
+### New Off-peak Strategy System
+- **Dual strategy support**: Choose between traditional night windows or Nord Pool blocks
+- **Nord Pool blocks alignment**: Off-peak 1 (00-07h), Peak (08-19h), Off-peak 2 (20-23h)
+- **Per-block transmission pricing**: Configure separate rates for each time block
+- **Enhanced weekend/holiday handling**: Consistent behavior across both strategies
+
+### Expanded Market Coverage
+- **Central-Western Europe support**: Added DE-LU, NL, BE, FR, AT, PL, GB areas
+- **Regional holiday support**: Subdivision codes for Germany, France, Norway
+- **Comprehensive translations**: Updated UI with Nord Pool region-specific examples
+- **Strategy-aware configuration**: UI adapts based on selected off-peak method
+
+### Testing & Quality Improvements  
+- **Comprehensive test suite**: 100+ test scenarios covering all strategy combinations
+- **All area validation**: Tests for all 17 supported Nord Pool areas
+- **Edge case coverage**: Boundary conditions, invalid inputs, and error handling
+- **Strategy transition testing**: Validates switching between configuration modes
+
+## 🔄 Previous Updates (v1.0.1)
 
 ### Bug Fixes & Reliability Improvements
 - **Fixed timezone consistency**: Eliminated date mismatch warnings at timezone boundaries

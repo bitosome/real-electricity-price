@@ -13,8 +13,9 @@ if TYPE_CHECKING:
     from .cheap_hours_coordinator import CheapHoursDataUpdateCoordinator
     from .coordinator import RealElectricityPriceDataUpdateCoordinator
 
-
-type RealElectricityPriceConfigEntry = ConfigEntry[RealElectricityPriceData]
+    # Python <3.12 compatibility: define type alias only for type checking
+    # to avoid runtime syntax errors.
+    RealElectricityPriceConfigEntry = ConfigEntry["RealElectricityPriceData"]
 
 
 @dataclass

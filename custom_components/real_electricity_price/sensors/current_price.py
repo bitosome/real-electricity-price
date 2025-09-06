@@ -5,25 +5,25 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
-from homeassistant.util import dt as dt_util
 import holidays
+from homeassistant.util import dt as dt_util
 
 from ..const import (
     CONF_HAS_NIGHT_TARIFF,
-    CONF_NIGHT_TARIFF_SATURDAY,
-    CONF_NIGHT_TARIFF_SUNDAY,
-    CONF_NIGHT_TARIFF_PUBLIC_HOLIDAY,
     CONF_NIGHT_PRICE_END_TIME,
     CONF_NIGHT_PRICE_START_TIME,
+    CONF_NIGHT_TARIFF_PUBLIC_HOLIDAY,
+    CONF_NIGHT_TARIFF_SATURDAY,
+    CONF_NIGHT_TARIFF_SUNDAY,
     HAS_NIGHT_TARIFF_DEFAULT,
-    NIGHT_TARIFF_SATURDAY_DEFAULT,
-    NIGHT_TARIFF_SUNDAY_DEFAULT,
-    NIGHT_TARIFF_PUBLIC_HOLIDAY_DEFAULT,
     NIGHT_PRICE_END_TIME_DEFAULT,
     NIGHT_PRICE_START_TIME_DEFAULT,
+    NIGHT_TARIFF_PUBLIC_HOLIDAY_DEFAULT,
+    NIGHT_TARIFF_SATURDAY_DEFAULT,
+    NIGHT_TARIFF_SUNDAY_DEFAULT,
+    TARIFF_FIXED,
     TARIFF_OFF_PEAK,
     TARIFF_PEAK,
-    TARIFF_FIXED,
     parse_time_string,
 )
 
@@ -265,12 +265,12 @@ class CurrentPriceSensor(RealElectricityPriceBaseSensor):
             **self.coordinator.config_entry.data,
             **self.coordinator.config_entry.options,
         }
-        
+
         # Check if night tariff is enabled
         has_night_tariff = config_data.get(CONF_HAS_NIGHT_TARIFF, HAS_NIGHT_TARIFF_DEFAULT)
         if not has_night_tariff:
             return TARIFF_FIXED
-            
+
         start_val = config_data.get(
             CONF_NIGHT_PRICE_START_TIME, NIGHT_PRICE_START_TIME_DEFAULT
         )
@@ -436,7 +436,7 @@ class CurrentTariffSensor(RealElectricityPriceBaseSensor):
         current_tariff = self._get_current_tariff_value()
         if current_tariff == TARIFF_OFF_PEAK:
             return "mdi:weather-night"
-        elif current_tariff == TARIFF_FIXED:
+        if current_tariff == TARIFF_FIXED:
             return "mdi:calendar-clock"
         return "mdi:weather-sunny"
 
@@ -449,12 +449,12 @@ class CurrentTariffSensor(RealElectricityPriceBaseSensor):
             **self.coordinator.config_entry.data,
             **self.coordinator.config_entry.options,
         }
-        
+
         # Check if night tariff is enabled
         has_night_tariff = config_data.get(CONF_HAS_NIGHT_TARIFF, HAS_NIGHT_TARIFF_DEFAULT)
         if not has_night_tariff:
             return TARIFF_FIXED
-            
+
         start_val = config_data.get(
             CONF_NIGHT_PRICE_START_TIME, NIGHT_PRICE_START_TIME_DEFAULT
         )

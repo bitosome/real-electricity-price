@@ -22,6 +22,7 @@ from .const import (
     CONF_GRID,
     CONF_NIGHT_PRICE_END_TIME,
     CONF_NIGHT_PRICE_START_TIME,
+    CONF_OFFPEAK_STRATEGY,
     CONF_SCAN_INTERVAL,
     CONF_SUPPLIER,
     COUNTRY_CODE_DEFAULT,
@@ -32,6 +33,7 @@ from .const import (
     LOGGER,
     NIGHT_PRICE_END_TIME_DEFAULT,
     NIGHT_PRICE_START_TIME_DEFAULT,
+    OFFPEAK_STRATEGY_DEFAULT,
     SUPPLIER_DEFAULT,
 )
 from .coordinator import RealElectricityPriceDataUpdateCoordinator
@@ -104,7 +106,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
             )
         )
         LOGGER.info("Config entry creation initiated successfully")
-    except Exception as e:
+    except (ValueError, KeyError) as e:
         LOGGER.error("Error creating config entry: %s", e)
         return False
 
@@ -126,6 +128,15 @@ async def async_setup_entry(
         new_data = dict(entry.data)
         new_data[CONF_CHEAP_HOURS_UPDATE_TRIGGER] = DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER
 
+        hass.config_entries.async_update_entry(entry, data=new_data)
+
+    # Migration: Add missing off-peak strategy to existing configs
+    if (
+        CONF_OFFPEAK_STRATEGY not in entry.data
+        and CONF_OFFPEAK_STRATEGY not in entry.options
+    ):
+        new_data = dict(entry.data)
+        new_data[CONF_OFFPEAK_STRATEGY] = OFFPEAK_STRATEGY_DEFAULT
         hass.config_entries.async_update_entry(entry, data=new_data)
 
     # Merge entry data with options (options override data)
@@ -173,7 +184,7 @@ async def async_setup_entry(
 
     # Set up reload listener to update trigger configurations
     async def async_reload_triggers(
-        hass: HomeAssistant, updated_entry: RealElectricityPriceConfigEntry
+        _hass: HomeAssistant, _updated_entry: RealElectricityPriceConfigEntry
     ) -> None:
         """Update trigger configurations when config changes."""
         cheap_hours_coordinator.update_trigger_config()
@@ -181,12 +192,12 @@ async def async_setup_entry(
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))
 
     # Register services
-    async def async_refresh_data(call) -> None:
+    async def async_refresh_data(_call: object) -> None:
         """Handle refresh data service call."""
         LOGGER.debug("Refresh data service called")
         await coordinator.async_request_refresh()
 
-    async def async_recalculate_cheap_prices(call) -> None:
+    async def async_recalculate_cheap_prices(_call: object) -> None:
         """Handle recalculate cheap prices service call."""
         LOGGER.info("Manual cheap hours calculation triggered via service call")
         await cheap_hours_coordinator.async_manual_update()

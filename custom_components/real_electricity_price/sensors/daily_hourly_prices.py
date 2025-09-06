@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from homeassistant.util import dt as dt_util
 
 from .base import RealElectricityPriceBaseSensor
+
+if TYPE_CHECKING:
+    from homeassistant.components.sensor import SensorEntityDescription
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -159,7 +162,7 @@ class DailyHourlyPricesSensor(RealElectricityPriceBaseSensor):
 class HourlyPricesYesterdaySensor(DailyHourlyPricesSensor):
     """Sensor for yesterday's hourly electricity prices."""
 
-    def __init__(self, coordinator, description) -> None:
+    def __init__(self, coordinator: object, description: SensorEntityDescription) -> None:
         """Initialize the yesterday hourly prices sensor."""
         super().__init__(coordinator, description, "yesterday")
 
@@ -167,7 +170,7 @@ class HourlyPricesYesterdaySensor(DailyHourlyPricesSensor):
 class HourlyPricesTodaySensor(DailyHourlyPricesSensor):
     """Sensor for today's hourly electricity prices."""
 
-    def __init__(self, coordinator, description) -> None:
+    def __init__(self, coordinator: object, description: SensorEntityDescription) -> None:
         """Initialize the today hourly prices sensor."""
         super().__init__(coordinator, description, "today")
 
@@ -175,6 +178,6 @@ class HourlyPricesTodaySensor(DailyHourlyPricesSensor):
 class HourlyPricesTomorrowSensor(DailyHourlyPricesSensor):
     """Sensor for tomorrow's hourly electricity prices."""
 
-    def __init__(self, coordinator, description) -> None:
+    def __init__(self, coordinator: object, description: SensorEntityDescription) -> None:
         """Initialize the tomorrow hourly prices sensor."""
         super().__init__(coordinator, description, "tomorrow")
