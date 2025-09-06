@@ -246,8 +246,8 @@ class CheapHoursDataUpdateCoordinator(DataUpdateCoordinator):
             # Get data from main coordinator
             main_data = self.main_coordinator.data
             if not main_data:
-                _LOGGER.warning(
-                    "No data available from main coordinator for cheap price calculation"
+                _LOGGER.debug(
+                    "No data available from main coordinator for cheap price calculation - waiting for API data"
                 )
                 return None
 

@@ -185,7 +185,7 @@ class RealElectricityPriceApiClient:
             )
 
             if not today_data:
-                _LOGGER.warning("Failed to fetch today's electricity price data")
+                _LOGGER.error("Failed to fetch today's electricity price data for %s - this may indicate API issues", today.isoformat())
                 return None
 
             # Process the data
@@ -266,7 +266,12 @@ class RealElectricityPriceApiClient:
                 headers=headers,
             )
         except RealElectricityPriceApiClientError:
-            _LOGGER.warning("Failed to fetch data for %s", date.isoformat())
+            # Reduce log noise for expected failures (tomorrow's data before publication)
+            tomorrow = dt_util.now().date() + datetime.timedelta(days=1)
+            if date == tomorrow:
+                _LOGGER.debug("Tomorrow's data not yet available for %s (normal before ~15:00 CET)", date.isoformat())
+            else:
+                _LOGGER.warning("Failed to fetch data for %s", date.isoformat())
             return None
 
     async def _create_placeholder_day_data(
