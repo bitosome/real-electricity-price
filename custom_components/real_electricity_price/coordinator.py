@@ -10,6 +10,7 @@ from homeassistant.const import EVENT_HOMEASSISTANT_STOP
 from homeassistant.core import callback
 from homeassistant.helpers.event import async_track_time_change
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.util import dt as dt_util
 
 from .api import RealElectricityPriceApiClientError
 from .const import (
@@ -99,7 +100,7 @@ class RealElectricityPriceDataUpdateCoordinator(DataUpdateCoordinator):
     async def _async_update_data(self) -> Any:
         """Update data via library."""
         try:
-            current_date = datetime.datetime.now(datetime.UTC).date()
+            current_date = dt_util.now().date()
             datetime.datetime.now(datetime.UTC)
 
             # Check if we need to force update due to date change
