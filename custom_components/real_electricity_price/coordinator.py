@@ -45,6 +45,7 @@ class RealElectricityPriceDataUpdateCoordinator(DataUpdateCoordinator):
         self._midnight_update_unsub: Callable[[], None] | None = None
         self._stop_unsub: Callable[[], None] | None = None
         self._cheap_price_coordinator = None  # Will be set after initialization
+        self._is_startup = True  # Track if this is initial startup
 
         # Centralized hourly tick at hh:00 for all sensors (no network call)
         self._hourly_update_unsub = async_track_time_change(
@@ -188,12 +189,25 @@ class RealElectricityPriceDataUpdateCoordinator(DataUpdateCoordinator):
 
             self._last_update_date = current_date
 
-            # Trigger cheap price coordinator update after successful data sync
-            if self._cheap_price_coordinator:
-                _LOGGER.debug(
-                    "Triggering cheap price coordinator update after fresh data sync"
-                )
-                await self._cheap_price_coordinator.async_manual_update()
+            # Scenario #1: Integration startup with tomorrow's data available
+            if self._is_startup and self._cheap_price_coordinator:
+                tomorrow_data = data.get("tomorrow")
+                if tomorrow_data and isinstance(tomorrow_data, dict):
+                    hourly_prices = tomorrow_data.get("hourly_prices", [])
+                    # Check if tomorrow's prices are actually available (not just placeholder)
+                    has_real_prices = any(
+                        entry.get("actual_price") is not None 
+                        for entry in hourly_prices
+                    )
+                    if has_real_prices:
+                        _LOGGER.info("Integration startup: tomorrow's prices available, triggering cheap hours calculation")
+                        await self._cheap_price_coordinator.async_manual_update()
+                    else:
+                        _LOGGER.debug("Integration startup: tomorrow's prices not yet available")
+                else:
+                    _LOGGER.debug("Integration startup: no tomorrow data available")
+                
+                self._is_startup = False  # Only trigger once at startup
 
             return data
         

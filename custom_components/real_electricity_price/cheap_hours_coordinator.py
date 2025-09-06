@@ -224,13 +224,20 @@ class CheapHoursDataUpdateCoordinator(DataUpdateCoordinator):
     @callback
     def _handle_trigger(self, now: datetime.datetime) -> None:
         """Handle the scheduled trigger to update cheap price data."""
-        _LOGGER.debug("Cheap price trigger fired at %s", now)
+        _LOGGER.info("Scheduled cheap hours calculation triggered at %s", now)
         # Create a task to update the data
         self.hass.async_create_task(self.async_manual_update())
 
     async def async_manual_update(self) -> None:
-        """Manually trigger an update of cheap price data."""
-        _LOGGER.debug("Manual cheap price update requested")
+        """
+        Manually trigger cheap hours calculation.
+        
+        This should only be called in 3 scenarios:
+        1) Integration startup (when tomorrow's prices are available)
+        2) Manual trigger via button/service call
+        3) Scheduled time trigger (configured cheap_hours_update_trigger)
+        """
+        _LOGGER.debug("Cheap hours calculation requested")
 
         # If called after successful main coordinator sync, data should be available
         # Don't trigger additional API calls to avoid cascading failures

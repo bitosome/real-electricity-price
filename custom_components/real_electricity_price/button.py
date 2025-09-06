@@ -88,6 +88,6 @@ class RealElectricityPriceCalculateCheapHoursButton(
 
     async def async_press(self) -> None:
         """Handle the button press."""
-        _LOGGER.debug("Calculate cheap hours button pressed, triggering manual update")
+        _LOGGER.info("Manual cheap hours calculation triggered via button press")
         # Trigger manual update of cheap price data
         await self.cheap_coordinator.async_manual_update()

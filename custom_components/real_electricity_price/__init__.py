@@ -188,7 +188,7 @@ async def async_setup_entry(
 
     async def async_recalculate_cheap_prices(call) -> None:
         """Handle recalculate cheap prices service call."""
-        LOGGER.debug("Recalculate cheap prices service called")
+        LOGGER.info("Manual cheap hours calculation triggered via service call")
         await cheap_hours_coordinator.async_manual_update()
 
     hass.services.async_register(
