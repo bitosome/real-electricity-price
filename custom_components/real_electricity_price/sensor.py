@@ -26,6 +26,7 @@ if TYPE_CHECKING:
     from .data import RealElectricityPriceConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
+from .const import CONF_CALCULATE_CHEAP_HOURS
 
 # Sensor type constants
 SENSOR_TYPE_CURRENT_PRICE = "current_price"
@@ -121,34 +122,36 @@ async def async_setup_entry(
         else:
             _LOGGER.warning("Unknown sensor key: %s", key)
 
-    # Add cheap hours coordinator sensors
-    cheap_hours_sensors = [
-        "real_electricity_price_cheap_hours",
-        "real_electricity_price_next_cheap_hours_start",
-        "real_electricity_price_next_cheap_hours_end",
-        "real_electricity_price_last_cheap_calculation",
-    ]
+    # Add cheap hours coordinator sensors only if enabled
+    cfg = {**entry.data, **entry.options}
+    if cfg.get(CONF_CALCULATE_CHEAP_HOURS, True):
+        cheap_hours_sensors = [
+            "real_electricity_price_cheap_hours",
+            "real_electricity_price_next_cheap_hours_start",
+            "real_electricity_price_next_cheap_hours_end",
+            "real_electricity_price_last_cheap_calculation",
+        ]
 
-    for key in cheap_hours_sensors:
-        # Find the description with matching key
-        description = None
-        for desc in SENSOR_DESCRIPTIONS:
-            if desc.key == key:
-                description = desc
-                break
+        for key in cheap_hours_sensors:
+            # Find the description with matching key
+            description = None
+            for desc in SENSOR_DESCRIPTIONS:
+                if desc.key == key:
+                    description = desc
+                    break
 
-        if description and key in SENSOR_REGISTRY:
-            sensor_type, sensor_class = SENSOR_REGISTRY[key]
-            _LOGGER.debug(
-                "Creating cheap hours sensor: %s (type: %s)", key, sensor_type
-            )
-
-            entities.append(
-                sensor_class(
-                    coordinator=entry.runtime_data.cheap_hours_coordinator,
-                    description=description,
+            if description and key in SENSOR_REGISTRY:
+                sensor_type, sensor_class = SENSOR_REGISTRY[key]
+                _LOGGER.debug(
+                    "Creating cheap hours sensor: %s (type: %s)", key, sensor_type
                 )
-            )
+
+                entities.append(
+                    sensor_class(
+                        coordinator=entry.runtime_data.cheap_hours_coordinator,
+                        description=description,
+                    )
+                )
 
     _LOGGER.debug("Adding %d sensor entities", len(entities))
     async_add_entities(entities, update_before_add=True)

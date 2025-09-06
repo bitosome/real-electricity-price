@@ -15,6 +15,7 @@ from .const import (
     CHEAP_HOURS_BASE_PRICE_DEFAULT,
     CHEAP_HOURS_THRESHOLD_DEFAULT,
     CONF_CHEAP_HOURS_BASE_PRICE,
+    CONF_CALCULATE_CHEAP_HOURS,
     CONF_CHEAP_HOURS_THRESHOLD,
     CONF_CHEAP_HOURS_UPDATE_TRIGGER,
     CONF_COUNTRY_CODE,
@@ -23,10 +24,14 @@ from .const import (
     CONF_GRID_ELECTRICITY_TRANSMISSION_PRICE_DAY,
     CONF_GRID_ELECTRICITY_TRANSMISSION_PRICE_NIGHT,
     CONF_GRID_RENEWABLE_ENERGY_CHARGE,
+    CONF_HAS_NIGHT_TARIFF,
     CONF_NIGHT_PRICE_END_HOUR,
     CONF_NIGHT_PRICE_END_TIME,
     CONF_NIGHT_PRICE_START_HOUR,
     CONF_NIGHT_PRICE_START_TIME,
+    CONF_NIGHT_TARIFF_SATURDAY,
+    CONF_NIGHT_TARIFF_SUNDAY,
+    CONF_NIGHT_TARIFF_PUBLIC_HOLIDAY,
     CONF_SCAN_INTERVAL,
     CONF_SUPPLIER,
     CONF_SUPPLIER_MARGIN,
@@ -48,9 +53,13 @@ from .const import (
     GRID_ELECTRICITY_TRANSMISSION_PRICE_DAY_DEFAULT,
     GRID_ELECTRICITY_TRANSMISSION_PRICE_NIGHT_DEFAULT,
     GRID_RENEWABLE_ENERGY_CHARGE_DEFAULT,
+    HAS_NIGHT_TARIFF_DEFAULT,
     NIGHT_PRICE_END_TIME_DEFAULT,
     # Use time defaults only; derive hours from time strings
     NIGHT_PRICE_START_TIME_DEFAULT,
+    NIGHT_TARIFF_SATURDAY_DEFAULT,
+    NIGHT_TARIFF_SUNDAY_DEFAULT,
+    NIGHT_TARIFF_PUBLIC_HOLIDAY_DEFAULT,
     SCAN_INTERVAL_MAX,
     SCAN_INTERVAL_MIN,
     SCAN_INTERVAL_STEP,
@@ -119,51 +128,121 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
         )
         raise InvalidScanInterval(msg)
 
-    cheap_hours_trigger = _convert_time_format(
-        data.get(CONF_CHEAP_HOURS_UPDATE_TRIGGER, DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER)
-    )
-    if not _validate_time_string(cheap_hours_trigger):
-        msg = "Cheap hours update time must be a valid time in HH:MM format"
-        raise InvalidCheapPriceTrigger(msg)
+    # Validate cheap hours only if enabled
+    # Treat missing toggle as disabled to avoid requiring fields unexpectedly
+    calculate_cheap = data.get(CONF_CALCULATE_CHEAP_HOURS, False)
+    if calculate_cheap:
+        cheap_hours_trigger = _convert_time_format(
+            data.get(
+                CONF_CHEAP_HOURS_UPDATE_TRIGGER, DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER
+            )
+        )
+        if not _validate_time_string(cheap_hours_trigger):
+            msg = "Cheap hours update time must be a valid time in HH:MM format"
+            raise InvalidCheapPriceTrigger(msg)
 
-    # Validate time settings - handle both new TimeSelector and legacy hour formats
-    start_time_str = data.get(CONF_NIGHT_PRICE_START_TIME)
-    end_time_str = data.get(CONF_NIGHT_PRICE_END_TIME)
-    # Derive hour defaults from time defaults for legacy hour fields
-    start_hour_default, _, _ = parse_time_string(NIGHT_PRICE_START_TIME_DEFAULT)
-    end_hour_default, _, _ = parse_time_string(NIGHT_PRICE_END_TIME_DEFAULT)
-    start_hour = data.get(CONF_NIGHT_PRICE_START_HOUR, start_hour_default)
-    end_hour = data.get(CONF_NIGHT_PRICE_END_HOUR, end_hour_default)
+    # Handle time settings based on night tariff toggle
+    has_night_tariff = data.get(CONF_HAS_NIGHT_TARIFF, HAS_NIGHT_TARIFF_DEFAULT)
+    if has_night_tariff:
+        # Handle both new TimeSelector and legacy hour formats
+        start_time_str = data.get(CONF_NIGHT_PRICE_START_TIME)
+        end_time_str = data.get(CONF_NIGHT_PRICE_END_TIME)
+        # Derive hour defaults from time defaults for legacy hour fields
+        start_hour_default, _, _ = parse_time_string(NIGHT_PRICE_START_TIME_DEFAULT)
+        end_hour_default, _, _ = parse_time_string(NIGHT_PRICE_END_TIME_DEFAULT)
+        start_hour = data.get(CONF_NIGHT_PRICE_START_HOUR, start_hour_default)
+        end_hour = data.get(CONF_NIGHT_PRICE_END_HOUR, end_hour_default)
 
-    # If TimeSelector format is provided, validate it and extract hours
-    if start_time_str:
-        try:
-            start_hour, _, _ = parse_time_string(start_time_str)
-        except ValueError:
-            msg = "Night price start time must be a valid time in HH:MM format"
-            raise InvalidTimeFormat(msg)
+        # If TimeSelector format is provided, validate it and extract hours
+        if start_time_str:
+            try:
+                if isinstance(start_time_str, dict):
+                    # Validate dict format from TimeSelector
+                    if "hour" in start_time_str and "minute" in start_time_str:
+                        start_hour = start_time_str["hour"]
+                        if not isinstance(start_hour, int) or not (0 <= start_hour <= 23):
+                            msg = f"Night price start time has invalid hour: {start_hour}. Must be 0-23."
+                            raise InvalidTimeFormat(msg)
+                    else:
+                        msg = f"Night price start time format is invalid: {start_time_str}"
+                        raise InvalidTimeFormat(msg)
+                else:
+                    start_hour, _, _ = parse_time_string(start_time_str)
+            except ValueError as e:
+                msg = f"Night price start time must be a valid time in HH:MM format. Error: {e}"
+                raise InvalidTimeFormat(msg)
 
-    if end_time_str:
-        try:
-            end_hour, _, _ = parse_time_string(end_time_str)
-        except ValueError:
-            msg = "Night price end time must be a valid time in HH:MM format"
-            raise InvalidTimeFormat(msg)
+        if end_time_str:
+            try:
+                if isinstance(end_time_str, dict):
+                    # Validate dict format from TimeSelector
+                    if "hour" in end_time_str and "minute" in end_time_str:
+                        end_hour = end_time_str["hour"]
+                        if not isinstance(end_hour, int) or not (0 <= end_hour <= 23):
+                            msg = f"Night price end time has invalid hour: {end_hour}. Must be 0-23."
+                            raise InvalidTimeFormat(msg)
+                    else:
+                        msg = f"Night price end time format is invalid: {end_time_str}"
+                        raise InvalidTimeFormat(msg)
+                else:
+                    end_hour, _, _ = parse_time_string(end_time_str)
+            except ValueError as e:
+                msg = f"Night price end time must be a valid time in HH:MM format. Error: {e}"
+                raise InvalidTimeFormat(msg)
 
-    # Validate hour ranges
-    if not (0 <= start_hour <= 23 and 0 <= end_hour <= 23):
-        msg = "Night price hours must be between 00 and 23"
-        raise InvalidHourRange(msg)
+        # Validate hour ranges
+        if not (0 <= start_hour <= 23 and 0 <= end_hour <= 23):
+            msg = "Night price hours must be between 00 and 23"
+            raise InvalidHourRange(msg)
 
-    # Validate time range logic - handle midnight crossover for night hours
-    # Valid scenarios for night hours:
-    # 1. Normal range: start < end (e.g., 20:00 to 06:00 within same day - but this would be invalid for night hours)
-    # 2. Midnight crossover: start > end (e.g., 22:00 to 07:00 - night crosses midnight)
-    # 3. Until midnight: end == 0 (e.g., 22:00 to 00:00)
-    # Invalid: start == end (unless end == 0, but that's covered above)
-    if start_hour == end_hour and end_hour != 0:
-        msg = "Night price start and end times cannot be the same"
-        raise InvalidNightHours(msg)
+        # Validate time range logic - handle midnight crossover for night hours
+        # Valid scenarios for night hours:
+        # 1. Normal range: start < end (e.g., 20:00 to 06:00 within same day - but this would be invalid for night hours)
+        # 2. Midnight crossover: start > end (e.g., 22:00 to 07:00 - night crosses midnight)
+        # 3. Until midnight: end == 0 (e.g., 22:00 to 00:00)
+        # Invalid: start == end (unless end == 0, but that's covered above)
+        if start_hour == end_hour and end_hour != 0:
+            msg = "Night price start and end times cannot be the same"
+            raise InvalidNightHours(msg)
+    else:
+        # Night tariff is disabled — do not require or validate times.
+        # Normalize to defaults if missing/empty/invalid; never raise.
+        start_time = data.get(CONF_NIGHT_PRICE_START_TIME)
+        end_time = data.get(CONF_NIGHT_PRICE_END_TIME)
+
+        # Helper to produce dict time from a string like "HH:MM" with safe fallback
+        def _safe_time_dict(time_str: str, default_str: str) -> dict[str, int]:
+            try:
+                if isinstance(time_str, str) and time_str.strip():
+                    h, m, _ = parse_time_string(time_str)
+                    return {"hour": h, "minute": m}
+            except Exception:
+                # Ignore and fall back to defaults when disabled
+                pass
+            dh, dm, _ = parse_time_string(default_str)
+            return {"hour": dh, "minute": dm}
+
+        if isinstance(start_time, dict) and "hour" in start_time and "minute" in start_time:
+            data[CONF_NIGHT_PRICE_START_TIME] = {
+                "hour": int(start_time["hour"]),
+                "minute": int(start_time["minute"]),
+            }
+        else:
+            data[CONF_NIGHT_PRICE_START_TIME] = _safe_time_dict(
+                start_time if isinstance(start_time, str) else "",
+                NIGHT_PRICE_START_TIME_DEFAULT,
+            )
+
+        if isinstance(end_time, dict) and "hour" in end_time and "minute" in end_time:
+            data[CONF_NIGHT_PRICE_END_TIME] = {
+                "hour": int(end_time["hour"]),
+                "minute": int(end_time["minute"]),
+            }
+        else:
+            data[CONF_NIGHT_PRICE_END_TIME] = _safe_time_dict(
+                end_time if isinstance(end_time, str) else "",
+                NIGHT_PRICE_END_TIME_DEFAULT,
+            )
 
     # Test connection to Nord Pool API
     try:
@@ -234,6 +313,7 @@ class RealElectricityPriceFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     def __init__(self) -> None:
         """Initialize the config flow."""
         self._errors: dict[str, str] = {}
+        self._user_data: dict[str, Any] = {}
 
     @staticmethod
     @callback
@@ -252,6 +332,17 @@ class RealElectricityPriceFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         self._errors = {}
 
         if user_input is not None:
+            # If night tariff is enabled, collect night times in a dedicated step
+            if user_input.get(CONF_HAS_NIGHT_TARIFF, HAS_NIGHT_TARIFF_DEFAULT):
+                self._user_data = user_input
+                return await self.async_step_night_times()
+
+            # Night tariff disabled; if cheap hours is enabled, go to cheap hours step
+            if user_input.get(CONF_CALCULATE_CHEAP_HOURS, False):
+                self._user_data = user_input
+                return await self.async_step_cheap_hours()
+
+            # Neither night times nor cheap hours additional steps are required; validate and finish
             try:
                 info = await validate_input(self.hass, user_input)
             except InvalidCheapPriceTrigger:
@@ -302,9 +393,11 @@ class RealElectricityPriceFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     def _get_user_schema(self, user_input: dict | None = None) -> vol.Schema:
         """Get the user input schema."""
         user_input = user_input or {}
+        _LOGGER.debug(
+            f"Creating user schema (step_user) with user_input keys: {list(user_input.keys())}"
+        )
 
-        return vol.Schema(
-            {
+        schema_dict = {
                 vol.Optional(
                     CONF_NAME,
                     default=user_input.get(CONF_NAME, "Real Electricity Price"),
@@ -435,35 +528,16 @@ class RealElectricityPriceFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                         CONF_VAT_SUPPLIER_MARGIN, VAT_SUPPLIER_MARGIN_DEFAULT
                     ),
                 ): selector.BooleanSelector(),
-                # Time settings - new natural format
+                # Night/Day tariff configuration (times collected in next step if enabled)
                 vol.Optional(
-                    CONF_NIGHT_PRICE_START_TIME,
-                    default=(
-                        {
-                            "hour": parse_time_string(NIGHT_PRICE_START_TIME_DEFAULT)[
-                                0
-                            ],
-                            "minute": parse_time_string(NIGHT_PRICE_START_TIME_DEFAULT)[
-                                1
-                            ],
-                        }
-                        if CONF_NIGHT_PRICE_START_TIME not in user_input
-                        else user_input.get(CONF_NIGHT_PRICE_START_TIME)
-                    ),
-                ): selector.TimeSelector(),
+                    CONF_HAS_NIGHT_TARIFF,
+                    default=user_input.get(CONF_HAS_NIGHT_TARIFF, HAS_NIGHT_TARIFF_DEFAULT),
+                ): selector.BooleanSelector(),
+                # Cheap hours (additional step when enabled)
                 vol.Optional(
-                    CONF_NIGHT_PRICE_END_TIME,
-                    default=(
-                        {
-                            "hour": parse_time_string(NIGHT_PRICE_END_TIME_DEFAULT)[0],
-                            "minute": parse_time_string(NIGHT_PRICE_END_TIME_DEFAULT)[
-                                1
-                            ],
-                        }
-                        if CONF_NIGHT_PRICE_END_TIME not in user_input
-                        else user_input.get(CONF_NIGHT_PRICE_END_TIME)
-                    ),
-                ): selector.TimeSelector(),
+                    CONF_CALCULATE_CHEAP_HOURS,
+                    default=user_input.get(CONF_CALCULATE_CHEAP_HOURS, True),
+                ): selector.BooleanSelector(),
                 # Update interval
                 vol.Optional(
                     CONF_SCAN_INTERVAL,
@@ -476,36 +550,200 @@ class RealElectricityPriceFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                         mode="box",
                     )  # 5 min to 24 hours
                 ),
+        }
+
+        _LOGGER.debug(f"Final schema has {len(schema_dict)} fields")
+        return vol.Schema(schema_dict)
+
+    async def async_step_night_times(
+        self, user_input: dict | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Collect night start/end times when night tariff is enabled."""
+        _LOGGER.debug("async_step_night_times called with user_input: %s", user_input)
+        self._errors = {}
+
+        if user_input is not None:
+            # Merge with previously collected data
+            merged = {**self._user_data, **user_input}
+            try:
+                # If cheap hours are enabled but values are not provided yet, branch to cheap_hours step
+                if merged.get(CONF_CALCULATE_CHEAP_HOURS, False) and (
+                    CONF_CHEAP_HOURS_BASE_PRICE not in merged
+                    or CONF_CHEAP_HOURS_THRESHOLD not in merged
+                    or CONF_CHEAP_HOURS_UPDATE_TRIGGER not in merged
+                ):
+                    self._user_data = merged
+                    return await self.async_step_cheap_hours()
+
+                info = await validate_input(self.hass, merged)
+            except InvalidCheapPriceTrigger:
+                self._errors[CONF_CHEAP_HOURS_UPDATE_TRIGGER] = (
+                    "invalid_cheap_price_trigger"
+                )
+            except InvalidCountryCode:
+                self._errors["country_code"] = "invalid_country_code"
+            except InvalidVatRate:
+                self._errors["vat"] = "invalid_vat_rate"
+            except InvalidScanInterval:
+                self._errors["scan_interval"] = "invalid_scan_interval"
+            except InvalidHourRange:
+                self._errors["base"] = "invalid_hour_range"
+            except InvalidNightHours:
+                self._errors["base"] = "invalid_night_hours"
+            except InvalidTimeFormat:
+                self._errors["base"] = "invalid_time_format"
+            except CannotConnect:
+                self._errors["base"] = "cannot_connect"
+            except Exception:  # pylint: disable=broad-except
+                _LOGGER.exception("Unexpected exception")
+                self._errors["base"] = "unknown"
+            else:
+                name = merged.get(CONF_NAME, "Real Electricity Price")
+                grid = merged.get(CONF_GRID, GRID_DEFAULT)
+                supplier = merged.get(CONF_SUPPLIER, SUPPLIER_DEFAULT)
+                country = merged.get(CONF_COUNTRY_CODE, COUNTRY_CODE_DEFAULT)
+
+                unique_id = f"real_electricity_price_{name}_{grid}_{supplier}_{country}".lower().replace(
+                    " ", "_"
+                )
+                await self.async_set_unique_id(unique_id)
+                self._abort_if_unique_id_configured()
+
+                return self.async_create_entry(title=info["title"], data=merged)
+
+        # Show time selectors
+        schema = vol.Schema(
+            {
                 vol.Optional(
-                    CONF_CHEAP_HOURS_UPDATE_TRIGGER,
-                    default=(
-                        (
-                            lambda: (lambda h, m, _: {"hour": h, "minute": m})(
-                                *parse_time_string(DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER)
-                            )
-                        )()
-                        if CONF_CHEAP_HOURS_UPDATE_TRIGGER not in user_input
-                        else user_input.get(CONF_CHEAP_HOURS_UPDATE_TRIGGER)
+                    CONF_NIGHT_PRICE_START_TIME,
+                    default=self._user_data.get(
+                        CONF_NIGHT_PRICE_START_TIME,
+                        {
+                            "hour": parse_time_string(NIGHT_PRICE_START_TIME_DEFAULT)[0],
+                            "minute": parse_time_string(NIGHT_PRICE_START_TIME_DEFAULT)[1],
+                        },
                     ),
                 ): selector.TimeSelector(),
-                # Cheap price analysis
+                vol.Optional(
+                    CONF_NIGHT_PRICE_END_TIME,
+                    default=self._user_data.get(
+                        CONF_NIGHT_PRICE_END_TIME,
+                        {
+                            "hour": parse_time_string(NIGHT_PRICE_END_TIME_DEFAULT)[0],
+                            "minute": parse_time_string(NIGHT_PRICE_END_TIME_DEFAULT)[1],
+                        },
+                    ),
+                ): selector.TimeSelector(),
+                vol.Optional(
+                    CONF_NIGHT_TARIFF_SATURDAY,
+                    default=self._user_data.get(
+                        CONF_NIGHT_TARIFF_SATURDAY, NIGHT_TARIFF_SATURDAY_DEFAULT
+                    ),
+                ): selector.BooleanSelector(),
+                vol.Optional(
+                    CONF_NIGHT_TARIFF_SUNDAY,
+                    default=self._user_data.get(
+                        CONF_NIGHT_TARIFF_SUNDAY, NIGHT_TARIFF_SUNDAY_DEFAULT
+                    ),
+                ): selector.BooleanSelector(),
+                vol.Optional(
+                    CONF_NIGHT_TARIFF_PUBLIC_HOLIDAY,
+                    default=self._user_data.get(
+                        CONF_NIGHT_TARIFF_PUBLIC_HOLIDAY,
+                        NIGHT_TARIFF_PUBLIC_HOLIDAY_DEFAULT,
+                    ),
+                ): selector.BooleanSelector(),
+            }
+        )
+
+        return self.async_show_form(
+            step_id="night_times",
+            data_schema=schema,
+            errors=self._errors,
+        )
+
+    async def async_step_cheap_hours(
+        self, user_input: dict | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Collect cheap hours configuration when enabled."""
+        _LOGGER.debug("async_step_cheap_hours called with user_input: %s", user_input)
+        self._errors = {}
+
+        if user_input is not None:
+            merged = {**self._user_data, **user_input}
+            try:
+                info = await validate_input(self.hass, merged)
+            except InvalidCheapPriceTrigger:
+                self._errors[CONF_CHEAP_HOURS_UPDATE_TRIGGER] = (
+                    "invalid_cheap_price_trigger"
+                )
+            except InvalidCountryCode:
+                self._errors["country_code"] = "invalid_country_code"
+            except InvalidVatRate:
+                self._errors["vat"] = "invalid_vat_rate"
+            except InvalidScanInterval:
+                self._errors["scan_interval"] = "invalid_scan_interval"
+            except InvalidHourRange:
+                self._errors["base"] = "invalid_hour_range"
+            except InvalidNightHours:
+                self._errors["base"] = "invalid_night_hours"
+            except InvalidTimeFormat:
+                self._errors["base"] = "invalid_time_format"
+            except CannotConnect:
+                self._errors["base"] = "cannot_connect"
+            except Exception:  # pylint: disable=broad-except
+                _LOGGER.exception("Unexpected exception")
+                self._errors["base"] = "unknown"
+            else:
+                name = merged.get(CONF_NAME, "Real Electricity Price")
+                grid = merged.get(CONF_GRID, GRID_DEFAULT)
+                supplier = merged.get(CONF_SUPPLIER, SUPPLIER_DEFAULT)
+                country = merged.get(CONF_COUNTRY_CODE, COUNTRY_CODE_DEFAULT)
+
+                unique_id = f"real_electricity_price_{name}_{grid}_{supplier}_{country}".lower().replace(
+                    " ", "_"
+                )
+                await self.async_set_unique_id(unique_id)
+                self._abort_if_unique_id_configured()
+
+                return self.async_create_entry(title=info["title"], data=merged)
+
+        schema = vol.Schema(
+            {
+                vol.Optional(
+                    CONF_CHEAP_HOURS_BASE_PRICE,
+                    default=self._user_data.get(
+                        CONF_CHEAP_HOURS_BASE_PRICE, CHEAP_HOURS_BASE_PRICE_DEFAULT
+                    ),
+                ): selector.NumberSelector(
+                    selector.NumberSelectorConfig(min=0, max=1, step="any", mode="box")
+                ),
                 vol.Optional(
                     CONF_CHEAP_HOURS_THRESHOLD,
-                    default=user_input.get(
+                    default=self._user_data.get(
                         CONF_CHEAP_HOURS_THRESHOLD, CHEAP_HOURS_THRESHOLD_DEFAULT
                     ),
                 ): selector.NumberSelector(
                     selector.NumberSelectorConfig(min=0, max=100, step=0.1, mode="box")
                 ),
                 vol.Optional(
-                    CONF_CHEAP_HOURS_BASE_PRICE,
-                    default=user_input.get(
-                        CONF_CHEAP_HOURS_BASE_PRICE, CHEAP_HOURS_BASE_PRICE_DEFAULT
+                    CONF_CHEAP_HOURS_UPDATE_TRIGGER,
+                    default=(
+                        self._user_data.get(
+                            CONF_CHEAP_HOURS_UPDATE_TRIGGER,
+                            (lambda: (lambda h, m, _: {"hour": h, "minute": m})(
+                                *parse_time_string(DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER)
+                            ))(),
+                        )
                     ),
-                ): selector.NumberSelector(
-                    selector.NumberSelectorConfig(min=0, max=1, step="any", mode="box")
-                ),
+                ): selector.TimeSelector(),
             }
+        )
+
+        return self.async_show_form(
+            step_id="cheap_hours",
+            data_schema=schema,
+            errors=self._errors,
         )
 
 
@@ -562,8 +800,17 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
     def _get_options_schema(self, current_data: dict, options_data: dict) -> vol.Schema:
         """Get the options schema."""
-        return vol.Schema(
-            {
+        # Check if night tariff is enabled to conditionally show time fields
+        has_night_tariff = options_data.get(
+            CONF_HAS_NIGHT_TARIFF,
+            current_data.get(CONF_HAS_NIGHT_TARIFF, HAS_NIGHT_TARIFF_DEFAULT),
+        )
+        calculate_cheap = options_data.get(
+            CONF_CALCULATE_CHEAP_HOURS,
+            current_data.get(CONF_CALCULATE_CHEAP_HOURS, True),
+        )
+        
+        schema_dict = {
                 vol.Optional(
                     CONF_NAME,
                     default=options_data.get(
@@ -744,41 +991,22 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                         ),
                     ),
                 ): selector.BooleanSelector(),
-                # Time settings - new natural format
+                # Night/Day tariff configuration
                 vol.Optional(
-                    CONF_NIGHT_PRICE_START_TIME,
+                    CONF_HAS_NIGHT_TARIFF,
                     default=options_data.get(
-                        CONF_NIGHT_PRICE_START_TIME,
-                        current_data.get(
-                            CONF_NIGHT_PRICE_START_TIME,
-                            {
-                                "hour": parse_time_string(
-                                    NIGHT_PRICE_START_TIME_DEFAULT
-                                )[0],
-                                "minute": parse_time_string(
-                                    NIGHT_PRICE_START_TIME_DEFAULT
-                                )[1],
-                            },
-                        ),
+                        CONF_HAS_NIGHT_TARIFF,
+                        current_data.get(CONF_HAS_NIGHT_TARIFF, HAS_NIGHT_TARIFF_DEFAULT),
                     ),
-                ): selector.TimeSelector(),
+                ): selector.BooleanSelector(),
+                # Cheap hours toggle
                 vol.Optional(
-                    CONF_NIGHT_PRICE_END_TIME,
+                    CONF_CALCULATE_CHEAP_HOURS,
                     default=options_data.get(
-                        CONF_NIGHT_PRICE_END_TIME,
-                        current_data.get(
-                            CONF_NIGHT_PRICE_END_TIME,
-                            {
-                                "hour": parse_time_string(NIGHT_PRICE_END_TIME_DEFAULT)[
-                                    0
-                                ],
-                                "minute": parse_time_string(
-                                    NIGHT_PRICE_END_TIME_DEFAULT
-                                )[1],
-                            },
-                        ),
+                        CONF_CALCULATE_CHEAP_HOURS,
+                        current_data.get(CONF_CALCULATE_CHEAP_HOURS, True),
                     ),
-                ): selector.TimeSelector(),
+                ): selector.BooleanSelector(),
                 # Update interval
                 vol.Optional(
                     CONF_SCAN_INTERVAL,
@@ -794,47 +1022,126 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                         mode="box",
                     )  # 5 min to 24 hours
                 ),
+        }
+        
+        # Only add time fields when night tariff is enabled; omit entirely when disabled
+        if has_night_tariff:
+            schema_dict.update({
                 vol.Optional(
-                    CONF_CHEAP_HOURS_UPDATE_TRIGGER,
+                    CONF_NIGHT_PRICE_START_TIME,
                     default=options_data.get(
-                        CONF_CHEAP_HOURS_UPDATE_TRIGGER,
+                        CONF_NIGHT_PRICE_START_TIME,
                         current_data.get(
-                            CONF_CHEAP_HOURS_UPDATE_TRIGGER,
-                            (
-                                lambda: (lambda h, m, _: {"hour": h, "minute": m})(
-                                    *parse_time_string(
-                                        DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER
-                                    )
-                                )
-                            )(),
+                            CONF_NIGHT_PRICE_START_TIME,
+                            {
+                                "hour": parse_time_string(NIGHT_PRICE_START_TIME_DEFAULT)[0],
+                                "minute": parse_time_string(NIGHT_PRICE_START_TIME_DEFAULT)[1],
+                            },
                         ),
                     ),
                 ): selector.TimeSelector(),
-                # Cheap price analysis
                 vol.Optional(
-                    CONF_CHEAP_HOURS_THRESHOLD,
+                    CONF_NIGHT_PRICE_END_TIME,
                     default=options_data.get(
+                        CONF_NIGHT_PRICE_END_TIME,
+                        current_data.get(
+                            CONF_NIGHT_PRICE_END_TIME,
+                            {
+                                "hour": parse_time_string(NIGHT_PRICE_END_TIME_DEFAULT)[0],
+                                "minute": parse_time_string(NIGHT_PRICE_END_TIME_DEFAULT)[1],
+                            },
+                        ),
+                    ),
+                ): selector.TimeSelector(),
+            })
+            # Weekend/Public holiday rules for night tariff
+            schema_dict.update({
+                vol.Optional(
+                    CONF_NIGHT_TARIFF_SATURDAY,
+                    default=options_data.get(
+                        CONF_NIGHT_TARIFF_SATURDAY,
+                        current_data.get(
+                            CONF_NIGHT_TARIFF_SATURDAY,
+                            NIGHT_TARIFF_SATURDAY_DEFAULT,
+                        ),
+                    ),
+                ): selector.BooleanSelector(),
+                vol.Optional(
+                    CONF_NIGHT_TARIFF_SUNDAY,
+                    default=options_data.get(
+                        CONF_NIGHT_TARIFF_SUNDAY,
+                        current_data.get(
+                            CONF_NIGHT_TARIFF_SUNDAY,
+                            NIGHT_TARIFF_SUNDAY_DEFAULT,
+                        ),
+                    ),
+                ): selector.BooleanSelector(),
+                vol.Optional(
+                    CONF_NIGHT_TARIFF_PUBLIC_HOLIDAY,
+                    default=options_data.get(
+                        CONF_NIGHT_TARIFF_PUBLIC_HOLIDAY,
+                        current_data.get(
+                            CONF_NIGHT_TARIFF_PUBLIC_HOLIDAY,
+                            NIGHT_TARIFF_PUBLIC_HOLIDAY_DEFAULT,
+                        ),
+                    ),
+                ): selector.BooleanSelector(),
+            })
+        else:
+            _LOGGER.debug("Night tariff disabled in options; omitting night time fields")
+
+        # Add cheap hours fields only when enabled
+        if calculate_cheap:
+            schema_dict.update(
+                {
+                    vol.Optional(
+                        CONF_CHEAP_HOURS_UPDATE_TRIGGER,
+                        default=options_data.get(
+                            CONF_CHEAP_HOURS_UPDATE_TRIGGER,
+                            current_data.get(
+                                CONF_CHEAP_HOURS_UPDATE_TRIGGER,
+                                (
+                                    lambda: (lambda h, m, _: {"hour": h, "minute": m})(
+                                        *parse_time_string(
+                                            DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER
+                                        )
+                                    )
+                                )(),
+                            ),
+                        ),
+                    ): selector.TimeSelector(),
+                    vol.Optional(
                         CONF_CHEAP_HOURS_THRESHOLD,
-                        current_data.get(
-                            CONF_CHEAP_HOURS_THRESHOLD, CHEAP_HOURS_THRESHOLD_DEFAULT
+                        default=options_data.get(
+                            CONF_CHEAP_HOURS_THRESHOLD,
+                            current_data.get(
+                                CONF_CHEAP_HOURS_THRESHOLD,
+                                CHEAP_HOURS_THRESHOLD_DEFAULT,
+                            ),
                         ),
+                    ): selector.NumberSelector(
+                        selector.NumberSelectorConfig(
+                            min=0, max=100, step=0.1, mode="box"
+                        )
                     ),
-                ): selector.NumberSelector(
-                    selector.NumberSelectorConfig(min=0, max=100, step=0.1, mode="box")
-                ),
-                vol.Optional(
-                    CONF_CHEAP_HOURS_BASE_PRICE,
-                    default=options_data.get(
+                    vol.Optional(
                         CONF_CHEAP_HOURS_BASE_PRICE,
-                        current_data.get(
-                            CONF_CHEAP_HOURS_BASE_PRICE, CHEAP_HOURS_BASE_PRICE_DEFAULT
+                        default=options_data.get(
+                            CONF_CHEAP_HOURS_BASE_PRICE,
+                            current_data.get(
+                                CONF_CHEAP_HOURS_BASE_PRICE,
+                                CHEAP_HOURS_BASE_PRICE_DEFAULT,
+                            ),
                         ),
+                    ): selector.NumberSelector(
+                        selector.NumberSelectorConfig(
+                            min=0, max=1, step="any", mode="box"
+                        )
                     ),
-                ): selector.NumberSelector(
-                    selector.NumberSelectorConfig(min=0, max=1, step="any", mode="box")
-                ),
-            }
-        )
+                }
+            )
+
+        return vol.Schema(schema_dict)
 
 
 class CannotConnect(data_entry_flow.AbortFlow):

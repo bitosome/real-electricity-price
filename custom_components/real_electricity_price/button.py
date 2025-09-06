@@ -9,6 +9,7 @@ from homeassistant.components.button import ButtonEntity
 from homeassistant.const import CONF_NAME
 
 from .entity import RealElectricityPriceEntity
+from .const import CONF_CALCULATE_CHEAP_HOURS
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -27,17 +28,22 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the button platform."""
-    async_add_entities(
-        [
-            RealElectricityPriceRefreshButton(
-                coordinator=entry.runtime_data.coordinator,
-            ),
+    entities: list[ButtonEntity] = [
+        RealElectricityPriceRefreshButton(
+            coordinator=entry.runtime_data.coordinator,
+        )
+    ]
+
+    cfg = {**entry.data, **entry.options}
+    if cfg.get(CONF_CALCULATE_CHEAP_HOURS, True):
+        entities.append(
             RealElectricityPriceCalculateCheapHoursButton(
                 coordinator=entry.runtime_data.coordinator,
                 cheap_coordinator=entry.runtime_data.cheap_hours_coordinator,
-            ),
-        ]
-    )
+            )
+        )
+
+    async_add_entities(entities)
 
 
 class RealElectricityPriceRefreshButton(RealElectricityPriceEntity, ButtonEntity):

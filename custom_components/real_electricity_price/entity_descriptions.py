@@ -29,6 +29,7 @@ SENSOR_CURRENT_TARIFF = SensorEntityDescription(
     key="real_electricity_price_current_tariff",
     name="Current Tariff",
     icon="mdi:timeline-clock",
+    translation_key="current_tariff",
 )
 
 SENSOR_LAST_SYNC = SensorEntityDescription(

@@ -20,6 +20,7 @@ from .const import (
     CONF_GRID_ELECTRICITY_TRANSMISSION_PRICE_DAY,
     CONF_GRID_ELECTRICITY_TRANSMISSION_PRICE_NIGHT,
     CONF_GRID_RENEWABLE_ENERGY_CHARGE,
+    CONF_HAS_NIGHT_TARIFF,
     CONF_NIGHT_PRICE_END_HOUR,
     CONF_NIGHT_PRICE_END_TIME,
     CONF_NIGHT_PRICE_START_HOUR,
@@ -34,12 +35,16 @@ from .const import (
     CONF_VAT_NORD_POOL,
     CONF_VAT_SUPPLIER_MARGIN,
     CONF_VAT_SUPPLIER_RENEWABLE_ENERGY_CHARGE,
+    CONF_NIGHT_TARIFF_SATURDAY,
+    CONF_NIGHT_TARIFF_SUNDAY,
+    CONF_NIGHT_TARIFF_PUBLIC_HOLIDAY,
     COUNTRY_CODE_DEFAULT,
     DEFAULT_BASE_URL,
     GRID_ELECTRICITY_EXCISE_DUTY_DEFAULT,
     GRID_ELECTRICITY_TRANSMISSION_PRICE_DAY_DEFAULT,
     GRID_ELECTRICITY_TRANSMISSION_PRICE_NIGHT_DEFAULT,
     GRID_RENEWABLE_ENERGY_CHARGE_DEFAULT,
+    HAS_NIGHT_TARIFF_DEFAULT,
     NIGHT_PRICE_END_TIME_DEFAULT,
     NIGHT_PRICE_START_TIME_DEFAULT,
     PRICE_DECIMAL_PRECISION,
@@ -53,6 +58,12 @@ from .const import (
     VAT_NORD_POOL_DEFAULT,
     VAT_SUPPLIER_MARGIN_DEFAULT,
     VAT_SUPPLIER_RENEWABLE_ENERGY_CHARGE_DEFAULT,
+    NIGHT_TARIFF_SATURDAY_DEFAULT,
+    NIGHT_TARIFF_SUNDAY_DEFAULT,
+    NIGHT_TARIFF_PUBLIC_HOLIDAY_DEFAULT,
+    TARIFF_OFF_PEAK,
+    TARIFF_PEAK,
+    TARIFF_FIXED,
     parse_time_string,
 )
 
@@ -278,8 +289,10 @@ class RealElectricityPriceApiClient:
         self, date: datetime.date, area: str
     ) -> dict:
         """Create placeholder day data with time ranges but unavailable prices."""
+        # Check if night tariff is enabled
+        has_night_tariff = self._config.get(CONF_HAS_NIGHT_TARIFF, HAS_NIGHT_TARIFF_DEFAULT)
+        
         # Get configuration for tariff calculation using time defaults
-
         night_start = _resolve_hour(
             self._config,
             CONF_NIGHT_PRICE_START_TIME,
@@ -322,18 +335,22 @@ class RealElectricityPriceApiClient:
             # Convert to local time for tariff calculation
             local_hour = start_time.astimezone(tzinfo).hour
 
-            # Determine tariff based on local time and selected country's calendar
-            tariff = "night"  # Default
-            if is_holiday or is_weekend:
-                tariff = "night"
+            # Determine tariff based on configuration
+            if not has_night_tariff:
+                tariff = TARIFF_FIXED
             else:
-                # Check if it's night hours in local time
-                if night_start > night_end:  # Night crosses midnight (e.g., 22-7)
-                    is_night_hour = local_hour >= night_start or local_hour < night_end
-                else:  # Night doesn't cross midnight (e.g., 0-6)
-                    is_night_hour = night_start <= local_hour < night_end
+                # Determine tariff based on local time and selected country's calendar
+                tariff = TARIFF_OFF_PEAK  # Default
+                if is_holiday or is_weekend:
+                    tariff = TARIFF_OFF_PEAK
+                else:
+                    # Check if it's night hours in local time
+                    if night_start > night_end:  # Night crosses midnight (e.g., 22-7)
+                        is_night_hour = local_hour >= night_start or local_hour < night_end
+                    else:  # Night doesn't cross midnight (e.g., 0-6)
+                        is_night_hour = night_start <= local_hour < night_end
 
-                tariff = "night" if is_night_hour else "day"
+                    tariff = TARIFF_OFF_PEAK if is_night_hour else TARIFF_PEAK
 
             hourly_prices.append(
                 {
@@ -363,6 +380,9 @@ class RealElectricityPriceApiClient:
         locale file access). Run blocking parts in the executor to avoid
         blocking the event loop.
         """
+        # Check if night tariff is enabled
+        has_night_tariff = self._config.get(CONF_HAS_NIGHT_TARIFF, HAS_NIGHT_TARIFF_DEFAULT)
+        
         # Get price component values
         grid_electricity_excise_duty = self._config.get(
             CONF_GRID_ELECTRICITY_EXCISE_DUTY, GRID_ELECTRICITY_EXCISE_DUTY_DEFAULT
@@ -440,8 +460,23 @@ class RealElectricityPriceApiClient:
         )
         date_obj = datetime.date.fromisoformat(date)
         saturday = 5
-        is_weekend = date_obj.weekday() >= saturday
+        dow = date_obj.weekday()
+        is_sat = dow == 5
+        is_sun = dow == 6
         is_holiday = date_obj in country_holidays
+        use_sat = self._config.get(
+            CONF_NIGHT_TARIFF_SATURDAY, NIGHT_TARIFF_SATURDAY_DEFAULT
+        )
+        use_sun = self._config.get(
+            CONF_NIGHT_TARIFF_SUNDAY, NIGHT_TARIFF_SUNDAY_DEFAULT
+        )
+        use_holiday = self._config.get(
+            CONF_NIGHT_TARIFF_PUBLIC_HOLIDAY, NIGHT_TARIFF_PUBLIC_HOLIDAY_DEFAULT
+        )
+        is_weekend = is_sat or is_sun
+        weekend_or_holiday = (is_sat and use_sat) or (is_sun and use_sun) or (
+            is_holiday and use_holiday
+        )
 
         hourly_prices = []
         for entry in data.get("multiAreaEntries", []):
@@ -455,35 +490,40 @@ class RealElectricityPriceApiClient:
                 local_hour = dt.astimezone(tzinfo).hour
 
                 # Determine tariff for this specific hour
-                tariff = "night"  # Default to night
-
-                # If it's a holiday or weekend, always use night tariff
-                if is_holiday or is_weekend:
-                    tariff = "night"
+                if not has_night_tariff:
+                    tariff = TARIFF_FIXED
                 else:
-                    # Check block aggregates for this specific hour
-                    for block in data.get("blockPriceAggregates", []):
-                        block_start_str = block.get("deliveryStart")
-                        block_end_str = block.get("deliveryEnd")
+                    tariff = TARIFF_OFF_PEAK  # Default to off-peak
 
-                        if block_start_str and block_end_str:
-                            block_start = dt_util.parse_datetime(block_start_str)
-                            block_end = dt_util.parse_datetime(block_end_str)
+                    # If configured weekend/holiday, use night tariff for full day
+                    if weekend_or_holiday:
+                        tariff = TARIFF_OFF_PEAK
+                    else:
+                        # Check block aggregates for this specific hour
+                        for block in data.get("blockPriceAggregates", []):
+                            block_start_str = block.get("deliveryStart")
+                            block_end_str = block.get("deliveryEnd")
 
-                            if (
-                                block_start
-                                and block_end
-                                and block_start <= dt < block_end
-                            ):
-                                block_name = block.get("blockName", "")
-                                tariff = "day" if block_name == "Peak" else "night"
-                                break
+                            if block_start_str and block_end_str:
+                                block_start = dt_util.parse_datetime(block_start_str)
+                                block_end = dt_util.parse_datetime(block_end_str)
+
+                                if (
+                                    block_start
+                                    and block_end
+                                    and block_start <= dt < block_end
+                                ):
+                                    block_name = block.get("blockName", "")
+                                    tariff = TARIFF_PEAK if block_name == "Peak" else TARIFF_OFF_PEAK
+                                    break
 
                 # Determine transmission price based on time and tariff
-                if (
-                    is_weekend
-                    or is_holiday
-                    or (local_hour >= night_start or local_hour < night_end)
+                if tariff == TARIFF_FIXED:
+                    # Use day price as default for fixed tariff
+                    transmission_price = grid_electricity_transmission_price_day
+                    vat_transmission = vat_grid_transmission_day
+                elif weekend_or_holiday or (
+                    local_hour >= night_start or local_hour < night_end
                 ):
                     transmission_price = grid_electricity_transmission_price_night
                     vat_transmission = vat_grid_transmission_night

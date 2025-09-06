@@ -6,12 +6,24 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.util import dt as dt_util
+import holidays
 
 from ..const import (
+    CONF_HAS_NIGHT_TARIFF,
+    CONF_NIGHT_TARIFF_SATURDAY,
+    CONF_NIGHT_TARIFF_SUNDAY,
+    CONF_NIGHT_TARIFF_PUBLIC_HOLIDAY,
     CONF_NIGHT_PRICE_END_TIME,
     CONF_NIGHT_PRICE_START_TIME,
+    HAS_NIGHT_TARIFF_DEFAULT,
+    NIGHT_TARIFF_SATURDAY_DEFAULT,
+    NIGHT_TARIFF_SUNDAY_DEFAULT,
+    NIGHT_TARIFF_PUBLIC_HOLIDAY_DEFAULT,
     NIGHT_PRICE_END_TIME_DEFAULT,
     NIGHT_PRICE_START_TIME_DEFAULT,
+    TARIFF_OFF_PEAK,
+    TARIFF_PEAK,
+    TARIFF_FIXED,
     parse_time_string,
 )
 
@@ -70,11 +82,15 @@ class CurrentPriceSensor(RealElectricityPriceBaseSensor):
 
         # Get current tariff to determine transmission price
         current_tariff = self._get_current_tariff()
-        transmission_price = (
-            config.grid_transmission_price_night
-            if current_tariff == "night"
-            else config.grid_transmission_price_day
-        )
+        if current_tariff == TARIFF_FIXED:
+            # Use day price as default for fixed tariff
+            transmission_price = config.grid_transmission_price_day
+        else:
+            transmission_price = (
+                config.grid_transmission_price_night
+                if current_tariff == TARIFF_OFF_PEAK
+                else config.grid_transmission_price_day
+            )
 
         return {
             "nord_pool_price": self._round_price(nord_pool_price)
@@ -109,11 +125,15 @@ class CurrentPriceSensor(RealElectricityPriceBaseSensor):
 
         # Get current tariff
         current_tariff = self._get_current_tariff()
-        transmission_price = (
-            config.grid_transmission_price_night
-            if current_tariff == "night"
-            else config.grid_transmission_price_day
-        )
+        if current_tariff == TARIFF_FIXED:
+            # Use day price as default for fixed tariff
+            transmission_price = config.grid_transmission_price_day
+        else:
+            transmission_price = (
+                config.grid_transmission_price_night
+                if current_tariff == TARIFF_OFF_PEAK
+                else config.grid_transmission_price_day
+            )
 
         # Get VAT configuration
         vat_percentage = config.vat_rate
@@ -126,11 +146,15 @@ class CurrentPriceSensor(RealElectricityPriceBaseSensor):
         vat_supplier_margin = config.vat_supplier_margin
 
         # Choose correct transmission VAT based on tariff
-        vat_transmission = (
-            vat_transmission_night
-            if current_tariff == "night"
-            else vat_transmission_day
-        )
+        if current_tariff == TARIFF_FIXED:
+            # Use day VAT as default for fixed tariff
+            vat_transmission = vat_transmission_day
+        else:
+            vat_transmission = (
+                vat_transmission_night
+                if current_tariff == TARIFF_OFF_PEAK
+                else vat_transmission_day
+            )
 
         # Calculate components with VAT applications
         base_price_component = nord_pool_price
@@ -241,26 +265,47 @@ class CurrentPriceSensor(RealElectricityPriceBaseSensor):
             **self.coordinator.config_entry.data,
             **self.coordinator.config_entry.options,
         }
-        start_time_str = config_data.get(
+        
+        # Check if night tariff is enabled
+        has_night_tariff = config_data.get(CONF_HAS_NIGHT_TARIFF, HAS_NIGHT_TARIFF_DEFAULT)
+        if not has_night_tariff:
+            return TARIFF_FIXED
+            
+        start_val = config_data.get(
             CONF_NIGHT_PRICE_START_TIME, NIGHT_PRICE_START_TIME_DEFAULT
         )
-        end_time_str = config_data.get(
+        end_val = config_data.get(
             CONF_NIGHT_PRICE_END_TIME, NIGHT_PRICE_END_TIME_DEFAULT
         )
 
-        try:
-            night_start, _, _ = parse_time_string(start_time_str)
-            night_end, _, _ = parse_time_string(end_time_str)
-        except ValueError:
+        # Support both dict from TimeSelector and string formats
+        def _resolve_hour(val, default_str, fallback):
+            if isinstance(val, dict):
+                try:
+                    h = int(val.get("hour"))
+                    if 0 <= h <= 23:
+                        return h
+                except Exception:
+                    pass
+            if isinstance(val, str):
+                try:
+                    h, _, _ = parse_time_string(val)
+                    return h
+                except Exception:
+                    pass
+            # Fallback to default string
             try:
-                night_start, _, _ = parse_time_string(NIGHT_PRICE_START_TIME_DEFAULT)
-                night_end, _, _ = parse_time_string(NIGHT_PRICE_END_TIME_DEFAULT)
+                h, _, _ = parse_time_string(default_str)
+                return h
             except Exception:
-                # Last resort: use parsed values from default time strings
-                night_start, night_end = (
-                    _DEFAULT_NIGHT_START_HOUR,
-                    _DEFAULT_NIGHT_END_HOUR,
-                )
+                return fallback
+
+        night_start = _resolve_hour(
+            start_val, NIGHT_PRICE_START_TIME_DEFAULT, _DEFAULT_NIGHT_START_HOUR
+        )
+        night_end = _resolve_hour(
+            end_val, NIGHT_PRICE_END_TIME_DEFAULT, _DEFAULT_NIGHT_END_HOUR
+        )
 
         # Get current local time in the configured country
         tz_name = self._get_timezone_for_country(config.country_code)
@@ -270,7 +315,41 @@ class CurrentPriceSensor(RealElectricityPriceBaseSensor):
             local_time = dt_util.now(local_tz)
             local_hour = local_time.hour
         except Exception:
-            local_hour = dt_util.now().hour
+            local_time = dt_util.now()
+            local_hour = local_time.hour
+
+        # Weekend/holiday detection: configurable night tariff for whole day
+        base_country = (
+            config.country_code[:2]
+            if len(config.country_code) > 2
+            else config.country_code
+        )
+        try:
+            country_holidays = holidays.country_holidays(
+                base_country, years=local_time.year
+            )
+        except Exception:
+            country_holidays = {}
+        # Read rules from config (merge data+options)
+        config_data = {
+            **self.coordinator.config_entry.data,
+            **self.coordinator.config_entry.options,
+        }
+        use_sat = config_data.get(
+            CONF_NIGHT_TARIFF_SATURDAY, NIGHT_TARIFF_SATURDAY_DEFAULT
+        )
+        use_sun = config_data.get(
+            CONF_NIGHT_TARIFF_SUNDAY, NIGHT_TARIFF_SUNDAY_DEFAULT
+        )
+        use_holiday = config_data.get(
+            CONF_NIGHT_TARIFF_PUBLIC_HOLIDAY, NIGHT_TARIFF_PUBLIC_HOLIDAY_DEFAULT
+        )
+        dow = local_time.weekday()
+        is_sat = dow == 5
+        is_sun = dow == 6
+        is_holiday = local_time.date() in country_holidays
+        if (is_sat and use_sat) or (is_sun and use_sun) or (is_holiday and use_holiday):
+            return TARIFF_OFF_PEAK
 
         # Determine if it's night time
         if night_start > night_end:  # Crosses midnight (e.g., 22:00 to 07:00)
@@ -278,7 +357,7 @@ class CurrentPriceSensor(RealElectricityPriceBaseSensor):
         else:  # Does not cross midnight (unusual case)
             is_night_time = night_start <= local_hour < night_end
 
-        return "night" if is_night_time else "day"
+        return TARIFF_OFF_PEAK if is_night_time else TARIFF_PEAK
 
     def _get_timezone_for_country(self, country_code: str) -> str:
         """Get timezone for country code."""
@@ -355,8 +434,10 @@ class CurrentTariffSensor(RealElectricityPriceBaseSensor):
     def icon(self) -> str:
         """Return icon based on current tariff."""
         current_tariff = self._get_current_tariff_value()
-        if current_tariff == "night":
+        if current_tariff == TARIFF_OFF_PEAK:
             return "mdi:weather-night"
+        elif current_tariff == TARIFF_FIXED:
+            return "mdi:calendar-clock"
         return "mdi:weather-sunny"
 
     def _get_current_tariff_value(self) -> str:
@@ -368,27 +449,47 @@ class CurrentTariffSensor(RealElectricityPriceBaseSensor):
             **self.coordinator.config_entry.data,
             **self.coordinator.config_entry.options,
         }
-        start_time_str = config_data.get(
+        
+        # Check if night tariff is enabled
+        has_night_tariff = config_data.get(CONF_HAS_NIGHT_TARIFF, HAS_NIGHT_TARIFF_DEFAULT)
+        if not has_night_tariff:
+            return TARIFF_FIXED
+            
+        start_val = config_data.get(
             CONF_NIGHT_PRICE_START_TIME, NIGHT_PRICE_START_TIME_DEFAULT
         )
-        end_time_str = config_data.get(
+        end_val = config_data.get(
             CONF_NIGHT_PRICE_END_TIME, NIGHT_PRICE_END_TIME_DEFAULT
         )
 
-        try:
-            night_start, _, _ = parse_time_string(start_time_str)
-            night_end, _, _ = parse_time_string(end_time_str)
-        except ValueError:
-            _LOGGER.warning("Invalid time format in configuration, using defaults")
+        # Support both dict from TimeSelector and string formats
+        def _resolve_hour(val, default_str, fallback):
+            if isinstance(val, dict):
+                try:
+                    h = int(val.get("hour"))
+                    if 0 <= h <= 23:
+                        return h
+                except Exception:
+                    pass
+            if isinstance(val, str):
+                try:
+                    h, _, _ = parse_time_string(val)
+                    return h
+                except Exception:
+                    pass
+            # Fallback to default string
             try:
-                night_start, _, _ = parse_time_string(NIGHT_PRICE_START_TIME_DEFAULT)
-                night_end, _, _ = parse_time_string(NIGHT_PRICE_END_TIME_DEFAULT)
+                h, _, _ = parse_time_string(default_str)
+                return h
             except Exception:
-                # Last resort: use parsed values from default time strings
-                night_start, night_end = (
-                    _DEFAULT_NIGHT_START_HOUR,
-                    _DEFAULT_NIGHT_END_HOUR,
-                )
+                return fallback
+
+        night_start = _resolve_hour(
+            start_val, NIGHT_PRICE_START_TIME_DEFAULT, _DEFAULT_NIGHT_START_HOUR
+        )
+        night_end = _resolve_hour(
+            end_val, NIGHT_PRICE_END_TIME_DEFAULT, _DEFAULT_NIGHT_END_HOUR
+        )
 
         # Get current local time in the configured country
         tz_name = self._get_timezone_for_country(config.country_code)
@@ -399,7 +500,40 @@ class CurrentTariffSensor(RealElectricityPriceBaseSensor):
             local_hour = local_time.hour
         except Exception as e:
             _LOGGER.warning("Could not determine local time for %s: %s", tz_name, e)
-            local_hour = dt_util.now().hour
+            local_time = dt_util.now()
+            local_hour = local_time.hour
+
+        # Weekend/holiday detection: configurable night tariff for whole day
+        base_country = (
+            config.country_code[:2]
+            if len(config.country_code) > 2
+            else config.country_code
+        )
+        try:
+            country_holidays = holidays.country_holidays(
+                base_country, years=local_time.year
+            )
+        except Exception:
+            country_holidays = {}
+        config_data = {
+            **self.coordinator.config_entry.data,
+            **self.coordinator.config_entry.options,
+        }
+        use_sat = config_data.get(
+            CONF_NIGHT_TARIFF_SATURDAY, NIGHT_TARIFF_SATURDAY_DEFAULT
+        )
+        use_sun = config_data.get(
+            CONF_NIGHT_TARIFF_SUNDAY, NIGHT_TARIFF_SUNDAY_DEFAULT
+        )
+        use_holiday = config_data.get(
+            CONF_NIGHT_TARIFF_PUBLIC_HOLIDAY, NIGHT_TARIFF_PUBLIC_HOLIDAY_DEFAULT
+        )
+        dow = local_time.weekday()
+        is_sat = dow == 5
+        is_sun = dow == 6
+        is_holiday = local_time.date() in country_holidays
+        if (is_sat and use_sat) or (is_sun and use_sun) or (is_holiday and use_holiday):
+            return TARIFF_OFF_PEAK
 
         _LOGGER.debug(
             "Tariff calculation: night_start=%s, night_end=%s, tz=%s, local_hour=%s",
@@ -415,7 +549,7 @@ class CurrentTariffSensor(RealElectricityPriceBaseSensor):
         else:  # Does not cross midnight (unusual case)
             is_night_time = night_start <= local_hour < night_end
 
-        return "night" if is_night_time else "day"
+        return TARIFF_OFF_PEAK if is_night_time else TARIFF_PEAK
 
     def _get_timezone_for_country(self, country_code: str) -> str:
         """Get timezone for country code."""

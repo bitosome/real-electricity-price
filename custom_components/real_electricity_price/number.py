@@ -7,12 +7,16 @@ from .config_entities import (
     CheapHoursBasePriceEntity,
     CheapHoursThresholdEntity,
 )
+from .const import CONF_CALCULATE_CHEAP_HOURS
 
 
 async def async_setup_entry(
     hass: HomeAssistant, entry, async_add_entities: AddEntitiesCallback
 ) -> None:
     """Set up number entities (base price, threshold)."""
+    cfg = {**entry.data, **entry.options}
+    if not cfg.get(CONF_CALCULATE_CHEAP_HOURS, True):
+        return
     entities = [
         CheapHoursBasePriceEntity(entry.runtime_data.coordinator),
         CheapHoursThresholdEntity(entry.runtime_data.coordinator),

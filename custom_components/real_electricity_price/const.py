@@ -46,6 +46,14 @@ CHEAP_HOURS_BASE_PRICE_DEFAULT = (
 )
 PRICE_DECIMAL_PRECISION = 6  # Number of decimal places for all price calculations
 
+# Feature toggles
+CALCULATE_CHEAP_HOURS_DEFAULT = True
+
+# Tariff state constants
+TARIFF_OFF_PEAK = "off_peak"
+TARIFF_PEAK = "peak"
+TARIFF_FIXED = "fixed"
+
 # Configuration keys
 ## Basic configuration
 CONF_GRID = "grid"
@@ -66,16 +74,21 @@ CONF_SUPPLIER_RENEWABLE_ENERGY_CHARGE = "supplier_renewable_energy_charge"
 CONF_SUPPLIER_MARGIN = "supplier_margin"
 
 ## Time configuration
+CONF_HAS_NIGHT_TARIFF = "has_night_tariff"
 CONF_NIGHT_PRICE_START_HOUR = "night_price_start_hour"
 CONF_NIGHT_PRICE_END_HOUR = "night_price_end_hour"
 CONF_NIGHT_PRICE_START_TIME = "night_price_start_time"
 CONF_NIGHT_PRICE_END_TIME = "night_price_end_time"
+CONF_NIGHT_TARIFF_SATURDAY = "night_tariff_saturday"
+CONF_NIGHT_TARIFF_SUNDAY = "night_tariff_sunday"
+CONF_NIGHT_TARIFF_PUBLIC_HOLIDAY = "night_tariff_public_holiday"
 
 ## Update configuration
 CONF_SCAN_INTERVAL = "scan_interval"
 CONF_CHEAP_HOURS_UPDATE_TRIGGER = "cheap_hours_update_trigger"
 CONF_CHEAP_HOURS_THRESHOLD = "cheap_hours_threshold"
 CONF_CHEAP_HOURS_BASE_PRICE = "cheap_hours_base_price"
+CONF_CALCULATE_CHEAP_HOURS = "calculate_cheap_hours"
 
 ## API configuration
 CONF_DATE = "date"
@@ -100,6 +113,12 @@ VAT_GRID_TRANSMISSION_NIGHT_DEFAULT = False
 VAT_GRID_TRANSMISSION_DAY_DEFAULT = False
 VAT_SUPPLIER_RENEWABLE_ENERGY_CHARGE_DEFAULT = False
 VAT_SUPPLIER_MARGIN_DEFAULT = False
+
+# Tariff configuration
+HAS_NIGHT_TARIFF_DEFAULT = True  # Most suppliers have night/day tariffs
+NIGHT_TARIFF_SATURDAY_DEFAULT = True
+NIGHT_TARIFF_SUNDAY_DEFAULT = True
+NIGHT_TARIFF_PUBLIC_HOLIDAY_DEFAULT = True
 
 
 def parse_time_string(time_str: str) -> tuple[int, int, int]:
