@@ -232,10 +232,11 @@ class CheapHoursDataUpdateCoordinator(DataUpdateCoordinator):
         """Manually trigger an update of cheap price data."""
         _LOGGER.debug("Manual cheap price update requested")
 
-        # Get fresh data from main coordinator if needed
+        # If called after successful main coordinator sync, data should be available
+        # Don't trigger additional API calls to avoid cascading failures
         if not self.main_coordinator.data:
-            _LOGGER.debug("No main coordinator data, requesting refresh first")
-            await self.main_coordinator.async_request_refresh()
+            _LOGGER.debug("No main coordinator data available, skipping cheap hours update to avoid API conflicts")
+            return
 
         # Now update our own data
         await self.async_request_refresh()

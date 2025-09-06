@@ -127,6 +127,7 @@ class RealElectricityPriceDataUpdateCoordinator(DataUpdateCoordinator):
                                 "API returned no data but preserving recent data from %s to avoid sensor unavailability", 
                                 last_sync
                             )
+                            # Don't trigger cheap hours update when preserving old data
                             return self.data
                         else:
                             _LOGGER.error("Last data is too stale (%s), not preserving", last_sync)
@@ -190,7 +191,7 @@ class RealElectricityPriceDataUpdateCoordinator(DataUpdateCoordinator):
             # Trigger cheap price coordinator update after successful data sync
             if self._cheap_price_coordinator:
                 _LOGGER.debug(
-                    "Triggering cheap price coordinator update after data sync"
+                    "Triggering cheap price coordinator update after fresh data sync"
                 )
                 await self._cheap_price_coordinator.async_manual_update()
 
@@ -207,6 +208,7 @@ class RealElectricityPriceDataUpdateCoordinator(DataUpdateCoordinator):
                             "API failed but preserving recent data from %s to avoid sensor unavailability",
                             last_sync
                         )
+                        # Don't trigger cheap hours update when preserving old data
                         return self.data
             raise UpdateFailed(exception) from exception
 
