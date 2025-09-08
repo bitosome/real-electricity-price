@@ -1,0 +1,29 @@
+# Usage: podman-compose up -d
+
+services:
+  homeassistant:
+    container_name: dc
+    image: ghcr.io/home-assistant/home-assistant:stable
+    volumes:
+      - ./container/config:/config
+    restart: unless-stopped
+    privileged: true
+    ports:
+      - "8123:8123"
+    environment:
+      - TZ=Europe/Tallinn
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8123"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    labels:
+      - "dev.project=real-electricity-price"
+      - "dev.environment=development"
+    networks:
+      - internal
+
+networks:
+  internal:
+    driver: bridge

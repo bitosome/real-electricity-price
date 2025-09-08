@@ -1,0 +1,4 @@
+# Docker Ignore
+
+# Keep our integration files for development
+!custom_components/real_electricity_price/

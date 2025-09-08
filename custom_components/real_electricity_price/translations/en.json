@@ -1,0 +1,269 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "title": "Real Electricity Price Setup",
+                "description": "Configure your electricity pricing parameters. If you need help with the configuration have a look here: https://github.com/bitosome/real-electricity-price",
+                "data": {
+                    "name": "Name",
+                    "grid": "Grid Provider",
+                    "grid_electricity_excise_duty": "Grid Electricity Excise Duty (€/kWh)",
+                    "grid_renewable_energy_charge": "Grid Renewable Energy Charge (€/kWh)",
+                    "grid_electricity_transmission_price_night": "Grid Transmission Price - Off-peak (€/kWh)",
+                    "grid_electricity_transmission_price_day": "Grid Transmission Price - Peak (€/kWh)",
+                    "supplier": "Supplier",
+                    "supplier_renewable_energy_charge": "Supplier Renewable Energy Charge (€/kWh)",
+                    "supplier_margin": "Supplier Margin (€/kWh)",
+                    "country_code": "Nord Pool Area Code (EE, FI, SE1, SE2, NO1, NO2, DK1, DK2, etc.)",
+                    "vat": "VAT Percentage (%)",
+                    "vat_nord_pool": "Apply VAT to Nord Pool Price",
+                    "vat_grid_electricity_excise_duty": "Apply VAT to Grid Electricity Excise Duty",
+                    "vat_grid_renewable_energy_charge": "Apply VAT to Grid Renewable Energy Charge",
+                    "vat_grid_transmission_night": "Apply VAT to Grid Transmission (Night)",
+                    "vat_grid_transmission_day": "Apply VAT to Grid Transmission (Day)",
+                    "vat_supplier_renewable_energy_charge": "Apply VAT to Supplier Renewable Energy Charge",
+                    "vat_supplier_margin": "Apply VAT to Supplier Margin",
+                    "has_night_tariff": "Has Off-peak/Peak Tariff",
+                    "offpeak_strategy": "Off-peak Strategy",
+                    "time_format_24h": "Use 24-hour time format",
+                    "night_price_start_time": "Off-peak Start Time (only used if off-peak/peak tariff is enabled)",
+                    "night_price_end_time": "Off-peak End Time (only used if off-peak/peak tariff is enabled)",
+                    "night_price_start_hour": "Off-peak Start Hour (0-23)",
+                    "night_price_end_hour": "Off-peak End Hour (0-23)",
+                    "grid_electricity_transmission_price_offpeak1": "Transmission Price - Off-peak 1 (€/kWh)",
+                    "grid_electricity_transmission_price_peak": "Transmission Price - Peak (€/kWh)",
+                    "grid_electricity_transmission_price_offpeak2": "Transmission Price - Off-peak 2 (€/kWh)",
+                    "regional_holiday_code": "Regional Holiday Code (optional - Germany: BW, BY, BE | France: GP, RE | Norway: 03, 11)",
+                    "scan_interval": "Scan Interval (seconds)",
+                    "update_trigger": "Update Trigger (Advanced)",
+                    "cheap_hours_update_trigger": "Cheap Hours Calculation Time",
+                    "acceptable_price": "Acceptable Price (€/kWh)",
+                    "calculate_cheap_hours": "Calculate Cheap Hours",
+                    "chart_color_past_hours": "Past Hours Color (for hours that have already passed)",
+                    "chart_color_current_hour": "Current Hour Color (for the current hour when not cheap)",
+                    "chart_color_future_hours": "Future Hours Color (for upcoming hours)",
+                    "chart_color_cheap_hours": "Cheap Hours Color (for identified cheap hours)",
+                    "chart_color_cheap_current_hour": "Cheap Current Hour Color (for current hour when it's also cheap)"
+                }
+            }
+            ,
+            "offpeak_strategy": {
+                "title": "Off-peak Strategy",
+                "description": "Choose how to determine off-peak periods.",
+                "data": {
+                    "offpeak_strategy": "Off-peak Strategy"
+                }
+            }
+            ,
+            "block_tariffs": {
+                "title": "Block Tariffs",
+                "description": "Configure per-block transmission prices and weekend/holiday behavior. Regional Holiday Code: Germany (BW=Baden-Württemberg, BY=Bavaria), France (GP=Guadeloupe, RE=Réunion), Norway (03=Oslo, 11=Rogaland).",
+                "data": {
+                    "grid_electricity_transmission_price_offpeak1": "Transmission Price - Off-peak 1 (€/kWh)",
+                    "grid_electricity_transmission_price_peak": "Transmission Price - Peak (€/kWh)",
+                    "grid_electricity_transmission_price_offpeak2": "Transmission Price - Off-peak 2 (€/kWh)",
+                    "night_tariff_saturday": "Use off-peak all day on Saturdays",
+                    "night_tariff_sunday": "Use off-peak all day on Sundays",
+                    "night_tariff_public_holiday": "Use off-peak all day on public holidays",
+                    "regional_holiday_code": "Regional Holiday Code (optional - Germany: BW, BY, BE | France: GP, RE | Norway: 03, 11)"
+                }
+            }
+            ,
+            "night_times": {
+                "title": "Off-peak Tariff Times",
+                "description": "Specify off-peak start and end times (24-hour format). Regional Holiday Code: Germany (BW=Baden-Württemberg, BY=Bavaria), France (GP=Guadeloupe, RE=Réunion), Norway (03=Oslo, 11=Rogaland).",
+                "data": {
+                    "night_price_start_time": "Off-peak Start Time",
+                    "night_price_end_time": "Off-peak End Time",
+                    "night_tariff_saturday": "Use off-peak all day on Saturdays",
+                    "night_tariff_sunday": "Use off-peak all day on Sundays",
+                    "night_tariff_public_holiday": "Use off-peak all day on public holidays",
+                    "regional_holiday_code": "Regional Holiday Code (optional - Germany: BW, BY, BE | France: GP, RE | Norway: 03, 11)"
+                }
+            }
+            ,
+            "cheap_hours": {
+                "title": "Cheap Hours",
+                "description": "Define calculation settings for cheap hours. Any hour where the electricity price is at or below your acceptable price will be considered a cheap hour.",
+                "data": {
+                    "acceptable_price": "Acceptable Price (€/kWh)",
+                    "cheap_hours_update_trigger": "Cheap Hours Calculation Time"
+                }
+            },
+            "chart_colors": {
+                "title": "Chart Colors",
+                "description": "Customize colors for ApexCharts dashboard displays. These colors will be used to distinguish different types of hours in your electricity price charts.",
+                "data": {
+                    "chart_color_past_hours": "Past Hours Color",
+                    "chart_color_current_hour": "Current Hour Color",
+                    "chart_color_future_hours": "Future Hours Color", 
+                    "chart_color_cheap_hours": "Cheap Hours Color",
+                    "chart_color_cheap_current_hour": "Cheap Current Hour Color"
+                }
+            }
+        },
+        "error": {
+            "auth": "Authentication failed.",
+            "connection": "Unable to connect to the server.",
+            "unknown": "Unknown error occurred.",
+            "invalid_input": "Invalid input provided.",
+            "cannot_connect": "Cannot connect to Nord Pool API. Please check your internet connection and try again.",
+            "invalid_country_code": "Invalid Nord Pool area code. Must be one of: EE, FI, LV, LT, SE1-SE4, NO1-NO5, DK1-DK2.",
+            "invalid_vat_rate": "VAT rate must be a number between 0% and 100%.",
+            "invalid_scan_interval": "Scan interval must be between 5 minutes (300 seconds) and 24 hours (86400 seconds).",
+            "invalid_hour_range": "Night price hours must be valid hours between 00 and 23.",
+            "invalid_night_hours": "Night price start and end times cannot be the same (except when ending at midnight).",
+            "invalid_time_format": "Time must be valid. For night/day tariff configuration, use 24-hour format (00:00 to 23:59). Example: 22:00 for night start, 07:00 for night end.",
+            "invalid_cheap_price_trigger": "Cheap hours calculation time must be in HH:MM format. Example: 15:00."
+        },
+        "abort": {
+            "already_configured": "This entry is already configured."
+        },
+        "selector": {
+            "offpeak_strategy": {
+                "options": {
+                    "night_window": "Night Window (fixed time periods)",
+                    "nord_pool_blocks": "Nord Pool Blocks (Off-peak 1, Peak, Off-peak 2)"
+                }
+            },
+            "country_code": {
+                "options": {
+                    "EE": "Estonia (EE)",
+                    "FI": "Finland (FI)", 
+                    "LV": "Latvia (LV)",
+                    "LT": "Lithuania (LT)",
+                    "SE1": "Sweden SE1 (Luleå)",
+                    "SE2": "Sweden SE2 (Sundsvall)",
+                    "SE3": "Sweden SE3 (Stockholm)",
+                    "SE4": "Sweden SE4 (Malmö)",
+                    "NO1": "Norway NO1 (Oslo)",
+                    "NO2": "Norway NO2 (Kristiansand)",
+                    "NO3": "Norway NO3 (Trondheim)",
+                    "NO4": "Norway NO4 (Tromsø)",
+                    "NO5": "Norway NO5 (Bergen)",
+                    "DK1": "Denmark DK1 (Western Denmark)",
+                    "DK2": "Denmark DK2 (Eastern Denmark)",
+                    "DE-LU": "Germany/Luxembourg (DE-LU)",
+                    "NL": "Netherlands (NL)",
+                    "BE": "Belgium (BE)",
+                    "FR": "France (FR)",
+                    "AT": "Austria (AT)",
+                    "PL": "Poland (PL)",
+                    "GB": "Great Britain (GB)"
+                }
+            }
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "title": "Real Electricity Price Options",
+                "description": "Update your electricity pricing parameters",
+                "data": {
+                    "name": "Name",
+                    "grid": "Grid Provider",
+                    "grid_electricity_excise_duty": "Grid Electricity Excise Duty (€/kWh)",
+                    "grid_renewable_energy_charge": "Grid Renewable Energy Charge (€/kWh)",
+                    "grid_electricity_transmission_price_night": "Grid Transmission Price - Off-peak (€/kWh)",
+                    "grid_electricity_transmission_price_day": "Grid Transmission Price - Peak (€/kWh)",
+                    "supplier": "Supplier",
+                    "supplier_renewable_energy_charge": "Supplier Renewable Energy Charge (€/kWh)",
+                    "supplier_margin": "Supplier Margin (€/kWh)",
+                    "country_code": "Nord Pool Area Code (EE, FI, SE1, SE2, NO1, NO2, DK1, DK2, etc.)",
+                    "vat": "VAT Percentage (%)",
+                    "vat_nord_pool": "Apply VAT to Nord Pool Price",
+                    "vat_grid_electricity_excise_duty": "Apply VAT to Grid Electricity Excise Duty",
+                    "vat_grid_renewable_energy_charge": "Apply VAT to Grid Renewable Energy Charge",
+                    "vat_grid_transmission_night": "Apply VAT to Grid Transmission (Night)",
+                    "vat_grid_transmission_day": "Apply VAT to Grid Transmission (Day)",
+                    "vat_supplier_renewable_energy_charge": "Apply VAT to Supplier Renewable Energy Charge",
+                    "vat_supplier_margin": "Apply VAT to Supplier Margin",
+                    "has_night_tariff": "Has Off-peak/Peak Tariff",
+                    "time_format_24h": "Use 24-hour time format",
+                    "night_price_start_time": "Off-peak Start Time (only used if off-peak/peak tariff is enabled)",
+                    "night_price_end_time": "Off-peak End Time (only used if off-peak/peak tariff is enabled)",
+                    "night_price_start_hour": "Off-peak Start Hour (0-23)",
+                    "night_price_end_hour": "Off-peak End Hour (0-23)",
+                    "scan_interval": "Scan Interval (seconds)",
+                    "update_trigger": "Update Trigger (Advanced)",
+                    "cheap_hours_update_trigger": "Cheap Hours Calculation Time",
+                    "acceptable_price": "Acceptable Price (€/kWh)",
+                    "night_tariff_saturday": "Use off-peak all day on Saturdays",
+                    "night_tariff_sunday": "Use off-peak all day on Sundays",
+                    "night_tariff_public_holiday": "Use off-peak all day on public holidays",
+                    "calculate_cheap_hours": "Calculate Cheap Hours",
+                    "offpeak_strategy": "Off-peak Strategy",
+                    "grid_electricity_transmission_price_offpeak1": "Transmission Price - Off-peak 1 (€/kWh)",
+                    "grid_electricity_transmission_price_peak": "Transmission Price - Peak (€/kWh)",
+                    "grid_electricity_transmission_price_offpeak2": "Transmission Price - Off-peak 2 (€/kWh)",
+                    "regional_holiday_code": "Regional Holiday Code (optional - Germany: BW, BY, BE | France: GP, RE | Norway: 03, 11)",
+                    "chart_color_past_hours": "Past Hours Color (for hours that have already passed)",
+                    "chart_color_current_hour": "Current Hour Color (for the current hour when not cheap)",
+                    "chart_color_future_hours": "Future Hours Color (for upcoming hours)",
+                    "chart_color_cheap_hours": "Cheap Hours Color (for identified cheap hours)",
+                    "chart_color_cheap_current_hour": "Cheap Current Hour Color (for current hour when it's also cheap)"
+                }
+            }
+        }
+    },
+    "entity": {
+        "sensor": {
+            "current_price": {
+                "name": "Current Price"
+            },
+            "current_tariff": {
+                "name": "Current Tariff",
+                "state": {
+                    "peak": "Peak",
+                    "off_peak": "Off-peak",
+                    "fixed": "Fixed"
+                }
+            },
+            "last_sync": {
+                "name": "Last Sync"
+            },
+            "last_cheap_calculation": {
+                "name": "Last Cheap Hours Calculation"
+            },
+            "hourly_prices_yesterday": {
+                "name": "Hourly Prices Yesterday"
+            },
+            "hourly_prices_today": {
+                "name": "Hourly Prices Today"
+            },
+            "hourly_prices_tomorrow": {
+                "name": "Hourly Prices Tomorrow"
+            },
+            "cheap_hours": {
+                "name": "Cheap Hours"
+            },
+            "next_cheap_hours_end": {
+                "name": "Next Cheap Hours End"
+            },
+            "next_cheap_hours_start": {
+                "name": "Next Cheap Hours Start"
+            },
+            "chart_data": {
+                "name": "Chart Data",
+                "state_attributes": {
+                    "chart_data": {
+                        "name": "Chart Data"
+                    },
+                    "last_update": {
+                        "name": "Last Update"
+                    }
+                }
+            }
+        },
+        "button": {
+            "calculate_cheap_hours": {
+                "name": "Calculate Cheap Hours"
+            }
+        },
+        "number": {
+            "acceptable_price": {
+                "name": "Acceptable price"
+            }
+        }
+    }
+}
