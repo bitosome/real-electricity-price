@@ -1439,7 +1439,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         # Add cheap-hour colors only when cheap-hour calculation is enabled
         if calculate_cheap:
             schema_dict = {
-                **schema_dict.schema,  # extract underlying dict from vol.Schema for update
+                **schema_dict,  # extract underlying dict for update
                 vol.Optional(
                     CONF_CHART_COLOR_CHEAP_HOURS,
                     default=options_data.get(
