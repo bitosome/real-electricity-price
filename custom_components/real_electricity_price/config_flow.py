@@ -151,11 +151,8 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
     # Validate cheap hours configuration if enabled
     calculate_cheap = data.get(CONF_CALCULATE_CHEAP_HOURS, False)
     if calculate_cheap:
-        cheap_hours_trigger = data.get(CONF_CHEAP_HOURS_UPDATE_TRIGGER)
-        # Accept both HA TimeSelector string ("HH:MM[:SS]") and dict {hour,minute}
-        if cheap_hours_trigger is not None and not _validate_time_string(cheap_hours_trigger):
-            msg = "Cheap hours update time must be a valid time format"
-            raise InvalidCheapPriceTrigger(msg)
+        # No additional validation needed for cheap hours
+        pass
 
     # Handle time settings based on night tariff toggle and chosen strategy
     has_night_tariff = data.get(CONF_HAS_NIGHT_TARIFF, HAS_NIGHT_TARIFF_DEFAULT)
@@ -225,12 +222,6 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
         except Exception:
             return None
         return None
-
-    # cheap_hours_update_trigger normalization (if present)
-    if CONF_CHEAP_HOURS_UPDATE_TRIGGER in data and data[CONF_CHEAP_HOURS_UPDATE_TRIGGER] is not None:
-        norm = _to_dict_time(data[CONF_CHEAP_HOURS_UPDATE_TRIGGER])
-        if norm is not None:
-            data[CONF_CHEAP_HOURS_UPDATE_TRIGGER] = norm
 
     # night window normalization (only when applicable)
     if has_night_tariff and strategy == OFFPEAK_STRATEGY_NIGHT_WINDOW:
@@ -453,10 +444,6 @@ class RealElectricityPriceFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             try:
                 # With block strategy, skip time validation (times may be absent)
                 info = await validate_input(self.hass, merged)
-            except InvalidCheapPriceTrigger:
-                self._errors[CONF_CHEAP_HOURS_UPDATE_TRIGGER] = (
-                    "invalid_cheap_price_trigger"
-                )
             except InvalidCountryCode:
                 self._errors["country_code"] = "invalid_country_code"
             except InvalidVatRate:
@@ -472,7 +459,7 @@ class RealElectricityPriceFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                 # Proceed to cheap hours step if enabled, otherwise go to chart colors
                 if merged.get(CONF_CALCULATE_CHEAP_HOURS, False):
                     self._user_data = merged
-                    return await self.async_step_cheap_hours()
+                    return await self.async_step_chart_colors()
                 else:
                     self._user_data = merged
                     return await self.async_step_chart_colors()
@@ -719,7 +706,7 @@ class RealElectricityPriceFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             # If cheap hours are enabled, go to cheap_hours step, otherwise go to chart_colors
             if merged.get(CONF_CALCULATE_CHEAP_HOURS, False):
                 self._user_data = merged
-                return await self.async_step_cheap_hours()
+                return await self.async_step_chart_colors()
             else:
                 self._user_data = merged
                 return await self.async_step_chart_colors()
@@ -781,48 +768,6 @@ class RealElectricityPriceFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             errors=self._errors,
         )
 
-    async def async_step_cheap_hours(
-        self, user_input: dict | None = None
-    ) -> config_entries.ConfigFlowResult:
-        """Collect cheap hours configuration when enabled."""
-        _LOGGER.debug("async_step_cheap_hours called with user_input: %s", user_input)
-        self._errors = {}
-
-        if user_input is not None:
-            merged = {**self._user_data, **user_input}
-            # After collecting cheap hours configuration, go to chart colors step
-            self._user_data = merged
-            return await self.async_step_chart_colors()
-
-        schema = vol.Schema(
-            {
-                vol.Optional(
-                    CONF_ACCEPTABLE_PRICE,
-                    default=self._user_data.get(
-                        CONF_ACCEPTABLE_PRICE, ACCEPTABLE_PRICE_DEFAULT
-                    ),
-                ): selector.NumberSelector(
-                    selector.NumberSelectorConfig(min=0, max=1, step="any", mode="box")
-                ),
-                vol.Optional(
-                    CONF_CHEAP_HOURS_UPDATE_TRIGGER,
-                    default=self._user_data.get(
-                        CONF_CHEAP_HOURS_UPDATE_TRIGGER,
-                        {
-                            "hour": parse_time_string(DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER)[0],
-                            "minute": parse_time_string(DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER)[1],
-                        }
-                    ),
-                ): selector.TimeSelector(),
-            }
-        )
-
-        return self.async_show_form(
-            step_id="cheap_hours",
-            data_schema=schema,
-            errors=self._errors,
-        )
-
     async def async_step_chart_colors(
         self, user_input: dict | None = None
     ) -> config_entries.ConfigFlowResult:
@@ -834,10 +779,6 @@ class RealElectricityPriceFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             merged = {**self._user_data, **user_input}
             try:
                 info = await validate_input(self.hass, merged)
-            except InvalidCheapPriceTrigger:
-                self._errors[CONF_CHEAP_HOURS_UPDATE_TRIGGER] = (
-                    "invalid_cheap_price_trigger"
-                )
             except InvalidCountryCode:
                 self._errors["country_code"] = "invalid_country_code"
             except InvalidVatRate:
@@ -934,10 +875,6 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         if user_input is not None:
             try:
                 await validate_input(self.hass, user_input)
-            except InvalidCheapPriceTrigger:
-                self._errors[CONF_CHEAP_HOURS_UPDATE_TRIGGER] = (
-                    "invalid_cheap_price_trigger"
-                )
             except InvalidCountryCode:
                 self._errors["country_code"] = "invalid_country_code"
             except InvalidVatRate:
@@ -1368,19 +1305,6 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         if calculate_cheap:
             schema_dict.update(
                 {
-                    vol.Optional(
-                        CONF_CHEAP_HOURS_UPDATE_TRIGGER,
-                        default=options_data.get(
-                            CONF_CHEAP_HOURS_UPDATE_TRIGGER,
-                            current_data.get(
-                                CONF_CHEAP_HOURS_UPDATE_TRIGGER,
-                                {
-                                    "hour": parse_time_string(DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER)[0],
-                                    "minute": parse_time_string(DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER)[1],
-                                }
-                            ),
-                        ),
-                    ): selector.TimeSelector(),
                     vol.Optional(
                         CONF_ACCEPTABLE_PRICE,
                         default=options_data.get(

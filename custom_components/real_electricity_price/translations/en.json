@@ -85,8 +85,7 @@
                 "title": "Cheap Hours",
                 "description": "Define calculation settings for cheap hours. Any hour where the electricity price is at or below your acceptable price will be considered a cheap hour.",
                 "data": {
-                    "acceptable_price": "Acceptable Price (€/kWh)",
-                    "cheap_hours_update_trigger": "Cheap Hours Calculation Time"
+                    "acceptable_price": "Acceptable Price (€/kWh)"
                 }
             },
             "chart_colors": {
@@ -112,7 +111,7 @@
             "invalid_scan_interval": "Scan interval must be between 5 minutes (300 seconds) and 24 hours (86400 seconds).",
             "invalid_hour_range": "Night price hours must be valid hours between 00 and 23.",
             "invalid_night_hours": "Night price start and end times cannot be the same (except when ending at midnight).",
-            "invalid_time_format": "Time must be valid. For night/day tariff configuration, use 24-hour format (00:00 to 23:59). Example: 22:00 for night start, 07:00 for night end.",
+            "invalid_time_format": "Time must be valid. For night/day tariff configuration, use 24-hour format (00:00 to 23:59). Example: 22:00 for night start, 07:00 for night end."
         },
         "abort": {
             "already_configured": "This entry is already configured."
