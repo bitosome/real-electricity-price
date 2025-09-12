@@ -4,7 +4,6 @@
 #
 # Updates:
 # - custom_components/<domain>/manifest.json (version)
-# - README.md "Latest Features (vX.Y.Z)" heading if present
 # - CHANGELOG.md: inserts a new stub section if --changelog is provided
 #
 # Usage:
@@ -54,7 +53,6 @@ if [[ ! -f "$MANIFEST" ]]; then
 fi
 
 CHANGELOG="$ROOT_DIR/CHANGELOG.md"
-README="$ROOT_DIR/README.md"
 
 NEW_VERSION=""
 BUMP_KIND=""
@@ -137,16 +135,6 @@ PY
 
 ok "manifest.json updated"
 
-# Update README latest features header if present: "## 🆕 Latest Features (vX.Y.Z)"
-if [[ -f "$README" ]]; then
-  if grep -qE '^## 🆕 Latest Features \(v[0-9]+\.[0-9]+\.[0-9]+\)' "$README"; then
-    sed -i.bak -E "s/^## 🆕 Latest Features \(v[0-9]+\.[0-9]+\.[0-9]+\)/## 🆕 Latest Features (v${TARGET_VERSION})/" "$README" && rm -f "$README.bak"
-    ok "README latest features header updated"
-  else
-    warn "README latest features header not found; skipping"
-  fi
-fi
-
 # Optionally insert a CHANGELOG stub
 if $DO_CHANGELOG; then
   if [[ -f "$CHANGELOG" ]]; then
@@ -164,5 +152,4 @@ fi
 echo ""
 ok "Done. Files updated:"
 echo " - $MANIFEST"
-[[ -f "$README" ]] && echo " - $README (if matched)"
 [[ -f "$CHANGELOG" ]] && $DO_CHANGELOG && echo " - $CHANGELOG (stub inserted)"
