@@ -11,7 +11,6 @@ from homeassistant.const import CONF_NAME
 from ..const import (
     ACCEPTABLE_PRICE_DEFAULT,
     CONF_ACCEPTABLE_PRICE,
-    CONF_CHEAP_HOURS_UPDATE_TRIGGER,
     CONF_COUNTRY_CODE,
     CONF_GRID,
     CONF_GRID_ELECTRICITY_EXCISE_DUTY,
@@ -33,7 +32,6 @@ from ..const import (
     CONF_VAT_SUPPLIER_MARGIN,
     CONF_VAT_SUPPLIER_RENEWABLE_ENERGY_CHARGE,
     COUNTRY_CODE_DEFAULT,
-    DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER,
     DEFAULT_SCAN_INTERVAL,
     GRID_DEFAULT,
     GRID_ELECTRICITY_EXCISE_DUTY_DEFAULT,
@@ -124,9 +122,6 @@ class RealElectricityPriceBaseSensor(RealElectricityPriceEntity, SensorEntity):
                 CONF_NIGHT_PRICE_END_TIME, NIGHT_PRICE_END_TIME_DEFAULT
             ),
             scan_interval=config_data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
-            cheap_price_update_trigger=config_data.get(
-                CONF_CHEAP_HOURS_UPDATE_TRIGGER, DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER
-            ),
             acceptable_price=config_data.get(
                 CONF_ACCEPTABLE_PRICE, ACCEPTABLE_PRICE_DEFAULT
             ),

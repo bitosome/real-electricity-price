@@ -90,7 +90,6 @@ class IntegrationConfig:
 
     # Update settings
     scan_interval: int
-    cheap_price_update_trigger: str
     acceptable_price: float
 
     # VAT settings

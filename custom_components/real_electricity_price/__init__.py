@@ -17,7 +17,6 @@ from homeassistant.loader import async_get_loaded_integration
 from .api import RealElectricityPriceApiClient
 from .cheap_hours_coordinator import CheapHoursDataUpdateCoordinator
 from .const import (
-    CONF_CHEAP_HOURS_UPDATE_TRIGGER,
     CONF_COUNTRY_CODE,
     CONF_GRID,
     CONF_NIGHT_PRICE_END_TIME,
@@ -26,7 +25,6 @@ from .const import (
     CONF_SCAN_INTERVAL,
     CONF_SUPPLIER,
     COUNTRY_CODE_DEFAULT,
-    DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
     GRID_DEFAULT,
@@ -89,9 +87,6 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
             CONF_NIGHT_PRICE_END_TIME, NIGHT_PRICE_END_TIME_DEFAULT
         ),
         CONF_SCAN_INTERVAL: config_data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
-        CONF_CHEAP_HOURS_UPDATE_TRIGGER: config_data.get(
-            CONF_CHEAP_HOURS_UPDATE_TRIGGER, DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER
-        ),
     }
 
     LOGGER.info("Creating config entry with data: %s", entry_data)
@@ -168,7 +163,6 @@ async def async_setup_entry(
         _hass: HomeAssistant, _updated_entry: RealElectricityPriceConfigEntry
     ) -> None:
         """Update trigger configurations when config changes."""
-        cheap_hours_coordinator.update_trigger_config()
 
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))
 

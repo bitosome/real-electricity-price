@@ -168,25 +168,29 @@ class RealElectricityPriceDataUpdateCoordinator(DataUpdateCoordinator):
 
             self._last_update_date = current_date
 
-            # Scenario #1: Integration startup with tomorrow's data available
-            if self._is_startup and self._cheap_price_coordinator:
-                tomorrow_data = data.get("tomorrow")
-                if tomorrow_data and isinstance(tomorrow_data, dict):
-                    hourly_prices = tomorrow_data.get("hourly_prices", [])
-                    # Check if tomorrow's prices are actually available (not just placeholder)
-                    has_real_prices = any(
-                        entry.get("actual_price") is not None
-                        for entry in hourly_prices
-                    )
-                    if has_real_prices:
-                        _LOGGER.info("Integration startup: tomorrow's prices available, triggering cheap hours calculation")
-                        await self._cheap_price_coordinator.async_manual_update()
+            # Always trigger cheap hours calculation when we have new price data
+            if self._cheap_price_coordinator and data:
+                # Check if we have any actual price data
+                has_price_data = False
+                for data_key in ["today", "tomorrow"]:
+                    if data_key in data:
+                        day_data = data[data_key]
+                        if isinstance(day_data, dict) and day_data.get("data_available", False):
+                            hourly_prices = day_data.get("hourly_prices", [])
+                            if any(entry.get("actual_price") is not None for entry in hourly_prices):
+                                has_price_data = True
+                                break
+                
+                if has_price_data:
+                    if self._is_startup:
+                        _LOGGER.info("Integration startup: price data available, triggering cheap hours calculation")
                     else:
-                        _LOGGER.debug("Integration startup: tomorrow's prices not yet available")
+                        _LOGGER.debug("New price data received, updating cheap hours calculation")
+                    await self._cheap_price_coordinator.async_manual_update()
                 else:
-                    _LOGGER.debug("Integration startup: no tomorrow data available")
+                    _LOGGER.debug("No price data available for cheap hours calculation")
 
-                self._is_startup = False  # Only trigger once at startup
+            self._is_startup = False  # Only trigger once at startup
 
             return data
 

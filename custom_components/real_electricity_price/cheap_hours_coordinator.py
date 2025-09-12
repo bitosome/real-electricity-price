@@ -14,10 +14,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from .const import (
     ACCEPTABLE_PRICE_DEFAULT,
     CONF_ACCEPTABLE_PRICE,
-    CONF_CHEAP_HOURS_UPDATE_TRIGGER,
-    DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER,
     PRICE_DECIMAL_PRECISION,
-    parse_time_string,
 )
 
 if TYPE_CHECKING:
@@ -32,7 +29,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class CheapHoursDataUpdateCoordinator(DataUpdateCoordinator):
-    """Class to manage fetching and updating cheap hours data separately from main price data."""
+    """Class to manage cheap hours data synchronized with main price data."""
 
     def __init__(
         self,
@@ -49,28 +46,21 @@ class CheapHoursDataUpdateCoordinator(DataUpdateCoordinator):
             logger=logger,
             name=name,
             update_method=update_method,
-            # No default update interval - we use time-based triggers
+            # No default update interval - we sync with main coordinator
             update_interval=None,
         )
 
         self.main_coordinator = main_coordinator
         self.config_entry = config_entry
-        self._trigger_unsub: Callable[[], None] | None = None
         self._stop_unsub: Callable[[], None] | None = None
 
         # Runtime storage for UI-configurable values (to avoid config entry reloads)
         self._runtime_acceptable_price: float | None = None
-        self._runtime_update_trigger: dict | None = None
-
-        # Initialize the time-based trigger
-        self.update_trigger_config()
 
         # Clean up on HA stop
         @callback
         def _on_stop(event) -> None:
-            if self._trigger_unsub:
-                self._trigger_unsub()
-                self._trigger_unsub = None
+            pass  # No time-based triggers to clean up
 
         self._stop_unsub = self.hass.bus.async_listen_once(
             EVENT_HOMEASSISTANT_STOP, _on_stop
@@ -81,21 +71,6 @@ class CheapHoursDataUpdateCoordinator(DataUpdateCoordinator):
         self._runtime_acceptable_price = value
         self.logger.info("Runtime acceptable price updated to %s", value)
 
-    def set_runtime_update_trigger(self, value: dict) -> None:
-        """Set the runtime update trigger and update the scheduled trigger."""
-        self._runtime_update_trigger = value
-        try:
-            def_h, def_m, _ = parse_time_string(DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER)
-        except Exception:
-            def_h, def_m = 14, 30
-        self.logger.info(
-            "Runtime update trigger updated to %02d:%02d",
-            value.get("hour", def_h),
-            value.get("minute", def_m),
-        )
-        # Update the actual scheduled trigger with the new time
-        self._update_trigger_schedule_from_runtime()
-
     def get_runtime_acceptable_price(self) -> float:
         """Get the runtime acceptable price, falling back to config if not set."""
         if self._runtime_acceptable_price is not None:
@@ -103,124 +78,14 @@ class CheapHoursDataUpdateCoordinator(DataUpdateCoordinator):
         config = {**self.config_entry.data, **self.config_entry.options}
         return config.get(CONF_ACCEPTABLE_PRICE, ACCEPTABLE_PRICE_DEFAULT)
 
-    def get_runtime_update_trigger(self) -> dict:
-        """Get the runtime update trigger, falling back to config if not set."""
-        if self._runtime_update_trigger is not None:
-            return self._runtime_update_trigger
-        config = {**self.config_entry.data, **self.config_entry.options}
-        trigger = config.get(
-            CONF_CHEAP_HOURS_UPDATE_TRIGGER, DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER
-        )
-        if isinstance(trigger, dict):
-            return trigger
-        # Convert string format to dict
-        if isinstance(trigger, str):
-            parts = trigger.split(":")
-            return {
-                "hour": int(parts[0]),
-                "minute": int(parts[1]) if len(parts) > 1 else 0,
-            }
-        return DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER
-
-    def _update_trigger_schedule_from_runtime(self) -> None:
-        """Update the trigger schedule using runtime values (doesn't trigger recalculation)."""
-        # Get runtime trigger time
-        trigger_time = self.get_runtime_update_trigger()
-
-        # Remove existing trigger
-        if self._trigger_unsub:
-            self._trigger_unsub()
-            self._trigger_unsub = None
-
-        # Parse trigger time and set new schedule
-        try:
-            if isinstance(trigger_time, dict):
-                def_h, def_m, _ = parse_time_string(DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER)
-                hour = trigger_time.get("hour", def_h)
-                minute = trigger_time.get("minute", def_m)
-            else:
-                def_h, def_m, _ = parse_time_string(DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER)
-                hour = def_h
-                minute = def_m
-
-            if not (0 <= hour <= 23 and 0 <= minute <= 59):
-                msg = f"Invalid hour/minute: {hour}:{minute}"
-                raise ValueError(msg)
-
-            self._trigger_unsub = async_track_time_change(
-                self.hass,
-                self._handle_trigger,
-                hour=hour,
-                minute=minute,
-                second=0,
-            )
-            _LOGGER.debug(
-                "Cheap price coordinator trigger schedule updated to %02d:%02d",
-                hour,
-                minute,
-            )
-        except Exception as e:
-            _LOGGER.exception(
-                "Invalid runtime trigger time format '%s': %s", trigger_time, e
-            )
-
-    def update_trigger_config(self) -> None:
-        """Update the trigger configuration based on current config."""
-        # Get current config (options override data)
-        config = {**self.config_entry.data, **self.config_entry.options}
-        trigger_time = config.get(
-            CONF_CHEAP_HOURS_UPDATE_TRIGGER, DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER
-        )
-
-        # Remove existing trigger
-        if self._trigger_unsub:
-            self._trigger_unsub()
-            self._trigger_unsub = None
-
-        # Parse trigger time (format: "HH:MM" or {"hour": H, "minute": M})
-        try:
-            # Always expect dict format from config entity
-            if isinstance(trigger_time, dict):
-                def_h, def_m, _ = parse_time_string(DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER)
-                hour = trigger_time.get("hour", def_h)
-                minute = trigger_time.get("minute", def_m)
-            elif isinstance(trigger_time, str):
-                time_parts = trigger_time.split(":")
-                hour = int(time_parts[0])
-                minute = int(time_parts[1]) if len(time_parts) > 1 else 0
-            else:
-                hour, minute, _ = parse_time_string(DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER)
-            if not (0 <= hour <= 23 and 0 <= minute <= 59):
-                msg = f"Invalid hour/minute: {hour}:{minute}"
-                raise ValueError(msg)
-            self._trigger_unsub = async_track_time_change(
-                self.hass,
-                self._handle_trigger,
-                hour=hour,
-                minute=minute,
-                second=0,
-            )
-            _LOGGER.debug(
-                "Cheap price coordinator trigger set for %02d:%02d", hour, minute
-            )
-        except Exception as e:
-            _LOGGER.exception("Invalid trigger time format '%s': %s", trigger_time, e)
-
-    @callback
-    def _handle_trigger(self, now: datetime.datetime) -> None:
-        """Handle the scheduled trigger to update cheap price data."""
-        _LOGGER.info("Scheduled cheap hours calculation triggered at %s", now)
-        # Create a task to update the data
-        self.hass.async_create_task(self.async_manual_update())
 
     async def async_manual_update(self) -> None:
         """
         Manually trigger cheap hours calculation.
 
-        This should only be called in 3 scenarios:
+        This should only be called in 2 scenarios:
         1) Integration startup (when tomorrow's prices are available)
         2) Manual trigger via button/service call
-        3) Scheduled time trigger (configured cheap_hours_update_trigger)
         """
         _LOGGER.debug("Cheap hours calculation requested")
 
@@ -260,7 +125,6 @@ class CheapHoursDataUpdateCoordinator(DataUpdateCoordinator):
 
             # Add metadata
             cheap_data["last_update"] = datetime.datetime.now(datetime.UTC)
-            cheap_data["trigger_time"] = self._get_trigger_time()
 
             _LOGGER.debug(
                 "Cheap price data updated with %d ranges",
@@ -272,12 +136,6 @@ class CheapHoursDataUpdateCoordinator(DataUpdateCoordinator):
             _LOGGER.error("Error updating cheap price data: %s", e, exc_info=True)
             return None
 
-    def _get_trigger_time(self) -> str:
-        """Get the current trigger time configuration."""
-        config = {**self.config_entry.data, **self.config_entry.options}
-        return config.get(
-            CONF_CHEAP_HOURS_UPDATE_TRIGGER, DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER
-        )
 
     def _analyze_cheap_prices(self, main_data: dict) -> dict[str, Any]:
         """

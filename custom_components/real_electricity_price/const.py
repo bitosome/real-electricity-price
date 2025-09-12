@@ -37,7 +37,6 @@ DEFAULT_SCAN_INTERVAL = 3600  # 1 hour in seconds
 SCAN_INTERVAL_MIN = 300
 SCAN_INTERVAL_MAX = 86400
 SCAN_INTERVAL_STEP = 300
-DEFAULT_CHEAP_HOURS_UPDATE_TRIGGER = "15:00"
 
 # Analysis settings
 ACCEPTABLE_PRICE_DEFAULT = 0.150000  # EUR/kWh - maximum acceptable price for cheap hours
@@ -104,7 +103,6 @@ CONF_NIGHT_TARIFF_PUBLIC_HOLIDAY = "night_tariff_public_holiday"
 
 ## Update configuration
 CONF_SCAN_INTERVAL = "scan_interval"
-CONF_CHEAP_HOURS_UPDATE_TRIGGER = "cheap_hours_update_trigger"
 CONF_ACCEPTABLE_PRICE = "acceptable_price"
 CONF_CALCULATE_CHEAP_HOURS = "calculate_cheap_hours"
 

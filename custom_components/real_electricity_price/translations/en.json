@@ -36,7 +36,6 @@
                     "regional_holiday_code": "Regional Holiday Code (optional - Germany: BW, BY, BE | France: GP, RE | Norway: 03, 11)",
                     "scan_interval": "Scan Interval (seconds)",
                     "update_trigger": "Update Trigger (Advanced)",
-                    "cheap_hours_update_trigger": "Cheap Hours Calculation Time",
                     "acceptable_price": "Acceptable Price (€/kWh)",
                     "calculate_cheap_hours": "Calculate Cheap Hours",
                     "chart_color_past_hours": "Past Hours Color (for hours that have already passed)",
@@ -114,7 +113,6 @@
             "invalid_hour_range": "Night price hours must be valid hours between 00 and 23.",
             "invalid_night_hours": "Night price start and end times cannot be the same (except when ending at midnight).",
             "invalid_time_format": "Time must be valid. For night/day tariff configuration, use 24-hour format (00:00 to 23:59). Example: 22:00 for night start, 07:00 for night end.",
-            "invalid_cheap_price_trigger": "Cheap hours calculation time must be in HH:MM format. Example: 15:00."
         },
         "abort": {
             "already_configured": "This entry is already configured."
@@ -186,7 +184,6 @@
                     "night_price_end_hour": "Off-peak End Hour (0-23)",
                     "scan_interval": "Scan Interval (seconds)",
                     "update_trigger": "Update Trigger (Advanced)",
-                    "cheap_hours_update_trigger": "Cheap Hours Calculation Time",
                     "acceptable_price": "Acceptable Price (€/kWh)",
                     "night_tariff_saturday": "Use off-peak all day on Saturdays",
                     "night_tariff_sunday": "Use off-peak all day on Sundays",
