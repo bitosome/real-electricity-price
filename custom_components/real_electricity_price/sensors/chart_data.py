@@ -181,18 +181,18 @@ class ChartDataSensor(RealElectricityPriceBaseSensor):
                 continue
 
         # Determine color based on time and cheap hour status
-        if timestamp == current_hour_ts:
+        if timestamp < current_hour_ts:
+            # Past hour: use past hour color
+            return color_past
+        elif timestamp == current_hour_ts:
             # Current hour: use cheap current hour color if it's cheap, otherwise current hour color
             return color_cheap_current if is_cheap_hour else color_current
-        elif is_cheap_hour:
-            # Non-current cheap hour: use cheap hour color
-            return color_cheap
         elif timestamp >= next_hour_ts:
-            # Future non-cheap hour: use future hour color
-            return color_future
+            # Future hour: use cheap hour color if it's cheap, otherwise future hour color
+            return color_cheap if is_cheap_hour else color_future
         else:
-            # Past non-cheap hour: use past hour color
-            return color_past
+            # Should not happen
+            return color_future
 
     def _analyze_cheap_prices(self) -> list[dict[str, Any]]:
         """Analyze price data to find cheap price ranges (fallback method)."""
