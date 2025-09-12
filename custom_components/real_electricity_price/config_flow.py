@@ -377,10 +377,10 @@ class RealElectricityPriceFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                 self._user_data = user_input
                 return await self.async_step_offpeak_strategy()
 
-            # Night tariff disabled; if cheap hours is enabled, go to cheap hours step
+            # Night tariff disabled; if cheap hours is enabled, go to chart colors step
             if user_input.get(CONF_CALCULATE_CHEAP_HOURS, False):
                 self._user_data = user_input
-                return await self.async_step_cheap_hours()
+                return await self.async_step_chart_colors()
 
             # No additional config steps required, go to chart colors step
             self._user_data = user_input
@@ -1439,16 +1439,6 @@ class InvalidNightHours(data_entry_flow.AbortFlow):
 
     def __init__(
         self, message: str = "Night price start and end times cannot be the same"
-    ) -> None:
-        super().__init__(message)
-
-
-class InvalidCheapPriceTrigger(data_entry_flow.AbortFlow):
-    """Error to indicate invalid cheap price update trigger configuration."""
-
-    def __init__(
-        self,
-        message: str = "Cheap price update time must be a valid time in HH:MM format",
     ) -> None:
         super().__init__(message)
 

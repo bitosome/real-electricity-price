@@ -35,7 +35,6 @@
                     "grid_electricity_transmission_price_offpeak2": "Transmission Price - Off-peak 2 (€/kWh)",
                     "regional_holiday_code": "Regional Holiday Code (optional - Germany: BW, BY, BE | France: GP, RE | Norway: 03, 11)",
                     "scan_interval": "Scan Interval (seconds)",
-                    "update_trigger": "Update Trigger (Advanced)",
                     "acceptable_price": "Acceptable Price (€/kWh)",
                     "calculate_cheap_hours": "Calculate Cheap Hours",
                     "chart_color_past_hours": "Past Hours Color (for hours that have already passed)",
@@ -81,13 +80,6 @@
                 }
             }
             ,
-            "cheap_hours": {
-                "title": "Cheap Hours",
-                "description": "Define calculation settings for cheap hours. Any hour where the electricity price is at or below your acceptable price will be considered a cheap hour.",
-                "data": {
-                    "acceptable_price": "Acceptable Price (€/kWh)"
-                }
-            },
             "chart_colors": {
                 "title": "Chart Colors",
                 "description": "Customize colors for ApexCharts dashboard displays. These colors will be used to distinguish different types of hours in your electricity price charts.",
@@ -182,7 +174,6 @@
                     "night_price_start_hour": "Off-peak Start Hour (0-23)",
                     "night_price_end_hour": "Off-peak End Hour (0-23)",
                     "scan_interval": "Scan Interval (seconds)",
-                    "update_trigger": "Update Trigger (Advanced)",
                     "acceptable_price": "Acceptable Price (€/kWh)",
                     "night_tariff_saturday": "Use off-peak all day on Saturdays",
                     "night_tariff_sunday": "Use off-peak all day on Sundays",
