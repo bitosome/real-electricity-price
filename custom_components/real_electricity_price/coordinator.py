@@ -168,6 +168,13 @@ class RealElectricityPriceDataUpdateCoordinator(DataUpdateCoordinator):
 
             self._last_update_date = current_date
 
+            # Ensure dependent coordinators see the freshly fetched data
+            # before we trigger additional calculations. Without this
+            # assignment the cheap hours coordinator would still read the
+            # previous data snapshot because DataUpdateCoordinator updates
+            # self.data only after this coroutine returns.
+            self.data = data
+
             # Always trigger cheap hours calculation when we have new price data
             if self._cheap_price_coordinator and data:
                 # Check if we have any actual price data
