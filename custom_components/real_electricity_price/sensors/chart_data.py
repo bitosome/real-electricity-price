@@ -9,11 +9,13 @@ from typing import Any
 from homeassistant.util import dt as dt_util
 
 from ..const import (
+    ACCEPTABLE_PRICE_DEFAULT,
     CHART_COLOR_CHEAP_CURRENT_HOUR_DEFAULT,
     CHART_COLOR_CHEAP_HOURS_DEFAULT,
     CHART_COLOR_CURRENT_HOUR_DEFAULT,
     CHART_COLOR_FUTURE_HOURS_DEFAULT,
     CHART_COLOR_PAST_HOURS_DEFAULT,
+    CONF_ACCEPTABLE_PRICE,
     CONF_CALCULATE_CHEAP_HOURS,
     CONF_CHART_COLOR_CHEAP_CURRENT_HOUR,
     CONF_CHART_COLOR_CHEAP_HOURS,
@@ -72,6 +74,12 @@ class ChartDataSensor(RealElectricityPriceBaseSensor):
         # Get cheap hours data
         cheap_ranges = self._get_cheap_hour_ranges()
 
+        # Gather configuration (colors, acceptable price, etc.) once
+        config_data: dict[str, Any] = {}
+        if hasattr(self.coordinator, "config_entry") and self.coordinator.config_entry:
+            config_data.update(self.coordinator.config_entry.data or {})
+            config_data.update(self.coordinator.config_entry.options or {})
+
         # Collect hourly price data for 48 hours: today + tomorrow only
         all_data = []
         
@@ -94,7 +102,14 @@ class ChartDataSensor(RealElectricityPriceBaseSensor):
                             price = float(price_entry["actual_price"])
                             
                             # Determine color based on time and cheap hours
-                            color = self._get_bar_color(ts, current_hour_ts, next_hour_ts, cheap_ranges)
+                            color = self._get_bar_color(
+                                ts,
+                                current_hour_ts,
+                                next_hour_ts,
+                                cheap_ranges,
+                                price,
+                                config_data,
+                            )
                             
                             all_data.append({
                                 "x": ts,
@@ -141,15 +156,17 @@ class ChartDataSensor(RealElectricityPriceBaseSensor):
             _LOGGER.debug("Could not get cheap hours data, using empty ranges")
             return []
 
-    def _get_bar_color(self, timestamp: int, current_hour_ts: int, next_hour_ts: int, cheap_ranges: list) -> str:
+    def _get_bar_color(
+        self,
+        timestamp: int,
+        current_hour_ts: int,
+        next_hour_ts: int,
+        cheap_ranges: list,
+        price: float,
+        config_data: dict,
+    ) -> str:
         """Determine the color for a bar based on time and cheap hour status."""
         try:
-            # Get configured colors from raw config data
-            config_data = {}
-            if hasattr(self.coordinator, 'config_entry') and self.coordinator.config_entry:
-                config_data.update(self.coordinator.config_entry.data or {})
-                config_data.update(self.coordinator.config_entry.options or {})
-            
             # Get colors with fallbacks to defaults
             color_cheap = self._convert_color_to_hex(config_data.get(CONF_CHART_COLOR_CHEAP_HOURS, CHART_COLOR_CHEAP_HOURS_DEFAULT))
             color_cheap_current = self._convert_color_to_hex(config_data.get(CONF_CHART_COLOR_CHEAP_CURRENT_HOUR, CHART_COLOR_CHEAP_CURRENT_HOUR_DEFAULT))
@@ -165,6 +182,17 @@ class ChartDataSensor(RealElectricityPriceBaseSensor):
             color_future = CHART_COLOR_FUTURE_HOURS_DEFAULT
             color_past = CHART_COLOR_PAST_HOURS_DEFAULT
         
+        # Determine acceptable price threshold for fallback logic
+        acceptable_price_raw = config_data.get(CONF_ACCEPTABLE_PRICE, ACCEPTABLE_PRICE_DEFAULT)
+        try:
+            acceptable_price = (
+                float(acceptable_price_raw)
+                if acceptable_price_raw is not None
+                else ACCEPTABLE_PRICE_DEFAULT
+            )
+        except (TypeError, ValueError):
+            acceptable_price = ACCEPTABLE_PRICE_DEFAULT
+
         # Check if this is a cheap hour
         is_cheap_hour = False
         for range_data in cheap_ranges:
@@ -179,6 +207,18 @@ class ChartDataSensor(RealElectricityPriceBaseSensor):
                         break
             except (ValueError, KeyError, TypeError):
                 continue
+
+        calculate_cheap = config_data.get(CONF_CALCULATE_CHEAP_HOURS, True)
+        if isinstance(calculate_cheap, str):
+            calculate_cheap = calculate_cheap.lower() not in {"false", "0", "no"}
+
+        if (
+            calculate_cheap
+            and not is_cheap_hour
+            and price is not None
+            and price <= acceptable_price
+        ):
+            is_cheap_hour = True
 
         # Determine color based on time and cheap hour status
         if timestamp < current_hour_ts:

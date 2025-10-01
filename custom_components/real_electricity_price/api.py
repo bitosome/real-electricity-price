@@ -672,12 +672,120 @@ class RealElectricityPriceApiClient:
                 }
             )
 
+        hourly_prices = self._aggregate_hour_entries(hourly_prices)
         data["hourly_prices"] = hourly_prices
         data["date"] = date
         data["is_holiday"] = is_holiday
         data["is_weekend"] = is_weekend
         data["data_available"] = True  # Flag to indicate this is real data
         return data
+
+    def _aggregate_hour_entries(self, entries: list[dict]) -> list[dict]:
+        """Collapse quarter-hour Nord Pool entries back to hourly resolution."""
+
+        if not entries:
+            return entries
+
+        buckets: dict[datetime.datetime, dict[str, Any]] = {}
+        passthrough: list[dict] = []
+
+        for entry in entries:
+            start_str = entry.get("start_time")
+            end_str = entry.get("end_time")
+
+            start_dt = dt_util.parse_datetime(start_str) if start_str else None
+            end_dt = dt_util.parse_datetime(end_str) if end_str else None
+
+            if not start_dt or not end_dt:
+                passthrough.append(entry)
+                continue
+
+            duration_seconds = (end_dt - start_dt).total_seconds()
+            if duration_seconds <= 0:
+                passthrough.append(entry)
+                continue
+
+            hour_start = start_dt.replace(minute=0, second=0, microsecond=0)
+            hour_end = hour_start + datetime.timedelta(hours=1)
+
+            bucket = buckets.setdefault(
+                hour_start,
+                {
+                    "start_time": hour_start,
+                    "end_time": hour_end,
+                    "np_sum": 0.0,
+                    "np_weight": 0.0,
+                    "actual_sum": 0.0,
+                    "actual_weight": 0.0,
+                    "tariff": entry.get("tariff"),
+                    "is_holiday": entry.get("is_holiday"),
+                    "is_weekend": entry.get("is_weekend"),
+                },
+            )
+
+            nord_pool_price = entry.get("nord_pool_price")
+            if nord_pool_price is not None:
+                bucket["np_sum"] += nord_pool_price * duration_seconds
+                bucket["np_weight"] += duration_seconds
+
+            actual_price = entry.get("actual_price")
+            if actual_price is not None:
+                bucket["actual_sum"] += actual_price * duration_seconds
+                bucket["actual_weight"] += duration_seconds
+
+            # Prefer the tariff flag from the first entry but fall back if missing
+            if bucket.get("tariff") is None:
+                bucket["tariff"] = entry.get("tariff")
+            if bucket.get("is_holiday") is None:
+                bucket["is_holiday"] = entry.get("is_holiday")
+            if bucket.get("is_weekend") is None:
+                bucket["is_weekend"] = entry.get("is_weekend")
+
+        if not buckets:
+            return entries
+
+        aggregated: list[dict] = []
+        for hour_start in sorted(buckets):
+            bucket = buckets[hour_start]
+            end_time = bucket["end_time"]
+
+            nord_pool_price = (
+                bucket["np_sum"] / bucket["np_weight"]
+                if bucket["np_weight"]
+                else None
+            )
+            actual_price = (
+                bucket["actual_sum"] / bucket["actual_weight"]
+                if bucket["actual_weight"]
+                else None
+            )
+
+            aggregated.append(
+                {
+                    "start_time": bucket["start_time"].isoformat(),
+                    "end_time": end_time.isoformat(),
+                    "nord_pool_price": (
+                        round(nord_pool_price, PRICE_DECIMAL_PRECISION)
+                        if nord_pool_price is not None
+                        else None
+                    ),
+                    "actual_price": (
+                        round(actual_price, PRICE_DECIMAL_PRECISION)
+                        if actual_price is not None
+                        else None
+                    ),
+                    "tariff": bucket.get("tariff"),
+                    "is_holiday": bucket.get("is_holiday"),
+                    "is_weekend": bucket.get("is_weekend"),
+                }
+            )
+
+        # Preserve any entries we could not aggregate (should be rare)
+        if passthrough:
+            aggregated.extend(passthrough)
+            aggregated.sort(key=lambda item: item.get("start_time", ""))
+
+        return aggregated
 
     async def _api_wrapper(
         self,
