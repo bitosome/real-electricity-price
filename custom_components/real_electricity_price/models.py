@@ -77,12 +77,14 @@ class IntegrationConfig:
     # Grid costs
     grid_electricity_excise_duty: float
     grid_renewable_energy_charge: float
+    grid_supply_security_fee: float
     grid_transmission_price_night: float
     grid_transmission_price_day: float
 
     # Supplier costs
     supplier_renewable_energy_charge: float
     supplier_margin: float
+    supplier_balancing_capacity_fee: float
 
     # Time settings
     night_price_start_time: str
@@ -96,7 +98,9 @@ class IntegrationConfig:
     vat_nord_pool: bool = True
     vat_grid_electricity_excise_duty: bool = False
     vat_grid_renewable_energy_charge: bool = False
+    vat_grid_supply_security_fee: bool = False
     vat_grid_transmission_night: bool = False
     vat_grid_transmission_day: bool = False
     vat_supplier_renewable_energy_charge: bool = False
     vat_supplier_margin: bool = False
+    vat_supplier_balancing_capacity_fee: bool = False

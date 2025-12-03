@@ -17,18 +17,22 @@ from ..const import (
     CONF_GRID_ELECTRICITY_TRANSMISSION_PRICE_DAY,
     CONF_GRID_ELECTRICITY_TRANSMISSION_PRICE_NIGHT,
     CONF_GRID_RENEWABLE_ENERGY_CHARGE,
+    CONF_GRID_SUPPLY_SECURITY_FEE,
     CONF_NIGHT_PRICE_END_TIME,
     CONF_NIGHT_PRICE_START_TIME,
     CONF_SCAN_INTERVAL,
     CONF_SUPPLIER,
+    CONF_SUPPLIER_BALANCING_CAPACITY_FEE,
     CONF_SUPPLIER_MARGIN,
     CONF_SUPPLIER_RENEWABLE_ENERGY_CHARGE,
     CONF_VAT,
     CONF_VAT_GRID_ELECTRICITY_EXCISE_DUTY,
     CONF_VAT_GRID_RENEWABLE_ENERGY_CHARGE,
+    CONF_VAT_GRID_SUPPLY_SECURITY_FEE,
     CONF_VAT_GRID_TRANSMISSION_DAY,
     CONF_VAT_GRID_TRANSMISSION_NIGHT,
     CONF_VAT_NORD_POOL,
+    CONF_VAT_SUPPLIER_BALANCING_CAPACITY_FEE,
     CONF_VAT_SUPPLIER_MARGIN,
     CONF_VAT_SUPPLIER_RENEWABLE_ENERGY_CHARGE,
     COUNTRY_CODE_DEFAULT,
@@ -38,17 +42,21 @@ from ..const import (
     GRID_ELECTRICITY_TRANSMISSION_PRICE_DAY_DEFAULT,
     GRID_ELECTRICITY_TRANSMISSION_PRICE_NIGHT_DEFAULT,
     GRID_RENEWABLE_ENERGY_CHARGE_DEFAULT,
+    GRID_SUPPLY_SECURITY_FEE_DEFAULT,
     NIGHT_PRICE_END_TIME_DEFAULT,
     NIGHT_PRICE_START_TIME_DEFAULT,
     PRICE_DECIMAL_PRECISION,
+    SUPPLIER_BALANCING_CAPACITY_FEE_DEFAULT,
     SUPPLIER_DEFAULT,
     SUPPLIER_MARGIN_DEFAULT,
     SUPPLIER_RENEWABLE_ENERGY_CHARGE_DEFAULT,
     VAT_DEFAULT,
     VAT_GRID_ELECTRICITY_EXCISE_DUTY_DEFAULT,
     VAT_GRID_RENEWABLE_ENERGY_CHARGE_DEFAULT,
+    VAT_GRID_SUPPLY_SECURITY_FEE_DEFAULT,
     VAT_GRID_TRANSMISSION_DAY_DEFAULT,
     VAT_GRID_TRANSMISSION_NIGHT_DEFAULT,
+    VAT_SUPPLIER_BALANCING_CAPACITY_FEE_DEFAULT,
     VAT_NORD_POOL_DEFAULT,
     VAT_SUPPLIER_MARGIN_DEFAULT,
     VAT_SUPPLIER_RENEWABLE_ENERGY_CHARGE_DEFAULT,
@@ -100,6 +108,9 @@ class RealElectricityPriceBaseSensor(RealElectricityPriceEntity, SensorEntity):
             grid_renewable_energy_charge=config_data.get(
                 CONF_GRID_RENEWABLE_ENERGY_CHARGE, GRID_RENEWABLE_ENERGY_CHARGE_DEFAULT
             ),
+            grid_supply_security_fee=config_data.get(
+                CONF_GRID_SUPPLY_SECURITY_FEE, GRID_SUPPLY_SECURITY_FEE_DEFAULT
+            ),
             grid_transmission_price_night=config_data.get(
                 CONF_GRID_ELECTRICITY_TRANSMISSION_PRICE_NIGHT,
                 GRID_ELECTRICITY_TRANSMISSION_PRICE_NIGHT_DEFAULT,
@@ -114,6 +125,10 @@ class RealElectricityPriceBaseSensor(RealElectricityPriceEntity, SensorEntity):
             ),
             supplier_margin=config_data.get(
                 CONF_SUPPLIER_MARGIN, SUPPLIER_MARGIN_DEFAULT
+            ),
+            supplier_balancing_capacity_fee=config_data.get(
+                CONF_SUPPLIER_BALANCING_CAPACITY_FEE,
+                SUPPLIER_BALANCING_CAPACITY_FEE_DEFAULT,
             ),
             night_price_start_time=config_data.get(
                 CONF_NIGHT_PRICE_START_TIME, NIGHT_PRICE_START_TIME_DEFAULT
@@ -134,6 +149,10 @@ class RealElectricityPriceBaseSensor(RealElectricityPriceEntity, SensorEntity):
                 CONF_VAT_GRID_RENEWABLE_ENERGY_CHARGE,
                 VAT_GRID_RENEWABLE_ENERGY_CHARGE_DEFAULT,
             ),
+            vat_grid_supply_security_fee=config_data.get(
+                CONF_VAT_GRID_SUPPLY_SECURITY_FEE,
+                VAT_GRID_SUPPLY_SECURITY_FEE_DEFAULT,
+            ),
             vat_grid_transmission_night=config_data.get(
                 CONF_VAT_GRID_TRANSMISSION_NIGHT, VAT_GRID_TRANSMISSION_NIGHT_DEFAULT
             ),
@@ -146,6 +165,10 @@ class RealElectricityPriceBaseSensor(RealElectricityPriceEntity, SensorEntity):
             ),
             vat_supplier_margin=config_data.get(
                 CONF_VAT_SUPPLIER_MARGIN, VAT_SUPPLIER_MARGIN_DEFAULT
+            ),
+            vat_supplier_balancing_capacity_fee=config_data.get(
+                CONF_VAT_SUPPLIER_BALANCING_CAPACITY_FEE,
+                VAT_SUPPLIER_BALANCING_CAPACITY_FEE_DEFAULT,
             ),
         )
 

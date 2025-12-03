@@ -23,6 +23,7 @@ from .const import (
     CONF_GRID_ELECTRICITY_TRANSMISSION_PRICE_OFFPEAK2,
     CONF_GRID_ELECTRICITY_TRANSMISSION_PRICE_PEAK,
     CONF_GRID_RENEWABLE_ENERGY_CHARGE,
+    CONF_GRID_SUPPLY_SECURITY_FEE,
     CONF_HAS_NIGHT_TARIFF,
     CONF_NIGHT_PRICE_END_TIME,
     CONF_NIGHT_PRICE_START_TIME,
@@ -33,20 +34,24 @@ from .const import (
     CONF_REGIONAL_HOLIDAY_CODE,
     CONF_SUPPLIER_MARGIN,
     CONF_SUPPLIER_RENEWABLE_ENERGY_CHARGE,
+    CONF_SUPPLIER_BALANCING_CAPACITY_FEE,
     CONF_VAT,
     CONF_VAT_GRID_ELECTRICITY_EXCISE_DUTY,
     CONF_VAT_GRID_RENEWABLE_ENERGY_CHARGE,
+    CONF_VAT_GRID_SUPPLY_SECURITY_FEE,
     CONF_VAT_GRID_TRANSMISSION_DAY,
     CONF_VAT_GRID_TRANSMISSION_NIGHT,
     CONF_VAT_NORD_POOL,
     CONF_VAT_SUPPLIER_MARGIN,
     CONF_VAT_SUPPLIER_RENEWABLE_ENERGY_CHARGE,
+    CONF_VAT_SUPPLIER_BALANCING_CAPACITY_FEE,
     COUNTRY_CODE_DEFAULT,
     DEFAULT_BASE_URL,
     GRID_ELECTRICITY_EXCISE_DUTY_DEFAULT,
     GRID_ELECTRICITY_TRANSMISSION_PRICE_DAY_DEFAULT,
     GRID_ELECTRICITY_TRANSMISSION_PRICE_NIGHT_DEFAULT,
     GRID_RENEWABLE_ENERGY_CHARGE_DEFAULT,
+    GRID_SUPPLY_SECURITY_FEE_DEFAULT,
     HAS_NIGHT_TARIFF_DEFAULT,
     NIGHT_PRICE_END_TIME_DEFAULT,
     NIGHT_PRICE_START_TIME_DEFAULT,
@@ -58,17 +63,20 @@ from .const import (
     PRICE_DECIMAL_PRECISION,
     SUPPLIER_MARGIN_DEFAULT,
     SUPPLIER_RENEWABLE_ENERGY_CHARGE_DEFAULT,
+    SUPPLIER_BALANCING_CAPACITY_FEE_DEFAULT,
     TARIFF_FIXED,
     TARIFF_OFF_PEAK,
     TARIFF_PEAK,
     VAT_DEFAULT,
     VAT_GRID_ELECTRICITY_EXCISE_DUTY_DEFAULT,
     VAT_GRID_RENEWABLE_ENERGY_CHARGE_DEFAULT,
+    VAT_GRID_SUPPLY_SECURITY_FEE_DEFAULT,
     VAT_GRID_TRANSMISSION_DAY_DEFAULT,
     VAT_GRID_TRANSMISSION_NIGHT_DEFAULT,
     VAT_NORD_POOL_DEFAULT,
     VAT_SUPPLIER_MARGIN_DEFAULT,
     VAT_SUPPLIER_RENEWABLE_ENERGY_CHARGE_DEFAULT,
+    VAT_SUPPLIER_BALANCING_CAPACITY_FEE_DEFAULT,
     parse_time_string,
 )
 
@@ -399,6 +407,9 @@ class RealElectricityPriceApiClient:
         grid_renewable_energy_charge = self._config.get(
             CONF_GRID_RENEWABLE_ENERGY_CHARGE, GRID_RENEWABLE_ENERGY_CHARGE_DEFAULT
         )
+        grid_supply_security_fee = self._config.get(
+            CONF_GRID_SUPPLY_SECURITY_FEE, GRID_SUPPLY_SECURITY_FEE_DEFAULT
+        )
         grid_electricity_transmission_price_night = self._config.get(
             CONF_GRID_ELECTRICITY_TRANSMISSION_PRICE_NIGHT,
             GRID_ELECTRICITY_TRANSMISSION_PRICE_NIGHT_DEFAULT,
@@ -414,6 +425,10 @@ class RealElectricityPriceApiClient:
         supplier_margin = self._config.get(
             CONF_SUPPLIER_MARGIN, SUPPLIER_MARGIN_DEFAULT
         )
+        supplier_balancing_capacity_fee = self._config.get(
+            CONF_SUPPLIER_BALANCING_CAPACITY_FEE,
+            SUPPLIER_BALANCING_CAPACITY_FEE_DEFAULT,
+        )
 
         # Get VAT percentage and individual VAT flags
         vat_pct = self._config.get(CONF_VAT, VAT_DEFAULT)
@@ -425,6 +440,10 @@ class RealElectricityPriceApiClient:
         vat_grid_renewable = self._config.get(
             CONF_VAT_GRID_RENEWABLE_ENERGY_CHARGE,
             VAT_GRID_RENEWABLE_ENERGY_CHARGE_DEFAULT,
+        )
+        vat_grid_supply_security = self._config.get(
+            CONF_VAT_GRID_SUPPLY_SECURITY_FEE,
+            VAT_GRID_SUPPLY_SECURITY_FEE_DEFAULT,
         )
         vat_grid_transmission_night = self._config.get(
             CONF_VAT_GRID_TRANSMISSION_NIGHT, VAT_GRID_TRANSMISSION_NIGHT_DEFAULT
@@ -438,6 +457,10 @@ class RealElectricityPriceApiClient:
         )
         vat_supplier_margin = self._config.get(
             CONF_VAT_SUPPLIER_MARGIN, VAT_SUPPLIER_MARGIN_DEFAULT
+        )
+        vat_supplier_balancing_capacity = self._config.get(
+            CONF_VAT_SUPPLIER_BALANCING_CAPACITY_FEE,
+            VAT_SUPPLIER_BALANCING_CAPACITY_FEE_DEFAULT,
         )
         night_start = _resolve_hour(
             self._config,
@@ -608,6 +631,10 @@ class RealElectricityPriceApiClient:
                     if vat_grid_renewable:
                         renewable_grid_component *= 1 + vat_pct / 100
 
+                    supply_security_component = grid_supply_security_fee
+                    if vat_grid_supply_security:
+                        supply_security_component *= 1 + vat_pct / 100
+
                     renewable_supplier_component = supplier_renewable_energy_charge
                     if vat_supplier_renewable:
                         renewable_supplier_component *= 1 + vat_pct / 100
@@ -615,6 +642,10 @@ class RealElectricityPriceApiClient:
                     margin_component = supplier_margin
                     if vat_supplier_margin:
                         margin_component *= 1 + vat_pct / 100
+
+                    balancing_capacity_component = supplier_balancing_capacity_fee
+                    if vat_supplier_balancing_capacity:
+                        balancing_capacity_component *= 1 + vat_pct / 100
 
                     transmission_component = transmission_price
                     if vat_transmission:
@@ -625,8 +656,10 @@ class RealElectricityPriceApiClient:
                         base_price
                         + excise_component
                         + renewable_grid_component
+                        + supply_security_component
                         + renewable_supplier_component
                         + margin_component
+                        + balancing_capacity_component
                         + transmission_component
                     )
 

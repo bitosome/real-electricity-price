@@ -63,8 +63,9 @@ The integration is configured entirely through the Home Assistant UI. After inst
 ### Cost Configuration
 Configure your local electricity costs in €/kWh:
 - Grid excise duty, renewable charges, transmission prices (day/night)
+- Regulated surcharges including the 2026 supply security (grid) and balancing capacity (supplier) fees
 - Supplier renewable charges and margin
-- VAT percentage and per-component VAT flags
+- VAT percentage and per-component VAT flags  
 
 ### Off-peak Strategy Configuration
 Choose how off-peak periods are determined:

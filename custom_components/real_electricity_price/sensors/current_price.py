@@ -120,6 +120,9 @@ class CurrentPriceSensor(RealElectricityPriceBaseSensor):
             f"{grid_name.lower()}_renewable_energy_charge": self._round_price(
                 config.grid_renewable_energy_charge
             ),
+            f"{grid_name.lower()}_supply_security_fee": self._round_price(
+                config.grid_supply_security_fee
+            ),
             f"{grid_name.lower()}_transmission_price_{current_tariff}": self._round_price(
                 transmission_price
             ),
@@ -128,6 +131,9 @@ class CurrentPriceSensor(RealElectricityPriceBaseSensor):
             ),
             f"{supplier_name.lower()}_margin": self._round_price(
                 config.supplier_margin
+            ),
+            f"{supplier_name.lower()}_balancing_capacity_fee": self._round_price(
+                config.supplier_balancing_capacity_fee
             ),
         }
 
@@ -158,10 +164,14 @@ class CurrentPriceSensor(RealElectricityPriceBaseSensor):
         vat_nord_pool = config.vat_nord_pool
         vat_grid_excise_duty = config.vat_grid_electricity_excise_duty
         vat_grid_renewable = config.vat_grid_renewable_energy_charge
+        vat_grid_supply_security = config.vat_grid_supply_security_fee
         vat_transmission_night = config.vat_grid_transmission_night
         vat_transmission_day = config.vat_grid_transmission_day
         vat_supplier_renewable = config.vat_supplier_renewable_energy_charge
         vat_supplier_margin = config.vat_supplier_margin
+        vat_supplier_balancing_capacity = (
+            config.vat_supplier_balancing_capacity_fee
+        )
 
         # Choose correct transmission VAT based on tariff
         if current_tariff == TARIFF_FIXED:
@@ -187,6 +197,10 @@ class CurrentPriceSensor(RealElectricityPriceBaseSensor):
         if vat_grid_renewable:
             renewable_grid_component *= 1 + vat_percentage / 100
 
+        supply_security_component = config.grid_supply_security_fee
+        if vat_grid_supply_security:
+            supply_security_component *= 1 + vat_percentage / 100
+
         renewable_supplier_component = config.supplier_renewable_energy_charge
         if vat_supplier_renewable:
             renewable_supplier_component *= 1 + vat_percentage / 100
@@ -194,6 +208,10 @@ class CurrentPriceSensor(RealElectricityPriceBaseSensor):
         margin_component = config.supplier_margin
         if vat_supplier_margin:
             margin_component *= 1 + vat_percentage / 100
+
+        balancing_capacity_component = config.supplier_balancing_capacity_fee
+        if vat_supplier_balancing_capacity:
+            balancing_capacity_component *= 1 + vat_percentage / 100
 
         transmission_component = transmission_price
         if vat_transmission:
@@ -204,8 +222,10 @@ class CurrentPriceSensor(RealElectricityPriceBaseSensor):
             base_price_component
             + excise_component
             + renewable_grid_component
+            + supply_security_component
             + renewable_supplier_component
             + margin_component
+            + balancing_capacity_component
             + transmission_component
         )
 
@@ -215,9 +235,13 @@ class CurrentPriceSensor(RealElectricityPriceBaseSensor):
                 "vat_nord_pool": vat_nord_pool,
                 f"vat_{grid_name.lower()}_excise_duty": vat_grid_excise_duty,
                 f"vat_{grid_name.lower()}_renewable": vat_grid_renewable,
+                f"vat_{grid_name.lower()}_supply_security_fee": vat_grid_supply_security,
                 f"vat_{grid_name.lower()}_transmission_{current_tariff}": vat_transmission,
                 f"vat_{supplier_name.lower()}_renewable": vat_supplier_renewable,
                 f"vat_{supplier_name.lower()}_margin": vat_supplier_margin,
+                f"vat_{supplier_name.lower()}_balancing_capacity_fee": (
+                    vat_supplier_balancing_capacity
+                ),
             },
             "components_with_vat": {
                 "nord_pool_price": self._round_price(base_price_component),
@@ -227,6 +251,9 @@ class CurrentPriceSensor(RealElectricityPriceBaseSensor):
                 f"{grid_name.lower()}_renewable_energy_charge": self._round_price(
                     renewable_grid_component
                 ),
+                f"{grid_name.lower()}_supply_security_fee": self._round_price(
+                    supply_security_component
+                ),
                 f"{grid_name.lower()}_transmission_price_{current_tariff}": self._round_price(
                     transmission_component
                 ),
@@ -234,6 +261,9 @@ class CurrentPriceSensor(RealElectricityPriceBaseSensor):
                     renewable_supplier_component
                 ),
                 f"{supplier_name.lower()}_margin": self._round_price(margin_component),
+                f"{supplier_name.lower()}_balancing_capacity_fee": self._round_price(
+                    balancing_capacity_component
+                ),
             },
             "price_calculation": {
                 "final_price": self._round_price(final_price),

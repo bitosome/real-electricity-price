@@ -34,6 +34,7 @@ from .const import (
     CONF_GRID_ELECTRICITY_TRANSMISSION_PRICE_OFFPEAK2,
     CONF_GRID_ELECTRICITY_TRANSMISSION_PRICE_PEAK,
     CONF_GRID_RENEWABLE_ENERGY_CHARGE,
+    CONF_GRID_SUPPLY_SECURITY_FEE,
     CONF_HAS_NIGHT_TARIFF,
     CONF_NIGHT_PRICE_END_TIME,
     CONF_NIGHT_PRICE_START_TIME,
@@ -44,14 +45,17 @@ from .const import (
     CONF_REGIONAL_HOLIDAY_CODE,
     CONF_SCAN_INTERVAL,
     CONF_SUPPLIER,
+    CONF_SUPPLIER_BALANCING_CAPACITY_FEE,
     CONF_SUPPLIER_MARGIN,
     CONF_SUPPLIER_RENEWABLE_ENERGY_CHARGE,
     CONF_VAT,
     CONF_VAT_GRID_ELECTRICITY_EXCISE_DUTY,
     CONF_VAT_GRID_RENEWABLE_ENERGY_CHARGE,
+    CONF_VAT_GRID_SUPPLY_SECURITY_FEE,
     CONF_VAT_GRID_TRANSMISSION_DAY,
     CONF_VAT_GRID_TRANSMISSION_NIGHT,
     CONF_VAT_NORD_POOL,
+    CONF_VAT_SUPPLIER_BALANCING_CAPACITY_FEE,
     CONF_VAT_SUPPLIER_MARGIN,
     CONF_VAT_SUPPLIER_RENEWABLE_ENERGY_CHARGE,
     COUNTRY_CODE_DEFAULT,
@@ -62,6 +66,7 @@ from .const import (
     GRID_ELECTRICITY_TRANSMISSION_PRICE_DAY_DEFAULT,
     GRID_ELECTRICITY_TRANSMISSION_PRICE_NIGHT_DEFAULT,
     GRID_RENEWABLE_ENERGY_CHARGE_DEFAULT,
+    GRID_SUPPLY_SECURITY_FEE_DEFAULT,
     HAS_NIGHT_TARIFF_DEFAULT,
     NIGHT_PRICE_END_TIME_DEFAULT,
     # Use time defaults only; derive hours from time strings
@@ -78,12 +83,15 @@ from .const import (
     SUPPLIER_DEFAULT,
     SUPPLIER_MARGIN_DEFAULT,
     SUPPLIER_RENEWABLE_ENERGY_CHARGE_DEFAULT,
+    SUPPLIER_BALANCING_CAPACITY_FEE_DEFAULT,
     VAT_DEFAULT,
     VAT_GRID_ELECTRICITY_EXCISE_DUTY_DEFAULT,
     VAT_GRID_RENEWABLE_ENERGY_CHARGE_DEFAULT,
+    VAT_GRID_SUPPLY_SECURITY_FEE_DEFAULT,
     VAT_GRID_TRANSMISSION_DAY_DEFAULT,
     VAT_GRID_TRANSMISSION_NIGHT_DEFAULT,
     VAT_NORD_POOL_DEFAULT,
+    VAT_SUPPLIER_BALANCING_CAPACITY_FEE_DEFAULT,
     VAT_SUPPLIER_MARGIN_DEFAULT,
     VAT_SUPPLIER_RENEWABLE_ENERGY_CHARGE_DEFAULT,
     parse_time_string,
@@ -563,6 +571,15 @@ class RealElectricityPriceFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                     selector.NumberSelectorConfig(min=0, max=1, step="any", mode="box")
                 ),
                 vol.Optional(
+                    CONF_GRID_SUPPLY_SECURITY_FEE,
+                    default=user_input.get(
+                        CONF_GRID_SUPPLY_SECURITY_FEE,
+                        GRID_SUPPLY_SECURITY_FEE_DEFAULT,
+                    ),
+                ): selector.NumberSelector(
+                    selector.NumberSelectorConfig(min=0, max=1, step="any", mode="box")
+                ),
+                vol.Optional(
                     CONF_GRID_ELECTRICITY_TRANSMISSION_PRICE_NIGHT,
                     default=user_input.get(
                         CONF_GRID_ELECTRICITY_TRANSMISSION_PRICE_NIGHT,
@@ -599,6 +616,15 @@ class RealElectricityPriceFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                     default=user_input.get(
                         CONF_SUPPLIER_MARGIN,
                         SUPPLIER_MARGIN_DEFAULT,
+                    ),
+                ): selector.NumberSelector(
+                    selector.NumberSelectorConfig(min=0, max=1, step="any", mode="box")
+                ),
+                vol.Optional(
+                    CONF_SUPPLIER_BALANCING_CAPACITY_FEE,
+                    default=user_input.get(
+                        CONF_SUPPLIER_BALANCING_CAPACITY_FEE,
+                        SUPPLIER_BALANCING_CAPACITY_FEE_DEFAULT,
                     ),
                 ): selector.NumberSelector(
                     selector.NumberSelectorConfig(min=0, max=1, step="any", mode="box")
@@ -640,6 +666,13 @@ class RealElectricityPriceFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                     ),
                 ): selector.BooleanSelector(),
                 vol.Optional(
+                    CONF_VAT_GRID_SUPPLY_SECURITY_FEE,
+                    default=user_input.get(
+                        CONF_VAT_GRID_SUPPLY_SECURITY_FEE,
+                        VAT_GRID_SUPPLY_SECURITY_FEE_DEFAULT,
+                    ),
+                ): selector.BooleanSelector(),
+                vol.Optional(
                     CONF_VAT_GRID_TRANSMISSION_NIGHT,
                     default=user_input.get(
                         CONF_VAT_GRID_TRANSMISSION_NIGHT,
@@ -664,6 +697,13 @@ class RealElectricityPriceFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                     CONF_VAT_SUPPLIER_MARGIN,
                     default=user_input.get(
                         CONF_VAT_SUPPLIER_MARGIN, VAT_SUPPLIER_MARGIN_DEFAULT
+                    ),
+                ): selector.BooleanSelector(),
+                vol.Optional(
+                    CONF_VAT_SUPPLIER_BALANCING_CAPACITY_FEE,
+                    default=user_input.get(
+                        CONF_VAT_SUPPLIER_BALANCING_CAPACITY_FEE,
+                        VAT_SUPPLIER_BALANCING_CAPACITY_FEE_DEFAULT,
                     ),
                 ): selector.BooleanSelector(),
                 # Night/Day tariff configuration (times collected in next step if enabled)
@@ -977,6 +1017,18 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     selector.NumberSelectorConfig(min=0, max=1, step="any", mode="box")
                 ),
                 vol.Optional(
+                    CONF_GRID_SUPPLY_SECURITY_FEE,
+                    default=options_data.get(
+                        CONF_GRID_SUPPLY_SECURITY_FEE,
+                        current_data.get(
+                            CONF_GRID_SUPPLY_SECURITY_FEE,
+                            GRID_SUPPLY_SECURITY_FEE_DEFAULT,
+                        ),
+                    ),
+                ): selector.NumberSelector(
+                    selector.NumberSelectorConfig(min=0, max=1, step="any", mode="box")
+                ),
+                vol.Optional(
                     CONF_GRID_ELECTRICITY_TRANSMISSION_PRICE_NIGHT,
                     default=options_data.get(
                         CONF_GRID_ELECTRICITY_TRANSMISSION_PRICE_NIGHT,
@@ -1026,6 +1078,18 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                         current_data.get(
                             CONF_SUPPLIER_MARGIN,
                             SUPPLIER_MARGIN_DEFAULT,
+                        ),
+                    ),
+                ): selector.NumberSelector(
+                    selector.NumberSelectorConfig(min=0, max=1, step="any", mode="box")
+                ),
+                vol.Optional(
+                    CONF_SUPPLIER_BALANCING_CAPACITY_FEE,
+                    default=options_data.get(
+                        CONF_SUPPLIER_BALANCING_CAPACITY_FEE,
+                        current_data.get(
+                            CONF_SUPPLIER_BALANCING_CAPACITY_FEE,
+                            SUPPLIER_BALANCING_CAPACITY_FEE_DEFAULT,
                         ),
                     ),
                 ): selector.NumberSelector(
@@ -1082,6 +1146,16 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     ),
                 ): selector.BooleanSelector(),
                 vol.Optional(
+                    CONF_VAT_GRID_SUPPLY_SECURITY_FEE,
+                    default=options_data.get(
+                        CONF_VAT_GRID_SUPPLY_SECURITY_FEE,
+                        current_data.get(
+                            CONF_VAT_GRID_SUPPLY_SECURITY_FEE,
+                            VAT_GRID_SUPPLY_SECURITY_FEE_DEFAULT,
+                        ),
+                    ),
+                ): selector.BooleanSelector(),
+                vol.Optional(
                     CONF_VAT_GRID_TRANSMISSION_NIGHT,
                     default=options_data.get(
                         CONF_VAT_GRID_TRANSMISSION_NIGHT,
@@ -1117,6 +1191,16 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                         CONF_VAT_SUPPLIER_MARGIN,
                         current_data.get(
                             CONF_VAT_SUPPLIER_MARGIN, VAT_SUPPLIER_MARGIN_DEFAULT
+                        ),
+                    ),
+                ): selector.BooleanSelector(),
+                vol.Optional(
+                    CONF_VAT_SUPPLIER_BALANCING_CAPACITY_FEE,
+                    default=options_data.get(
+                        CONF_VAT_SUPPLIER_BALANCING_CAPACITY_FEE,
+                        current_data.get(
+                            CONF_VAT_SUPPLIER_BALANCING_CAPACITY_FEE,
+                            VAT_SUPPLIER_BALANCING_CAPACITY_FEE_DEFAULT,
                         ),
                     ),
                 ): selector.BooleanSelector(),
