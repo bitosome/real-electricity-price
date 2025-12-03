@@ -280,7 +280,7 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
     
     for field in color_fields:
         if field in data:
-            data[field] = _validate_and_normalize_color(data[field], color_defaults[field])
+            data[field] = _ensure_color_dict(data[field], color_defaults[field])
 
     # Test connection to Nord Pool API
     try:
@@ -293,40 +293,19 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
 
 
 
-def _validate_and_normalize_color(color_value, default_color: str) -> str:
-    """Validate and normalize color value from config."""
-    if color_value is None:
-        return default_color
-    
-    if isinstance(color_value, str):
-        # Already a hex string
-        if color_value.startswith("#") and len(color_value) in [4, 7]:
-            return color_value
-        else:
-            return default_color
-    
-    elif isinstance(color_value, (list, tuple)) and len(color_value) >= 3:
-        # RGB array, convert to hex
-        try:
-            r = max(0, min(255, int(float(color_value[0]))))
-            g = max(0, min(255, int(float(color_value[1]))))
-            b = max(0, min(255, int(float(color_value[2]))))
-            return f"#{r:02x}{g:02x}{b:02x}"
-        except (ValueError, TypeError, IndexError):
-            return default_color
-    
-    elif isinstance(color_value, dict):
-        # Handle dict format from color picker
-        if "r" in color_value and "g" in color_value and "b" in color_value:
-            try:
-                r = max(0, min(255, int(float(color_value["r"]))))
-                g = max(0, min(255, int(float(color_value["g"]))))
-                b = max(0, min(255, int(float(color_value["b"]))))
-                return f"#{r:02x}{g:02x}{b:02x}"
-            except (ValueError, TypeError, KeyError):
-                return default_color
-    
-    return default_color
+def _ensure_color_dict(
+    color_value: Any, default_color: dict[str, int]
+) -> dict[str, int]:
+    """Return a color dict, assuming inputs are already RGB."""
+
+    if isinstance(color_value, dict) and {"r", "g", "b"}.issubset(color_value):
+        return {
+            "r": int(color_value["r"]),
+            "g": int(color_value["g"]),
+            "b": int(color_value["b"]),
+        }
+
+    return dict(default_color)
 
 
 def _validate_time_string(time_val: Any) -> bool:
@@ -854,37 +833,42 @@ class RealElectricityPriceFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         schema_dict = {
             vol.Optional(
                 CONF_CHART_COLOR_PAST_HOURS,
-                default=self._user_data.get(
-                    CONF_CHART_COLOR_PAST_HOURS, CHART_COLOR_PAST_HOURS_DEFAULT
+                default=_ensure_color_dict(
+                    self._user_data.get(CONF_CHART_COLOR_PAST_HOURS),
+                    CHART_COLOR_PAST_HOURS_DEFAULT,
                 ),
             ): selector.ColorRGBSelector(),
             vol.Optional(
                 CONF_CHART_COLOR_CURRENT_HOUR,
-                default=self._user_data.get(
-                    CONF_CHART_COLOR_CURRENT_HOUR, CHART_COLOR_CURRENT_HOUR_DEFAULT
+                default=_ensure_color_dict(
+                    self._user_data.get(CONF_CHART_COLOR_CURRENT_HOUR),
+                    CHART_COLOR_CURRENT_HOUR_DEFAULT,
                 ),
             ): selector.ColorRGBSelector(),
             vol.Optional(
                 CONF_CHART_COLOR_FUTURE_HOURS,
-                default=self._user_data.get(
-                    CONF_CHART_COLOR_FUTURE_HOURS, CHART_COLOR_FUTURE_HOURS_DEFAULT
+                default=_ensure_color_dict(
+                    self._user_data.get(CONF_CHART_COLOR_FUTURE_HOURS),
+                    CHART_COLOR_FUTURE_HOURS_DEFAULT,
                 ),
             ): selector.ColorRGBSelector(),
         }
-        
+
         # Only add cheap hours colors if cheap hours calculation is enabled
         if self._user_data.get(CONF_CALCULATE_CHEAP_HOURS, False):
             schema_dict.update({
                 vol.Optional(
                     CONF_CHART_COLOR_CHEAP_HOURS,
-                    default=self._user_data.get(
-                        CONF_CHART_COLOR_CHEAP_HOURS, CHART_COLOR_CHEAP_HOURS_DEFAULT
+                    default=_ensure_color_dict(
+                        self._user_data.get(CONF_CHART_COLOR_CHEAP_HOURS),
+                        CHART_COLOR_CHEAP_HOURS_DEFAULT,
                     ),
                 ): selector.ColorRGBSelector(),
                 vol.Optional(
                     CONF_CHART_COLOR_CHEAP_CURRENT_HOUR,
-                    default=self._user_data.get(
-                        CONF_CHART_COLOR_CHEAP_CURRENT_HOUR, CHART_COLOR_CHEAP_CURRENT_HOUR_DEFAULT
+                    default=_ensure_color_dict(
+                        self._user_data.get(CONF_CHART_COLOR_CHEAP_CURRENT_HOUR),
+                        CHART_COLOR_CHEAP_CURRENT_HOUR_DEFAULT,
                     ),
                 ): selector.ColorRGBSelector(),
             })
@@ -1411,32 +1395,41 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             {
                 vol.Optional(
                     CONF_CHART_COLOR_PAST_HOURS,
-                    default=options_data.get(
-                        CONF_CHART_COLOR_PAST_HOURS,
-                        current_data.get(
+                    default=_ensure_color_dict(
+                        options_data.get(
                             CONF_CHART_COLOR_PAST_HOURS,
-                            CHART_COLOR_PAST_HOURS_DEFAULT,
+                            current_data.get(
+                                CONF_CHART_COLOR_PAST_HOURS,
+                                CHART_COLOR_PAST_HOURS_DEFAULT,
+                            ),
                         ),
+                        CHART_COLOR_PAST_HOURS_DEFAULT,
                     ),
                 ): selector.ColorRGBSelector(),
                 vol.Optional(
                     CONF_CHART_COLOR_CURRENT_HOUR,
-                    default=options_data.get(
-                        CONF_CHART_COLOR_CURRENT_HOUR,
-                        current_data.get(
+                    default=_ensure_color_dict(
+                        options_data.get(
                             CONF_CHART_COLOR_CURRENT_HOUR,
-                            CHART_COLOR_CURRENT_HOUR_DEFAULT,
+                            current_data.get(
+                                CONF_CHART_COLOR_CURRENT_HOUR,
+                                CHART_COLOR_CURRENT_HOUR_DEFAULT,
+                            ),
                         ),
+                        CHART_COLOR_CURRENT_HOUR_DEFAULT,
                     ),
                 ): selector.ColorRGBSelector(),
                 vol.Optional(
                     CONF_CHART_COLOR_FUTURE_HOURS,
-                    default=options_data.get(
-                        CONF_CHART_COLOR_FUTURE_HOURS,
-                        current_data.get(
+                    default=_ensure_color_dict(
+                        options_data.get(
                             CONF_CHART_COLOR_FUTURE_HOURS,
-                            CHART_COLOR_FUTURE_HOURS_DEFAULT,
+                            current_data.get(
+                                CONF_CHART_COLOR_FUTURE_HOURS,
+                                CHART_COLOR_FUTURE_HOURS_DEFAULT,
+                            ),
                         ),
+                        CHART_COLOR_FUTURE_HOURS_DEFAULT,
                     ),
                 ): selector.ColorRGBSelector(),
             }
@@ -1448,22 +1441,28 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 **schema_dict,  # extract underlying dict for update
                 vol.Optional(
                     CONF_CHART_COLOR_CHEAP_HOURS,
-                    default=options_data.get(
-                        CONF_CHART_COLOR_CHEAP_HOURS,
-                        current_data.get(
+                    default=_ensure_color_dict(
+                        options_data.get(
                             CONF_CHART_COLOR_CHEAP_HOURS,
-                            CHART_COLOR_CHEAP_HOURS_DEFAULT,
+                            current_data.get(
+                                CONF_CHART_COLOR_CHEAP_HOURS,
+                                CHART_COLOR_CHEAP_HOURS_DEFAULT,
+                            ),
                         ),
+                        CHART_COLOR_CHEAP_HOURS_DEFAULT,
                     ),
                 ): selector.ColorRGBSelector(),
                 vol.Optional(
                     CONF_CHART_COLOR_CHEAP_CURRENT_HOUR,
-                    default=options_data.get(
-                        CONF_CHART_COLOR_CHEAP_CURRENT_HOUR,
-                        current_data.get(
+                    default=_ensure_color_dict(
+                        options_data.get(
                             CONF_CHART_COLOR_CHEAP_CURRENT_HOUR,
-                            CHART_COLOR_CHEAP_CURRENT_HOUR_DEFAULT,
+                            current_data.get(
+                                CONF_CHART_COLOR_CHEAP_CURRENT_HOUR,
+                                CHART_COLOR_CHEAP_CURRENT_HOUR_DEFAULT,
+                            ),
                         ),
+                        CHART_COLOR_CHEAP_CURRENT_HOUR_DEFAULT,
                     ),
                 ): selector.ColorRGBSelector(),
             }

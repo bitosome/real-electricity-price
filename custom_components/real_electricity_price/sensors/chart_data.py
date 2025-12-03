@@ -28,6 +28,8 @@ from .base import RealElectricityPriceBaseSensor
 
 _LOGGER = logging.getLogger(__name__)
 
+DEFAULT_CHART_HEX_FALLBACK = "#1e3a8a"
+
 
 class ChartDataSensor(RealElectricityPriceBaseSensor):
     """Sensor providing pre-processed data for ApexCharts display."""
@@ -176,11 +178,13 @@ class ChartDataSensor(RealElectricityPriceBaseSensor):
         except Exception as e:
             _LOGGER.error(f"Error getting color configuration: {e}")
             # Use all defaults if config fails
-            color_cheap = CHART_COLOR_CHEAP_HOURS_DEFAULT
-            color_cheap_current = CHART_COLOR_CHEAP_CURRENT_HOUR_DEFAULT
-            color_current = CHART_COLOR_CURRENT_HOUR_DEFAULT
-            color_future = CHART_COLOR_FUTURE_HOURS_DEFAULT
-            color_past = CHART_COLOR_PAST_HOURS_DEFAULT
+            color_cheap = self._convert_color_to_hex(CHART_COLOR_CHEAP_HOURS_DEFAULT)
+            color_cheap_current = self._convert_color_to_hex(
+                CHART_COLOR_CHEAP_CURRENT_HOUR_DEFAULT
+            )
+            color_current = self._convert_color_to_hex(CHART_COLOR_CURRENT_HOUR_DEFAULT)
+            color_future = self._convert_color_to_hex(CHART_COLOR_FUTURE_HOURS_DEFAULT)
+            color_past = self._convert_color_to_hex(CHART_COLOR_PAST_HOURS_DEFAULT)
         
         # Determine acceptable price threshold for fallback logic
         acceptable_price_raw = config_data.get(CONF_ACCEPTABLE_PRICE, ACCEPTABLE_PRICE_DEFAULT)
@@ -366,7 +370,7 @@ class ChartDataSensor(RealElectricityPriceBaseSensor):
         try:
             if color is None:
                 # Handle None values
-                return "#808080"
+                return DEFAULT_CHART_HEX_FALLBACK
             
             if isinstance(color, str):
                 # Already a hex string, validate and return
@@ -374,7 +378,7 @@ class ChartDataSensor(RealElectricityPriceBaseSensor):
                     return color
                 else:
                     _LOGGER.warning(f"Invalid hex color format: {color}")
-                    return "#808080"
+                    return DEFAULT_CHART_HEX_FALLBACK
             
             elif isinstance(color, (list, tuple)) and len(color) >= 3:
                 # RGB array [r, g, b], convert to hex
@@ -387,7 +391,7 @@ class ChartDataSensor(RealElectricityPriceBaseSensor):
                     return f"#{r:02x}{g:02x}{b:02x}"
                 except (ValueError, TypeError, IndexError) as e:
                     _LOGGER.warning(f"Invalid RGB color values: {color}, error: {e}")
-                    return "#808080"
+                    return DEFAULT_CHART_HEX_FALLBACK
             
             elif isinstance(color, dict):
                 # Handle dict format that might come from color picker
@@ -399,16 +403,16 @@ class ChartDataSensor(RealElectricityPriceBaseSensor):
                         return f"#{r:02x}{g:02x}{b:02x}"
                     except (ValueError, TypeError, KeyError) as e:
                         _LOGGER.warning(f"Invalid RGB dict color values: {color}, error: {e}")
-                        return "#808080"
+                        return DEFAULT_CHART_HEX_FALLBACK
             
             else:
                 # Unknown format
                 _LOGGER.warning(f"Unknown color format: {type(color)} = {color}")
-                return "#808080"
-                
+                return DEFAULT_CHART_HEX_FALLBACK
+
         except Exception as e:
             _LOGGER.error(f"Error converting color {color}: {e}")
-            return "#808080"
+            return DEFAULT_CHART_HEX_FALLBACK
 
     async def async_update(self) -> None:
         """Update the sensor."""

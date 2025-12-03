@@ -100,11 +100,11 @@ Choose how off-peak periods are determined:
 
 ### Chart Color Configuration
 Customize the colors used in ApexCharts dashboard displays:
-- **Past Hours Color**: Color for hours that have already passed (default: grey `#808080`)
-- **Current Hour Color**: Color for the current hour (default: red `#FF6B6B`) 
-- **Future Hours Color**: Color for upcoming hours (default: blue `#4A90E2`)
-- **Cheap Hours Color**: Color for identified cheap hours (default: purple `#9B59B6`)
-- **Cheap Current Hour Color**: Color for the current hour when it's also a cheap hour (default: orange `#FF8C00`)
+- **Past Hours Color**: Color for hours that have already passed (default: deep blue `#1E3A8A`)
+- **Current Hour Color**: Color for the current hour (default: bright blue `#3B82F6`) 
+- **Future Hours Color**: Color for upcoming hours (default: light blue `#93C5FD`)
+- **Cheap Hours Color**: Color for identified cheap hours (default: light green `#86EFAC`)
+- **Cheap Current Hour Color**: Color for the current hour when it's also a cheap hour (default: green `#22C55E`)
 
 Colors can be configured using the Home Assistant color picker during setup or through the integration options.
 

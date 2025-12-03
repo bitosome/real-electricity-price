@@ -48,11 +48,11 @@ PRICE_DECIMAL_PRECISION = 6  # Number of decimal places for all price calculatio
 CALCULATE_CHEAP_HOURS_DEFAULT = True
 
 # Chart color defaults
-CHART_COLOR_PAST_HOURS_DEFAULT = "#808080"  # Grey
-CHART_COLOR_CURRENT_HOUR_DEFAULT = "#FF6B6B"  # Red
-CHART_COLOR_FUTURE_HOURS_DEFAULT = "#4A90E2"  # Blue
-CHART_COLOR_CHEAP_HOURS_DEFAULT = "#9B59B6"  # Purple
-CHART_COLOR_CHEAP_CURRENT_HOUR_DEFAULT = "#FF8C00"  # Orange
+CHART_COLOR_PAST_HOURS_DEFAULT = {"r": 30, "g": 58, "b": 138}  # Deep blue
+CHART_COLOR_CURRENT_HOUR_DEFAULT = {"r": 59, "g": 130, "b": 246}  # Bright blue
+CHART_COLOR_FUTURE_HOURS_DEFAULT = {"r": 147, "g": 197, "b": 253}  # Light blue
+CHART_COLOR_CHEAP_HOURS_DEFAULT = {"r": 134, "g": 239, "b": 172}  # Light green
+CHART_COLOR_CHEAP_CURRENT_HOUR_DEFAULT = {"r": 34, "g": 197, "b": 94}  # Green
 
 # Tariff state constants
 TARIFF_OFF_PEAK = "off_peak"
