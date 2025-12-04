@@ -299,11 +299,14 @@ def _ensure_color_dict(
     """Return a color dict, assuming inputs are already RGB."""
 
     if isinstance(color_value, dict) and {"r", "g", "b"}.issubset(color_value):
-        return {
+        result = {
             "r": int(color_value["r"]),
             "g": int(color_value["g"]),
             "b": int(color_value["b"]),
         }
+        if "a" in color_value:
+            result["a"] = float(color_value["a"])
+        return result
 
     return dict(default_color)
 
