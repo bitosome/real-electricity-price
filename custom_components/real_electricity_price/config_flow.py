@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import time as dt_time
 from typing import Any
 
 import voluptuous as vol
@@ -309,6 +310,25 @@ def _ensure_color_dict(
         return result
 
     return dict(default_color)
+
+
+def _time_selector_default(
+    value: Any, fallback: str
+) -> dt_time:
+    """Convert stored value or fallback string into datetime.time."""
+
+    if isinstance(value, dict):
+        hour = int(value.get("hour", 0))
+        minute = int(value.get("minute", 0))
+        second = int(value.get("second", 0))
+        return dt_time(hour=hour, minute=minute, second=second)
+
+    if isinstance(value, str):
+        hour, minute, second = parse_time_string(value)
+        return dt_time(hour=hour, minute=minute, second=second)
+
+    hour, minute, second = parse_time_string(fallback)
+    return dt_time(hour=hour, minute=minute, second=second)
 
 
 def _validate_time_string(time_val: Any) -> bool:
@@ -738,22 +758,16 @@ class RealElectricityPriceFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             {
                 vol.Optional(
                     CONF_NIGHT_PRICE_START_TIME,
-                    default=self._user_data.get(
-                        CONF_NIGHT_PRICE_START_TIME,
-                        {
-                            "hour": parse_time_string(NIGHT_PRICE_START_TIME_DEFAULT)[0],
-                            "minute": parse_time_string(NIGHT_PRICE_START_TIME_DEFAULT)[1],
-                        },
+                    default=_time_selector_default(
+                        self._user_data.get(CONF_NIGHT_PRICE_START_TIME),
+                        NIGHT_PRICE_START_TIME_DEFAULT,
                     ),
                 ): selector.TimeSelector(),
                 vol.Optional(
                     CONF_NIGHT_PRICE_END_TIME,
-                    default=self._user_data.get(
-                        CONF_NIGHT_PRICE_END_TIME,
-                        {
-                            "hour": parse_time_string(NIGHT_PRICE_END_TIME_DEFAULT)[0],
-                            "minute": parse_time_string(NIGHT_PRICE_END_TIME_DEFAULT)[1],
-                        },
+                    default=_time_selector_default(
+                        self._user_data.get(CONF_NIGHT_PRICE_END_TIME),
+                        NIGHT_PRICE_END_TIME_DEFAULT,
                     ),
                 ): selector.TimeSelector(),
                 vol.Optional(
@@ -1229,28 +1243,22 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             schema_dict.update({
                 vol.Optional(
                     CONF_NIGHT_PRICE_START_TIME,
-                    default=options_data.get(
-                        CONF_NIGHT_PRICE_START_TIME,
-                        current_data.get(
+                    default=_time_selector_default(
+                        options_data.get(
                             CONF_NIGHT_PRICE_START_TIME,
-                            {
-                                "hour": parse_time_string(NIGHT_PRICE_START_TIME_DEFAULT)[0],
-                                "minute": parse_time_string(NIGHT_PRICE_START_TIME_DEFAULT)[1],
-                            },
+                            current_data.get(CONF_NIGHT_PRICE_START_TIME),
                         ),
+                        NIGHT_PRICE_START_TIME_DEFAULT,
                     ),
                 ): selector.TimeSelector(),
                 vol.Optional(
                     CONF_NIGHT_PRICE_END_TIME,
-                    default=options_data.get(
-                        CONF_NIGHT_PRICE_END_TIME,
-                        current_data.get(
+                    default=_time_selector_default(
+                        options_data.get(
                             CONF_NIGHT_PRICE_END_TIME,
-                            {
-                                "hour": parse_time_string(NIGHT_PRICE_END_TIME_DEFAULT)[0],
-                                "minute": parse_time_string(NIGHT_PRICE_END_TIME_DEFAULT)[1],
-                            },
+                            current_data.get(CONF_NIGHT_PRICE_END_TIME),
                         ),
+                        NIGHT_PRICE_END_TIME_DEFAULT,
                     ),
                 ): selector.TimeSelector(),
             })
