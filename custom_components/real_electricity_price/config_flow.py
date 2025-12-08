@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from datetime import time as dt_time
 from typing import Any
 
 import voluptuous as vol
@@ -312,23 +311,23 @@ def _ensure_color_dict(
     return dict(default_color)
 
 
-def _time_selector_default(
-    value: Any, fallback: str
-) -> dt_time:
-    """Convert stored value or fallback string into datetime.time."""
+def _time_selector_default(value: Any, fallback: str) -> str:
+    """Return a HH:MM string default for TimeSelector."""
 
     if isinstance(value, dict):
         hour = int(value.get("hour", 0))
         minute = int(value.get("minute", 0))
-        second = int(value.get("second", 0))
-        return dt_time(hour=hour, minute=minute, second=second)
+        return f"{hour:02d}:{minute:02d}:00"
 
     if isinstance(value, str):
-        hour, minute, second = parse_time_string(value)
-        return dt_time(hour=hour, minute=minute, second=second)
+        try:
+            hour, minute, second = parse_time_string(value)
+            return f"{hour:02d}:{minute:02d}:{second:02d}"
+        except ValueError:
+            pass
 
     hour, minute, second = parse_time_string(fallback)
-    return dt_time(hour=hour, minute=minute, second=second)
+    return f"{hour:02d}:{minute:02d}:{second:02d}"
 
 
 def _validate_time_string(time_val: Any) -> bool:
