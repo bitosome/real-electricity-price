@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import time as dt_time
 from typing import Any
 
 import voluptuous as vol
@@ -311,23 +312,28 @@ def _ensure_color_dict(
     return dict(default_color)
 
 
-def _time_selector_default(value: Any, fallback: str) -> str:
-    """Return a HH:MM string default for TimeSelector."""
+def _time_selector_default(value: Any, fallback: str) -> dict[str, int]:
+    """Return structured time for TimeSelector defaults."""
 
-    if isinstance(value, dict):
-        hour = int(value.get("hour", 0))
-        minute = int(value.get("minute", 0))
-        return f"{hour:02d}:{minute:02d}:00"
+    if isinstance(value, dict) and "hour" in value:
+        return {
+            "hour": int(value.get("hour", 0)),
+            "minute": int(value.get("minute", 0)),
+            "second": int(value.get("second", 0)),
+        }
+
+    if isinstance(value, dt_time):
+        return {"hour": value.hour, "minute": value.minute, "second": value.second}
 
     if isinstance(value, str):
         try:
             hour, minute, second = parse_time_string(value)
-            return f"{hour:02d}:{minute:02d}:{second:02d}"
+            return {"hour": hour, "minute": minute, "second": second}
         except ValueError:
             pass
 
     hour, minute, second = parse_time_string(fallback)
-    return f"{hour:02d}:{minute:02d}:{second:02d}"
+    return {"hour": hour, "minute": minute, "second": second}
 
 
 def _validate_time_string(time_val: Any) -> bool:
@@ -903,6 +909,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
         """Initialize options flow."""
+        super().__init__()
         self.config_entry = config_entry
         self._errors: dict[str, str] = {}
 
