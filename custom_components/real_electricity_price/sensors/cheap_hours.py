@@ -8,11 +8,200 @@ from typing import Any
 
 from homeassistant.util import dt as dt_util
 
-from ..entity_descriptions import SENSOR_CHEAP_HOURS
+from ..cheap_hours_analysis import (
+    collect_hourly_price_entries,
+    group_consecutive_price_entries,
+)
 
 from .base import RealElectricityPriceBaseSensor
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _analyze_cheap_prices_for_entity(
+    entity: RealElectricityPriceBaseSensor,
+) -> list[dict[str, Any]]:
+    """Analyze cheap price ranges for any sensor using main price coordinator data."""
+    if not entity.coordinator.data:
+        return []
+
+    try:
+        now = dt_util.now()
+        current_hour_start = now.replace(minute=0, second=0, microsecond=0)
+        all_prices = collect_hourly_price_entries(
+            entity.coordinator.data,
+            min_start_time=current_hour_start,
+        )
+
+        if not all_prices:
+            _LOGGER.debug("No valid price data available for cheap price analysis")
+            return []
+
+        acceptable_price = entity.get_config().acceptable_price
+        cheap_prices = [
+            price_entry
+            for price_entry in all_prices
+            if price_entry["price"] <= acceptable_price
+        ]
+
+        if not cheap_prices:
+            _LOGGER.debug(
+                "No cheap prices found with acceptable price %.6f",
+                acceptable_price,
+            )
+            return []
+
+        cheap_ranges = group_consecutive_price_entries(
+            cheap_prices,
+            round_price=entity._round_price,
+        )
+        _LOGGER.debug(
+            "Found %d cheap price ranges (acceptable_price: %.6f)",
+            len(cheap_ranges),
+            acceptable_price,
+        )
+        return cheap_ranges
+    except Exception:
+        _LOGGER.exception("Error analyzing cheap prices")
+        return []
+
+
+def _get_price_analysis_info_for_entity(
+    entity: RealElectricityPriceBaseSensor,
+) -> dict[str, Any]:
+    """Get manual price analysis info for a sensor using main coordinator data."""
+    if not entity.coordinator.data:
+        return {}
+
+    try:
+        now = dt_util.now()
+        current_hour_start = now.replace(minute=0, second=0, microsecond=0)
+        all_prices = collect_hourly_price_entries(
+            entity.coordinator.data,
+            min_start_time=current_hour_start,
+        )
+
+        future_data_sources: list[dict[str, Any]] = []
+        for data_key, day_data in entity.coordinator.data.items():
+            if not isinstance(day_data, dict) or not day_data.get(
+                "data_available", False
+            ):
+                continue
+            count = 0
+            for price_entry in day_data.get("hourly_prices", []):
+                if price_entry.get("actual_price") is None:
+                    continue
+                try:
+                    start_time = dt_util.parse_datetime(price_entry["start_time"])
+                except (TypeError, ValueError, KeyError):
+                    continue
+                if start_time and start_time >= current_hour_start:
+                    count += 1
+            if count:
+                future_data_sources.append(
+                    {
+                        "source": data_key,
+                        "date": day_data.get("date", "unknown"),
+                        "hours_count": count,
+                    }
+                )
+
+        if not all_prices:
+            return {"data_sources": future_data_sources}
+
+        acceptable_price = entity.get_config().acceptable_price
+        total_future_hours = sum(
+            source["hours_count"] for source in future_data_sources
+        )
+
+        return {
+            "acceptable_price": entity._round_price(acceptable_price),
+            "analysis_period_hours": total_future_hours,
+            "data_sources": future_data_sources,
+        }
+    except Exception:
+        _LOGGER.exception("Error getting price analysis info")
+        return {}
+
+
+def _iter_valid_cheap_ranges(cheap_ranges: list[dict[str, Any]]):
+    """Yield cheap ranges with parsed start/end datetimes."""
+    for range_data in cheap_ranges:
+        try:
+            start_time = dt_util.parse_datetime(range_data["start_time"])
+            end_time = dt_util.parse_datetime(range_data["end_time"])
+        except (TypeError, ValueError, KeyError):
+            continue
+        if not start_time or not end_time:
+            continue
+        yield range_data, start_time, end_time
+
+
+def _get_current_or_next_cheap_period_time(
+    cheap_ranges: list[dict[str, Any]],
+    now: datetime,
+    *,
+    return_future: str,
+) -> datetime | None:
+    """Return current cheap period end or the next cheap period boundary."""
+    for _, start_time, end_time in _iter_valid_cheap_ranges(cheap_ranges):
+        if start_time <= now < end_time:
+            return dt_util.as_local(end_time)
+        if start_time > now:
+            target_time = start_time if return_future == "start" else end_time
+            return dt_util.as_local(target_time)
+    return None
+
+
+def _get_next_cheap_period_start_time(
+    cheap_ranges: list[dict[str, Any]],
+    now: datetime,
+) -> datetime | None:
+    """Return the next future cheap period start time (skip active period)."""
+    for _, start_time, end_time in _iter_valid_cheap_ranges(cheap_ranges):
+        if start_time > now:
+            return dt_util.as_local(start_time)
+        if start_time <= now < end_time:
+            continue
+    return None
+
+
+def _get_current_cheap_avg_price(
+    cheap_ranges: list[dict[str, Any]],
+    now: datetime,
+) -> float | None:
+    """Return average price for the currently active cheap range."""
+    for range_data, start_time, end_time in _iter_valid_cheap_ranges(cheap_ranges):
+        if start_time <= now < end_time:
+            avg_price = range_data.get("avg_price")
+            return avg_price if isinstance(avg_price, (int, float)) else None
+    return None
+
+
+def _summarize_cheap_ranges(
+    cheap_ranges: list[dict[str, Any]],
+    *,
+    now: datetime,
+    round_price: Any,
+) -> tuple[str, dict[str, Any] | None, int]:
+    """Return status, next-period metadata, and total cheap hours for ranges."""
+    current_status = "inactive"
+    next_cheap_info: dict[str, Any] | None = None
+    total_hours = 0
+
+    for range_data, start_time, end_time in _iter_valid_cheap_ranges(cheap_ranges):
+        total_hours += range_data.get("hour_count", 1)
+        if start_time <= now < end_time:
+            current_status = "active"
+            continue
+        if start_time > now and next_cheap_info is None:
+            next_cheap_info = {
+                "start_time": range_data["start_time"],
+                "end_time": range_data["end_time"],
+                "average_price": round_price(range_data["avg_price"]),
+            }
+
+    return current_status, next_cheap_info, total_hours
 
 
 class CheapHoursSensor(RealElectricityPriceBaseSensor):
@@ -74,26 +263,9 @@ class CheapHoursSensor(RealElectricityPriceBaseSensor):
 
         now = dt_util.now()
 
-        # Find the next cheap period start time
-        for range_data in cheap_ranges:
-            try:
-                start_time = dt_util.parse_datetime(range_data["start_time"])
-                end_time = dt_util.parse_datetime(range_data["end_time"])
-
-                # Skip if datetime parsing failed
-                if not start_time or not end_time:
-                    continue
-                # If we're currently in a cheap period, return its end time
-                if start_time <= now < end_time:
-                    return dt_util.as_local(end_time)
-
-                # If this is a future cheap period, return its start time
-                if start_time > now:
-                    return dt_util.as_local(start_time)
-            except (ValueError, KeyError):
-                continue
-
-        return None
+        return _get_current_or_next_cheap_period_time(
+            cheap_ranges, now, return_future="start"
+        )
 
     def _get_next_cheap_period_from_ranges(self) -> datetime | None:
         """Get next cheap period timestamp by checking ranges manually."""
@@ -104,26 +276,9 @@ class CheapHoursSensor(RealElectricityPriceBaseSensor):
 
         now = dt_util.now()
 
-        # Find the next cheap period start time
-        for range_data in cheap_ranges:
-            try:
-                start_time = dt_util.parse_datetime(range_data["start_time"])
-                end_time = dt_util.parse_datetime(range_data["end_time"])
-
-                # Skip if datetime parsing failed
-                if not start_time or not end_time:
-                    continue
-                # If we're currently in a cheap period, return its end time
-                if start_time <= now < end_time:
-                    return dt_util.as_local(end_time)
-
-                # If this is a future cheap period, return its start time
-                if start_time > now:
-                    return dt_util.as_local(start_time)
-            except (ValueError, KeyError):
-                continue
-
-        return None
+        return _get_current_or_next_cheap_period_time(
+            cheap_ranges, now, return_future="start"
+        )
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
@@ -146,33 +301,15 @@ class CheapHoursSensor(RealElectricityPriceBaseSensor):
 
         # Find current status and next cheap period
         now = dt_util.now()
-        current_status = "inactive"
-        next_cheap_info = None
-
-        for range_data in cheap_ranges:
-            start_time = dt_util.parse_datetime(range_data["start_time"])
-            end_time = dt_util.parse_datetime(range_data["end_time"])
-
-            # Skip if datetime parsing failed
-            if not start_time or not end_time:
-                continue
-            if start_time <= now < end_time:
-                current_status = "active"
-            elif start_time > now and next_cheap_info is None:
-                next_cheap_info = {
-                    "start_time": range_data["start_time"],
-                    "end_time": range_data["end_time"],
-                    "average_price": self._round_price(range_data["avg_price"]),
-                }
+        current_status, next_cheap_info, total_hours = _summarize_cheap_ranges(
+            cheap_ranges,
+            now=now,
+            round_price=self._round_price,
+        )
 
         # Build comprehensive status info
         last_update = cheap_data.get("last_update")
         trigger_time = cheap_data.get("trigger_time")
-
-        # Calculate total cheap hours by summing hour_count from all ranges
-        total_hours = sum(
-            range_data.get("hour_count", 1) for range_data in cheap_ranges
-        )
 
         status_info = {
             "current_status": current_status,
@@ -212,34 +349,16 @@ class CheapHoursSensor(RealElectricityPriceBaseSensor):
         """Get attributes from manual cheap price analysis."""
         cheap_ranges = self._analyze_cheap_prices()
 
-        config = self.get_config()
-
         # Get analysis info
         analysis_info = self._get_price_analysis_info()
 
         # Build status info similar to coordinator-backed sensor
         now = dt_util.now()
-        current_status = "inactive"
-        next_cheap_info = None
-        total_hours = 0
-
-        for range_data in cheap_ranges:
-            try:
-                start_time = dt_util.parse_datetime(range_data["start_time"])
-                end_time = dt_util.parse_datetime(range_data["end_time"])
-                if not start_time or not end_time:
-                    continue
-                total_hours += range_data.get("hour_count", 1)
-                if start_time <= now < end_time:
-                    current_status = "active"
-                elif start_time > now and next_cheap_info is None:
-                    next_cheap_info = {
-                        "start_time": range_data["start_time"],
-                        "end_time": range_data["end_time"],
-                        "average_price": self._round_price(range_data["avg_price"]),
-                    }
-            except (ValueError, KeyError):
-                continue
+        current_status, next_cheap_info, total_hours = _summarize_cheap_ranges(
+            cheap_ranges,
+            now=now,
+            round_price=self._round_price,
+        )
 
         status_info = {
             "current_status": current_status,
@@ -258,102 +377,11 @@ class CheapHoursSensor(RealElectricityPriceBaseSensor):
         """Get current cheap price by checking ranges manually."""
         cheap_ranges = self._analyze_cheap_prices()
         now = dt_util.now()
-
-        for range_data in cheap_ranges:
-            start_time = dt_util.parse_datetime(range_data["start_time"])
-            end_time = dt_util.parse_datetime(range_data["end_time"])
-
-            # Skip if datetime parsing failed
-            if not start_time or not end_time:
-                continue
-            if start_time <= now < end_time:
-                return range_data["avg_price"]
-
-        return None
+        return _get_current_cheap_avg_price(cheap_ranges, now)
 
     def _analyze_cheap_prices(self) -> list[dict[str, Any]]:
         """Analyze price data to find cheap price ranges from NOW onwards."""
-        if not self.coordinator.data:
-            return []
-
-        try:
-            # Collect all hourly prices with valid data from current hour onwards
-            now = dt_util.now()
-            current_hour_start = now.replace(minute=0, second=0, microsecond=0)
-            all_prices = []
-
-            for data_key in self.coordinator.data:
-                day_data = self.coordinator.data[data_key]
-                if not isinstance(day_data, dict):
-                    continue
-
-                # Only include data from days where actual data is available
-                data_available = day_data.get("data_available", False)
-                if not data_available:
-                    continue
-
-                hourly_prices = day_data.get("hourly_prices", [])
-                for price_entry in hourly_prices:
-                    # Only include entries with valid price data from current hour onwards
-                    if price_entry.get("actual_price") is not None:
-                        try:
-                            start_time = dt_util.parse_datetime(
-                                price_entry["start_time"]
-                            )
-                            # Include current hour and future hours only
-                            if start_time >= current_hour_start:
-                                all_prices.append(
-                                    {
-                                        "start_time": price_entry["start_time"],
-                                        "end_time": price_entry["end_time"],
-                                        "price": price_entry["actual_price"],
-                                    }
-                                )
-                        except (ValueError, KeyError):
-                            continue
-
-            if not all_prices:
-                _LOGGER.debug("No valid price data available for cheap price analysis")
-                return []
-
-            # Sort prices by start time
-            all_prices.sort(key=lambda x: dt_util.parse_datetime(x["start_time"]))
-
-            # Get acceptable price from configuration
-            config = self.get_config()
-            acceptable_price = config.acceptable_price
-
-            # Simple logic: any price <= acceptable_price is considered cheap
-            # This replaces the complex base_price + threshold calculation
-
-            # Filter cheap prices: price ≤ acceptable_price
-            cheap_prices = [
-                price_entry
-                for price_entry in all_prices
-                if price_entry["price"] <= acceptable_price
-            ]
-
-            if not cheap_prices:
-                _LOGGER.debug(
-                    "No cheap prices found with acceptable price %.6f",
-                    acceptable_price,
-                )
-                return []
-
-            # Group consecutive hours into ranges
-            cheap_ranges = self._group_consecutive_hours(cheap_prices)
-
-            _LOGGER.debug(
-                "Found %d cheap price ranges (acceptable_price: %.6f)",
-                len(cheap_ranges),
-                acceptable_price,
-            )
-
-            return cheap_ranges
-
-        except Exception:
-            _LOGGER.exception("Error analyzing cheap prices")
-            return []
+        return _analyze_cheap_prices_for_entity(self)
 
     def _group_consecutive_hours(
         self, cheap_prices: list[dict[str, Any]]
@@ -361,135 +389,14 @@ class CheapHoursSensor(RealElectricityPriceBaseSensor):
         """Group consecutive cheap price hours into ranges."""
         if not cheap_prices:
             return []
-
-        ranges = []
-        current_range = None
-
-        for price_entry in cheap_prices:
-            start_time = dt_util.parse_datetime(price_entry["start_time"])
-            price = price_entry["price"]
-
-            if current_range is None:
-                # Start new range
-                current_range = {
-                    "start_time": price_entry["start_time"],
-                    "end_time": price_entry["end_time"],
-                    "hour_count": 1,
-                    "min_price": self._round_price(price),
-                    "max_price": self._round_price(price),
-                    "avg_price": self._round_price(price),
-                    "prices": [price],
-                }
-            else:
-                # Check if this hour is consecutive to the current range
-                current_end_time = dt_util.parse_datetime(current_range["end_time"])
-                if start_time == current_end_time:
-                    # Extend current range
-                    current_range["end_time"] = price_entry["end_time"]
-                    current_range["hour_count"] += 1
-                    current_range["prices"].append(price)
-                    current_range["min_price"] = self._round_price(
-                        min(current_range["min_price"], price)
-                    )
-                    current_range["max_price"] = self._round_price(
-                        max(current_range["max_price"], price)
-                    )
-                    current_range["avg_price"] = self._round_price(
-                        sum(current_range["prices"]) / len(current_range["prices"])
-                    )
-                else:
-                    # Finish current range and start new one
-                    # Remove the prices list before adding to results (too verbose for attributes)
-                    current_range.pop("prices", None)
-                    ranges.append(current_range)
-
-                    current_range = {
-                        "start_time": price_entry["start_time"],
-                        "end_time": price_entry["end_time"],
-                        "hour_count": 1,
-                        "min_price": self._round_price(price),
-                        "max_price": self._round_price(price),
-                        "avg_price": self._round_price(price),
-                        "prices": [price],
-                    }
-
-        # Add the last range
-        if current_range is not None:
-            current_range.pop("prices", None)
-            ranges.append(current_range)
-
-        return ranges
+        return group_consecutive_price_entries(
+            cheap_prices,
+            round_price=self._round_price,
+        )
 
     def _get_price_analysis_info(self) -> dict[str, Any]:
         """Get price analysis information."""
-        if not self.coordinator.data:
-            return {}
-
-        try:
-            # Collect all valid prices from NOW onwards only
-            now = dt_util.now()
-            all_prices = []
-            future_data_sources = []
-
-            for data_key in self.coordinator.data:
-                day_data = self.coordinator.data[data_key]
-                if not isinstance(day_data, dict):
-                    continue
-
-                # Only include data from days where actual data is available
-                data_available = day_data.get("data_available", False)
-                if not data_available:
-                    continue
-
-                hourly_prices = day_data.get("hourly_prices", [])
-                future_prices = []
-
-                # Only include prices from current hour onwards
-                for price_entry in hourly_prices:
-                    if price_entry.get("actual_price") is not None:
-                        try:
-                            start_time = dt_util.parse_datetime(
-                                price_entry["start_time"]
-                            )
-                            # Include current hour and future hours only
-                            if start_time >= now.replace(
-                                minute=0, second=0, microsecond=0
-                            ):
-                                future_prices.append(price_entry["actual_price"])
-                        except (ValueError, KeyError):
-                            continue
-
-                if future_prices:
-                    all_prices.extend(future_prices)
-                    future_data_sources.append(
-                        {
-                            "source": data_key,
-                            "date": day_data.get("date", "unknown"),
-                            "hours_count": len(future_prices),
-                        }
-                    )
-
-            if not all_prices:
-                return {"data_sources": future_data_sources}
-
-            # Get acceptable price from configuration
-            config = self.get_config()
-            acceptable_price = config.acceptable_price
-
-            # Calculate actual analysis period based on future hours only
-            total_future_hours = sum(
-                source["hours_count"] for source in future_data_sources
-            )
-
-            return {
-                "acceptable_price": self._round_price(acceptable_price),
-                "analysis_period_hours": total_future_hours,
-                "data_sources": future_data_sources,
-            }
-
-        except Exception:
-            _LOGGER.exception("Error getting price analysis info")
-            return {}
+        return _get_price_analysis_info_for_entity(self)
 
 
 class NextCheapHoursEndSensor(RealElectricityPriceBaseSensor):
@@ -528,26 +435,9 @@ class NextCheapHoursEndSensor(RealElectricityPriceBaseSensor):
 
         now = dt_util.now()
 
-        # Find the next cheap period and return its end time
-        for range_data in cheap_ranges:
-            try:
-                start_time = dt_util.parse_datetime(range_data["start_time"])
-                end_time = dt_util.parse_datetime(range_data["end_time"])
-
-                # Skip if datetime parsing failed
-                if not start_time or not end_time:
-                    continue
-                # If we're currently in a cheap period, return its end time
-                if start_time <= now < end_time:
-                    return dt_util.as_local(end_time)
-
-                # If this is a future cheap period, return its end time
-                if start_time > now:
-                    return dt_util.as_local(end_time)
-            except (ValueError, KeyError):
-                continue
-
-        return None
+        return _get_current_or_next_cheap_period_time(
+            cheap_ranges, now, return_future="end"
+        )
 
     def _get_next_cheap_period_end_from_ranges(self) -> datetime | None:
         """Get next cheap period end timestamp by checking ranges manually."""
@@ -558,32 +448,13 @@ class NextCheapHoursEndSensor(RealElectricityPriceBaseSensor):
 
         now = dt_util.now()
 
-        # Find the next cheap period and return its end time
-        for range_data in cheap_ranges:
-            try:
-                start_time = dt_util.parse_datetime(range_data["start_time"])
-                end_time = dt_util.parse_datetime(range_data["end_time"])
-
-                # Skip if datetime parsing failed
-                if not start_time or not end_time:
-                    continue
-                # If we're currently in a cheap period, return its end time
-                if start_time <= now < end_time:
-                    return dt_util.as_local(end_time)
-
-                # If this is a future cheap period, return its end time
-                if start_time > now:
-                    return dt_util.as_local(end_time)
-            except (ValueError, KeyError):
-                continue
-
-        return None
+        return _get_current_or_next_cheap_period_time(
+            cheap_ranges, now, return_future="end"
+        )
 
     def _analyze_cheap_prices(self) -> list[dict[str, Any]]:
         """Reuse the analysis from CheapHoursSensor."""
-        # Create a temporary instance to reuse the analysis logic
-        temp_sensor = CheapHoursSensor(self.coordinator, SENSOR_CHEAP_HOURS)
-        return temp_sensor._analyze_cheap_prices()
+        return _analyze_cheap_prices_for_entity(self)
 
 
 class NextCheapHoursStartSensor(RealElectricityPriceBaseSensor):
@@ -622,27 +493,7 @@ class NextCheapHoursStartSensor(RealElectricityPriceBaseSensor):
 
         now = dt_util.now()
 
-        # Find the next cheap period start time
-        for range_data in cheap_ranges:
-            try:
-                start_time = dt_util.parse_datetime(range_data["start_time"])
-                end_time = dt_util.parse_datetime(range_data["end_time"])
-
-                # Skip if datetime parsing failed
-                if not start_time or not end_time:
-                    continue
-                # If this is a future cheap period, return its start time
-                if start_time > now:
-                    return dt_util.as_local(start_time)
-
-                # If we're currently in a cheap period, find the next one
-                if start_time <= now < end_time:
-                    # Continue to find the next period after this one
-                    continue
-            except (ValueError, KeyError):
-                continue
-
-        return None
+        return _get_next_cheap_period_start_time(cheap_ranges, now)
 
     def _get_next_cheap_period_start_from_ranges(self) -> datetime | None:
         """Get next cheap period start timestamp by checking ranges manually."""
@@ -653,30 +504,8 @@ class NextCheapHoursStartSensor(RealElectricityPriceBaseSensor):
 
         now = dt_util.now()
 
-        # Find the next cheap period start time
-        for range_data in cheap_ranges:
-            try:
-                start_time = dt_util.parse_datetime(range_data["start_time"])
-                end_time = dt_util.parse_datetime(range_data["end_time"])
-
-                # Skip if datetime parsing failed
-                if not start_time or not end_time:
-                    continue
-                # If this is a future cheap period, return its start time
-                if start_time > now:
-                    return dt_util.as_local(start_time)
-
-                # If we're currently in a cheap period, find the next one
-                if start_time <= now < end_time:
-                    # Continue to find the next period after this one
-                    continue
-            except (ValueError, KeyError):
-                continue
-
-        return None
+        return _get_next_cheap_period_start_time(cheap_ranges, now)
 
     def _analyze_cheap_prices(self) -> list[dict[str, Any]]:
         """Reuse the analysis from CheapHoursSensor."""
-        # Create a temporary instance to reuse the analysis logic
-        temp_sensor = CheapHoursSensor(self.coordinator, SENSOR_CHEAP_HOURS)
-        return temp_sensor._analyze_cheap_prices()
+        return _analyze_cheap_prices_for_entity(self)

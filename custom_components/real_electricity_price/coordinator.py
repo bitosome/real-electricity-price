@@ -126,7 +126,9 @@ class RealElectricityPriceDataUpdateCoordinator(DataUpdateCoordinator):
                                 "API returned no data but preserving recent data from %s to avoid sensor unavailability",
                                 last_sync
                             )
-                            # Don't trigger cheap hours update when preserving old data
+                            await self._async_refresh_cheap_hours_from_preserved_data(
+                                "api returned no data"
+                            )
                             return self.data
                         _LOGGER.error("Last data is too stale (%s), not preserving", last_sync)
                     else:
@@ -176,24 +178,15 @@ class RealElectricityPriceDataUpdateCoordinator(DataUpdateCoordinator):
             self.data = data
 
             # Always trigger cheap hours calculation when we have new price data
-            if self._cheap_price_coordinator and data:
+            cheap_coordinator = self.get_cheap_price_coordinator()
+            if cheap_coordinator and data:
                 # Check if we have any actual price data
-                has_price_data = False
-                for data_key in ["today", "tomorrow"]:
-                    if data_key in data:
-                        day_data = data[data_key]
-                        if isinstance(day_data, dict) and day_data.get("data_available", False):
-                            hourly_prices = day_data.get("hourly_prices", [])
-                            if any(entry.get("actual_price") is not None for entry in hourly_prices):
-                                has_price_data = True
-                                break
-                
-                if has_price_data:
+                if self._has_actual_price_data(data):
                     if self._is_startup:
                         _LOGGER.info("Integration startup: price data available, triggering cheap hours calculation")
                     else:
                         _LOGGER.debug("New price data received, updating cheap hours calculation")
-                    await self._cheap_price_coordinator.async_manual_update()
+                    await cheap_coordinator.async_manual_update()
                 else:
                     _LOGGER.debug("No price data available for cheap hours calculation")
 
@@ -212,7 +205,9 @@ class RealElectricityPriceDataUpdateCoordinator(DataUpdateCoordinator):
                             "API failed but preserving recent data from %s to avoid sensor unavailability",
                             last_sync
                         )
-                        # Don't trigger cheap hours update when preserving old data
+                        await self._async_refresh_cheap_hours_from_preserved_data(
+                            "api client error"
+                        )
                         return self.data
             raise UpdateFailed(exception) from exception
 
@@ -276,6 +271,36 @@ class RealElectricityPriceDataUpdateCoordinator(DataUpdateCoordinator):
     def set_cheap_price_coordinator(self, coordinator) -> None:
         """Set the cheap price coordinator for automatic updates."""
         self._cheap_price_coordinator = coordinator
+
+    def get_cheap_price_coordinator(self):
+        """Return the cheap-hours coordinator linked to this coordinator."""
+        return self._cheap_price_coordinator
+
+    def _has_actual_price_data(self, data: dict | None) -> bool:
+        """Return True when today or tomorrow contains at least one actual price."""
+        if not data:
+            return False
+
+        for data_key in ["today", "tomorrow"]:
+            day_data = data.get(data_key)
+            if not isinstance(day_data, dict) or not day_data.get("data_available", False):
+                continue
+            hourly_prices = day_data.get("hourly_prices", [])
+            if any(entry.get("actual_price") is not None for entry in hourly_prices):
+                return True
+        return False
+
+    async def _async_refresh_cheap_hours_from_preserved_data(self, reason: str) -> None:
+        """Recalculate cheap hours using preserved price data when refresh fetch fails."""
+        cheap_coordinator = self.get_cheap_price_coordinator()
+        if not cheap_coordinator or not self._has_actual_price_data(self.data):
+            return
+
+        _LOGGER.debug(
+            "Recalculating cheap hours using preserved data after sync attempt (%s)",
+            reason,
+        )
+        await cheap_coordinator.async_manual_update()
 
     async def async_request_refresh(self) -> None:
         """Request a refresh for all entities and trigger hourly update."""

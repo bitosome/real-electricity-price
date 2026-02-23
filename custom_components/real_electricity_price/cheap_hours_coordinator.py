@@ -8,9 +8,12 @@ from typing import TYPE_CHECKING, Any
 
 from homeassistant.const import EVENT_HOMEASSISTANT_STOP
 from homeassistant.core import callback
-from homeassistant.helpers.event import async_track_time_change
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
+from .cheap_hours_analysis import (
+    collect_hourly_price_entries,
+    group_consecutive_price_entries,
+)
 from .const import (
     ACCEPTABLE_PRICE_DEFAULT,
     CONF_ACCEPTABLE_PRICE,
@@ -149,56 +152,16 @@ class CheapHoursDataUpdateCoordinator(DataUpdateCoordinator):
 
         try:
             # Collect all hourly prices with valid data
-            all_prices = []
-            for data_key in main_data:
-                day_data = main_data[data_key]
-                if not isinstance(day_data, dict):
-                    continue
-
-                # Only include data from days where actual data is available
-                data_available = day_data.get("data_available", False)
-                if not data_available:
-                    continue
-
-                hourly_prices = day_data.get("hourly_prices", [])
-                for price_entry in hourly_prices:
-                    # Only include entries with valid price data
-                    if price_entry.get("actual_price") is not None:
-                        all_prices.append(
-                            {
-                                "start_time": price_entry["start_time"],
-                                "end_time": price_entry["end_time"],
-                                "price": price_entry["actual_price"],
-                                "date": day_data.get("date"),
-                            }
-                        )
+            all_prices = collect_hourly_price_entries(main_data)
 
             if not all_prices:
                 _LOGGER.debug("No valid price data available for cheap price analysis")
                 return {"cheap_ranges": [], "analysis_info": {}}
 
-            # Convert to list of dicts and add parsed datetime for analysis
-            price_list = []
-            for price in all_prices:
-                try:
-                    # Parse datetime string
-                    start_time_dt = datetime.datetime.fromisoformat(
-                        price["start_time"]
-                    )
-                    price_list.append({**price, "start_time_dt": start_time_dt})
-                except Exception as e:
-                    _LOGGER.warning(
-                        f"Failed to parse datetime {price.get('start_time')}: {e}"
-                    )
-                    continue
-
-            # Sort by start time
-            price_list.sort(key=lambda x: x["start_time_dt"])
-
             # Filter for future prices only (NOW onwards)
             current_time = datetime.datetime.now(datetime.UTC)
             future_prices = [
-                p for p in price_list if p["start_time_dt"] >= current_time
+                p for p in all_prices if p["start_time_dt"] >= current_time
             ]
 
             if not future_prices:
@@ -290,87 +253,10 @@ class CheapHoursDataUpdateCoordinator(DataUpdateCoordinator):
         """Group consecutive cheap hours into time ranges."""
         if not cheap_prices:
             return []
-
-        ranges = []
-        current_range = None
-
-        for price_data in cheap_prices:
-            start_time_dt = price_data["start_time_dt"]
-            price = price_data["price"]
-
-            if current_range is None:
-                # Start new range
-                current_range = {
-                    "start_time": price_data["start_time"],
-                    "end_time": price_data["end_time"],
-                    "price": price,  # Use first price in range
-                    "min_price": price,
-                    "max_price": price,
-                    "avg_price": price,
-                    "hour_count": 1,
-                    "prices": [price],
-                }
-            else:
-                # Check if this hour is consecutive to the current range
-                try:
-                    current_end_dt = datetime.datetime.fromisoformat(
-                        current_range["end_time"]
-                    )
-                    if start_time_dt == current_end_dt:
-                        # Extend current range
-                        current_range["end_time"] = price_data["end_time"]
-                        current_range["hour_count"] += 1
-                        current_range["prices"].append(price)
-                        current_range["min_price"] = min(
-                            current_range["min_price"], price
-                        )
-                        current_range["max_price"] = max(
-                            current_range["max_price"], price
-                        )
-                        current_range["avg_price"] = sum(current_range["prices"]) / len(
-                            current_range["prices"]
-                        )
-                    else:
-                        # Finish current range and start new one
-                        # Remove the prices list before adding to results (too verbose for attributes)
-                        current_range.pop("prices", None)
-                        ranges.append(current_range)
-
-                        current_range = {
-                            "start_time": price_data["start_time"],
-                            "end_time": price_data["end_time"],
-                            "price": price,
-                            "min_price": price,
-                            "max_price": price,
-                            "avg_price": price,
-                            "hour_count": 1,
-                            "prices": [price],
-                        }
-                except Exception as e:
-                    _LOGGER.warning(
-                        f"Error parsing datetime for consecutive check: {e}"
-                    )
-                    # Start new range on error
-                    current_range.pop("prices", None)
-                    ranges.append(current_range)
-
-                    current_range = {
-                        "start_time": price_data["start_time"],
-                        "end_time": price_data["end_time"],
-                        "price": price,
-                        "min_price": price,
-                        "max_price": price,
-                        "avg_price": price,
-                        "hour_count": 1,
-                        "prices": [price],
-                    }
-
-        # Add the last range
-        if current_range is not None:
-            current_range.pop("prices", None)
-            ranges.append(current_range)
-
-        return ranges
+        return group_consecutive_price_entries(
+            cheap_prices,
+            include_first_price_field=True,
+        )
 
     def get_current_cheap_price(self) -> float | None:
         """Get the current cheap price value if we're in a cheap price period."""

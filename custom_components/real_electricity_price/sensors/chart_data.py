@@ -8,6 +8,10 @@ from typing import Any
 
 from homeassistant.util import dt as dt_util
 
+from ..cheap_hours_analysis import (
+    collect_hourly_price_entries,
+    group_consecutive_price_entries,
+)
 from ..const import (
     ACCEPTABLE_PRICE_DEFAULT,
     CHART_COLOR_CHEAP_CURRENT_HOUR_DEFAULT,
@@ -81,6 +85,9 @@ class ChartDataSensor(RealElectricityPriceBaseSensor):
         if hasattr(self.coordinator, "config_entry") and self.coordinator.config_entry:
             config_data.update(self.coordinator.config_entry.data or {})
             config_data.update(self.coordinator.config_entry.options or {})
+        config_data[CONF_ACCEPTABLE_PRICE] = self._get_effective_acceptable_price(
+            config_data
+        )
 
         # Collect hourly price data for 48 hours: today + tomorrow only
         all_data = []
@@ -145,18 +152,63 @@ class ChartDataSensor(RealElectricityPriceBaseSensor):
                 return []
 
             # Try to pull from the cheap-hours coordinator if linked via the main coordinator
-            if hasattr(self.coordinator, 'data') and self.coordinator.data:
-                for attr in ('_cheap_price_coordinator', 'cheap_hours_coordinator', '_cheap_coordinator'):
-                    if hasattr(self.coordinator, attr):
-                        cheap_coord = getattr(self.coordinator, attr)
-                        if cheap_coord and getattr(cheap_coord, 'data', None):
-                            return cheap_coord.data.get('cheap_ranges', [])
+            cheap_coord = self._get_linked_cheap_coordinator()
+            if cheap_coord and getattr(cheap_coord, "data", None):
+                return cheap_coord.data.get("cheap_ranges", [])
 
             # Fallback: compute manually using acceptable price
             return self._analyze_cheap_prices()
         except Exception:
             _LOGGER.debug("Could not get cheap hours data, using empty ranges")
             return []
+
+    def _get_linked_cheap_coordinator(self):
+        """Return the linked cheap-hours coordinator if available."""
+        getter = getattr(self.coordinator, "get_cheap_price_coordinator", None)
+        if callable(getter):
+            cheap_coord = getter()
+            if cheap_coord is not None:
+                return cheap_coord
+        for attr in (
+            "_cheap_price_coordinator",
+            "cheap_hours_coordinator",
+            "_cheap_coordinator",
+        ):
+            cheap_coord = getattr(self.coordinator, attr, None)
+            if cheap_coord is not None:
+                return cheap_coord
+        return None
+
+    def _get_effective_acceptable_price(
+        self, config_data: dict[str, Any] | None = None
+    ) -> float:
+        """Read acceptable price, preferring runtime override from cheap coordinator."""
+        cheap_coord = self._get_linked_cheap_coordinator()
+        if cheap_coord is not None:
+            getter = getattr(cheap_coord, "get_runtime_acceptable_price", None)
+            if callable(getter):
+                try:
+                    return float(getter())
+                except (TypeError, ValueError):
+                    pass
+
+        if config_data is None:
+            config_data = {}
+            if hasattr(self.coordinator, "config_entry") and self.coordinator.config_entry:
+                config_data.update(self.coordinator.config_entry.data or {})
+                config_data.update(self.coordinator.config_entry.options or {})
+
+        acceptable_price_raw = config_data.get(
+            CONF_ACCEPTABLE_PRICE, ACCEPTABLE_PRICE_DEFAULT
+        )
+        try:
+            return (
+                float(acceptable_price_raw)
+                if acceptable_price_raw is not None
+                else ACCEPTABLE_PRICE_DEFAULT
+            )
+        except (TypeError, ValueError):
+            return ACCEPTABLE_PRICE_DEFAULT
 
     def _get_bar_color(
         self,
@@ -187,15 +239,7 @@ class ChartDataSensor(RealElectricityPriceBaseSensor):
             color_past = self._convert_color_to_hex(CHART_COLOR_PAST_HOURS_DEFAULT)
         
         # Determine acceptable price threshold for fallback logic
-        acceptable_price_raw = config_data.get(CONF_ACCEPTABLE_PRICE, ACCEPTABLE_PRICE_DEFAULT)
-        try:
-            acceptable_price = (
-                float(acceptable_price_raw)
-                if acceptable_price_raw is not None
-                else ACCEPTABLE_PRICE_DEFAULT
-            )
-        except (TypeError, ValueError):
-            acceptable_price = ACCEPTABLE_PRICE_DEFAULT
+        acceptable_price = self._get_effective_acceptable_price(config_data)
 
         # Check if this is a cheap hour
         is_cheap_hour = False
@@ -247,44 +291,17 @@ class ChartDataSensor(RealElectricityPriceBaseSensor):
             # Collect all hourly prices with valid data from current hour onwards
             now = dt_util.now()
             current_hour_start = now.replace(minute=0, second=0, microsecond=0)
-            all_prices = []
-
-            # Only process today and tomorrow data for 48-hour analysis
-            for data_key in ["today", "tomorrow"]:
-                if data_key not in self.coordinator.data:
-                    continue
-                    
-                day_data = self.coordinator.data[data_key]
-                if not isinstance(day_data, dict):
-                    continue
-
-                data_available = day_data.get("data_available", False)
-                if not data_available:
-                    continue
-
-                hourly_prices = day_data.get("hourly_prices", [])
-                for price_entry in hourly_prices:
-                    if price_entry.get("actual_price") is not None:
-                        try:
-                            start_time = dt_util.parse_datetime(price_entry["start_time"])
-                            if start_time >= current_hour_start:
-                                all_prices.append({
-                                    "start_time": price_entry["start_time"],
-                                    "end_time": price_entry["end_time"],
-                                    "price": price_entry["actual_price"],
-                                })
-                        except (ValueError, KeyError):
-                            continue
+            all_prices = collect_hourly_price_entries(
+                self.coordinator.data,
+                data_keys=["today", "tomorrow"],
+                min_start_time=current_hour_start,
+            )
 
             if not all_prices:
                 return []
 
-            # Sort prices by start time
-            all_prices.sort(key=lambda x: dt_util.parse_datetime(x["start_time"]))
-
             # Get acceptable price from configuration
-            config = self.get_config()
-            acceptable_price = config.acceptable_price
+            acceptable_price = self._get_effective_acceptable_price()
 
             # Filter cheap prices: price ≤ acceptable_price
             cheap_prices = [
@@ -307,63 +324,10 @@ class ChartDataSensor(RealElectricityPriceBaseSensor):
         """Group consecutive cheap price hours into ranges."""
         if not cheap_prices:
             return []
-
-        ranges = []
-        current_range = None
-
-        for price_entry in cheap_prices:
-            start_time = dt_util.parse_datetime(price_entry["start_time"])
-            price = price_entry["price"]
-
-            if current_range is None:
-                # Start new range
-                current_range = {
-                    "start_time": price_entry["start_time"],
-                    "end_time": price_entry["end_time"],
-                    "hour_count": 1,
-                    "min_price": self._round_price(price),
-                    "max_price": self._round_price(price),
-                    "avg_price": self._round_price(price),
-                    "prices": [price],
-                }
-            else:
-                # Check if this hour is consecutive to the current range
-                current_end_time = dt_util.parse_datetime(current_range["end_time"])
-                if start_time == current_end_time:
-                    # Extend current range
-                    current_range["end_time"] = price_entry["end_time"]
-                    current_range["hour_count"] += 1
-                    current_range["prices"].append(price)
-                    current_range["min_price"] = self._round_price(
-                        min(current_range["min_price"], price)
-                    )
-                    current_range["max_price"] = self._round_price(
-                        max(current_range["max_price"], price)
-                    )
-                    current_range["avg_price"] = self._round_price(
-                        sum(current_range["prices"]) / len(current_range["prices"])
-                    )
-                else:
-                    # Finish current range and start new one
-                    current_range.pop("prices", None)
-                    ranges.append(current_range)
-                    
-                    current_range = {
-                        "start_time": price_entry["start_time"],
-                        "end_time": price_entry["end_time"],
-                        "hour_count": 1,
-                        "min_price": self._round_price(price),
-                        "max_price": self._round_price(price),
-                        "avg_price": self._round_price(price),
-                        "prices": [price],
-                    }
-
-        # Add the last range
-        if current_range is not None:
-            current_range.pop("prices", None)
-            ranges.append(current_range)
-
-        return ranges
+        return group_consecutive_price_entries(
+            cheap_prices,
+            round_price=self._round_price,
+        )
 
     def _convert_color_to_hex(self, color) -> str:
         """Convert color from various formats to hex string."""

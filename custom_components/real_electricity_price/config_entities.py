@@ -33,8 +33,11 @@ class AcceptablePriceEntity(RealElectricityPriceEntity, NumberEntity):
         except Exception:
             self._attr_native_step = 0.000001
         self._attr_mode = "box"
+        cheap_coordinator = coordinator.get_cheap_price_coordinator()
         self._attr_native_value = (
-            coordinator._cheap_price_coordinator.get_runtime_acceptable_price()
+            cheap_coordinator.get_runtime_acceptable_price()
+            if cheap_coordinator is not None
+            else ACCEPTABLE_PRICE_DEFAULT
         )
 
     async def async_set_native_value(self, value: float) -> None:
@@ -45,7 +48,12 @@ class AcceptablePriceEntity(RealElectricityPriceEntity, NumberEntity):
 
         try:
             # Update the coordinator's runtime value without triggering config reload
-            self.coordinator._cheap_price_coordinator.set_runtime_acceptable_price(value)
+            cheap_coordinator = self.coordinator.get_cheap_price_coordinator()
+            if cheap_coordinator is None:
+                _LOGGER.error("Cheap hours coordinator unavailable; cannot update acceptable price")
+                return
+
+            cheap_coordinator.set_runtime_acceptable_price(value)
             self._attr_native_value = value
             self.async_write_ha_state()
             _LOGGER.info(
