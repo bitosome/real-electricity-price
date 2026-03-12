@@ -297,7 +297,7 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
 def _ensure_color_dict(
     color_value: Any, default_color: dict[str, int]
 ) -> dict[str, int]:
-    """Return a color dict, assuming inputs are already RGB."""
+    """Normalize selector color values into the stored RGB dict format."""
 
     if isinstance(color_value, dict) and {"r", "g", "b"}.issubset(color_value):
         result = {
@@ -309,31 +309,47 @@ def _ensure_color_dict(
             result["a"] = float(color_value["a"])
         return result
 
+    if isinstance(color_value, (list, tuple)) and len(color_value) >= 3:
+        return {
+            "r": int(color_value[0]),
+            "g": int(color_value[1]),
+            "b": int(color_value[2]),
+        }
+
     return dict(default_color)
 
 
-def _time_selector_default(value: Any, fallback: str) -> dict[str, int]:
-    """Return structured time for TimeSelector defaults."""
+def _color_selector_default(
+    color_value: Any, fallback: dict[str, int]
+) -> list[int]:
+    """Return the RGB list format expected by ColorRGBSelector."""
+
+    color_dict = _ensure_color_dict(color_value, fallback)
+    return [color_dict["r"], color_dict["g"], color_dict["b"]]
+
+
+def _time_selector_default(value: Any, fallback: str) -> str:
+    """Return the string format expected by TimeSelector defaults."""
 
     if isinstance(value, dict) and "hour" in value:
-        return {
-            "hour": int(value.get("hour", 0)),
-            "minute": int(value.get("minute", 0)),
-            "second": int(value.get("second", 0)),
-        }
+        return (
+            f"{int(value.get('hour', 0)):02d}:"
+            f"{int(value.get('minute', 0)):02d}:"
+            f"{int(value.get('second', 0)):02d}"
+        )
 
     if isinstance(value, dt_time):
-        return {"hour": value.hour, "minute": value.minute, "second": value.second}
+        return value.strftime("%H:%M:%S")
 
     if isinstance(value, str):
         try:
             hour, minute, second = parse_time_string(value)
-            return {"hour": hour, "minute": minute, "second": second}
+            return f"{hour:02d}:{minute:02d}:{second:02d}"
         except ValueError:
             pass
 
     hour, minute, second = parse_time_string(fallback)
-    return {"hour": hour, "minute": minute, "second": second}
+    return f"{hour:02d}:{minute:02d}:{second:02d}"
 
 
 def _validate_time_string(time_val: Any) -> bool:
@@ -853,27 +869,27 @@ class RealElectricityPriceFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 
         # Create base schema with always-present colors
         schema_dict = {
-            vol.Optional(
-                CONF_CHART_COLOR_PAST_HOURS,
-                default=_ensure_color_dict(
-                    self._user_data.get(CONF_CHART_COLOR_PAST_HOURS),
-                    CHART_COLOR_PAST_HOURS_DEFAULT,
-                ),
-            ): selector.ColorRGBSelector(),
-            vol.Optional(
-                CONF_CHART_COLOR_CURRENT_HOUR,
-                default=_ensure_color_dict(
-                    self._user_data.get(CONF_CHART_COLOR_CURRENT_HOUR),
-                    CHART_COLOR_CURRENT_HOUR_DEFAULT,
-                ),
-            ): selector.ColorRGBSelector(),
-            vol.Optional(
-                CONF_CHART_COLOR_FUTURE_HOURS,
-                default=_ensure_color_dict(
-                    self._user_data.get(CONF_CHART_COLOR_FUTURE_HOURS),
-                    CHART_COLOR_FUTURE_HOURS_DEFAULT,
-                ),
-            ): selector.ColorRGBSelector(),
+                vol.Optional(
+                    CONF_CHART_COLOR_PAST_HOURS,
+                    default=_color_selector_default(
+                        self._user_data.get(CONF_CHART_COLOR_PAST_HOURS),
+                        CHART_COLOR_PAST_HOURS_DEFAULT,
+                    ),
+                ): selector.ColorRGBSelector(),
+                vol.Optional(
+                    CONF_CHART_COLOR_CURRENT_HOUR,
+                    default=_color_selector_default(
+                        self._user_data.get(CONF_CHART_COLOR_CURRENT_HOUR),
+                        CHART_COLOR_CURRENT_HOUR_DEFAULT,
+                    ),
+                ): selector.ColorRGBSelector(),
+                vol.Optional(
+                    CONF_CHART_COLOR_FUTURE_HOURS,
+                    default=_color_selector_default(
+                        self._user_data.get(CONF_CHART_COLOR_FUTURE_HOURS),
+                        CHART_COLOR_FUTURE_HOURS_DEFAULT,
+                    ),
+                ): selector.ColorRGBSelector(),
         }
 
         # Only add cheap hours colors if cheap hours calculation is enabled
@@ -881,14 +897,14 @@ class RealElectricityPriceFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             schema_dict.update({
                 vol.Optional(
                     CONF_CHART_COLOR_CHEAP_HOURS,
-                    default=_ensure_color_dict(
+                    default=_color_selector_default(
                         self._user_data.get(CONF_CHART_COLOR_CHEAP_HOURS),
                         CHART_COLOR_CHEAP_HOURS_DEFAULT,
                     ),
                 ): selector.ColorRGBSelector(),
                 vol.Optional(
                     CONF_CHART_COLOR_CHEAP_CURRENT_HOUR,
-                    default=_ensure_color_dict(
+                    default=_color_selector_default(
                         self._user_data.get(CONF_CHART_COLOR_CHEAP_CURRENT_HOUR),
                         CHART_COLOR_CHEAP_CURRENT_HOUR_DEFAULT,
                     ),
@@ -1412,7 +1428,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             {
                 vol.Optional(
                     CONF_CHART_COLOR_PAST_HOURS,
-                    default=_ensure_color_dict(
+                    default=_color_selector_default(
                         options_data.get(
                             CONF_CHART_COLOR_PAST_HOURS,
                             current_data.get(
@@ -1425,7 +1441,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 ): selector.ColorRGBSelector(),
                 vol.Optional(
                     CONF_CHART_COLOR_CURRENT_HOUR,
-                    default=_ensure_color_dict(
+                    default=_color_selector_default(
                         options_data.get(
                             CONF_CHART_COLOR_CURRENT_HOUR,
                             current_data.get(
@@ -1438,7 +1454,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 ): selector.ColorRGBSelector(),
                 vol.Optional(
                     CONF_CHART_COLOR_FUTURE_HOURS,
-                    default=_ensure_color_dict(
+                    default=_color_selector_default(
                         options_data.get(
                             CONF_CHART_COLOR_FUTURE_HOURS,
                             current_data.get(
@@ -1458,7 +1474,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 **schema_dict,  # extract underlying dict for update
                 vol.Optional(
                     CONF_CHART_COLOR_CHEAP_HOURS,
-                    default=_ensure_color_dict(
+                    default=_color_selector_default(
                         options_data.get(
                             CONF_CHART_COLOR_CHEAP_HOURS,
                             current_data.get(
@@ -1471,7 +1487,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 ): selector.ColorRGBSelector(),
                 vol.Optional(
                     CONF_CHART_COLOR_CHEAP_CURRENT_HOUR,
-                    default=_ensure_color_dict(
+                    default=_color_selector_default(
                         options_data.get(
                             CONF_CHART_COLOR_CHEAP_CURRENT_HOUR,
                             current_data.get(
