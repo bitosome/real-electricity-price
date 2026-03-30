@@ -20,7 +20,7 @@ class AcceptablePriceEntity(RealElectricityPriceEntity, NumberEntity):
 
     def __init__(self, coordinator) -> None:
         super().__init__(coordinator)
-        self._attr_name = f"{coordinator.config_entry.title} Acceptable price"
+        self._attr_translation_key = "acceptable_price"
         self._attr_unique_id = (
             f"{coordinator.config_entry.entry_id}_acceptable_price"
         )

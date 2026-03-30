@@ -100,7 +100,6 @@ class RealElectricityPriceDataUpdateCoordinator(DataUpdateCoordinator):
         """Update data via library."""
         try:
             current_date = dt_util.now().date()
-            datetime.datetime.now(datetime.UTC)
 
             # Check if we need to force update due to date change
             force_update = self._last_update_date != current_date

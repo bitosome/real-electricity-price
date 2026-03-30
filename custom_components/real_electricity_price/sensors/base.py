@@ -6,7 +6,6 @@ from abc import abstractmethod
 from typing import Any
 
 from homeassistant.components.sensor import SensorEntity, SensorEntityDescription
-from homeassistant.const import CONF_NAME
 
 from ..const import (
     ACCEPTABLE_PRICE_DEFAULT,
@@ -76,14 +75,7 @@ class RealElectricityPriceBaseSensor(RealElectricityPriceEntity, SensorEntity):
         """Initialize the sensor."""
         super().__init__(coordinator)
         self.entity_description = description
-
-        # Set unique ID and name
         self._attr_unique_id = f"{coordinator.config_entry.entry_id}_{description.key}"
-
-        # Get device name from config
-        config = {**coordinator.config_entry.data, **coordinator.config_entry.options}
-        device_name = config.get(CONF_NAME, "Real Electricity Price")
-        self._attr_name = f"{device_name} {description.name}"
 
     @abstractmethod
     def native_value(self) -> Any:
@@ -97,7 +89,6 @@ class RealElectricityPriceBaseSensor(RealElectricityPriceEntity, SensorEntity):
         }
 
         return IntegrationConfig(
-            name=config_data.get(CONF_NAME, "Real Electricity Price"),
             grid=config_data.get(CONF_GRID, GRID_DEFAULT),
             supplier=config_data.get(CONF_SUPPLIER, SUPPLIER_DEFAULT),
             country_code=config_data.get(CONF_COUNTRY_CODE, COUNTRY_CODE_DEFAULT),

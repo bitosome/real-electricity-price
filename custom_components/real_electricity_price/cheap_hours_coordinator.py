@@ -6,9 +6,7 @@ import datetime
 import logging
 from typing import TYPE_CHECKING, Any
 
-from homeassistant.const import EVENT_HOMEASSISTANT_STOP
-from homeassistant.core import callback
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .cheap_hours_analysis import (
     collect_hourly_price_entries,
@@ -21,8 +19,6 @@ from .const import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
-
     from homeassistant.core import HomeAssistant
 
     from .coordinator import RealElectricityPriceDataUpdateCoordinator
@@ -55,19 +51,8 @@ class CheapHoursDataUpdateCoordinator(DataUpdateCoordinator):
 
         self.main_coordinator = main_coordinator
         self.config_entry = config_entry
-        self._stop_unsub: Callable[[], None] | None = None
-
         # Runtime storage for UI-configurable values (to avoid config entry reloads)
         self._runtime_acceptable_price: float | None = None
-
-        # Clean up on HA stop
-        @callback
-        def _on_stop(event) -> None:
-            pass  # No time-based triggers to clean up
-
-        self._stop_unsub = self.hass.bus.async_listen_once(
-            EVENT_HOMEASSISTANT_STOP, _on_stop
-        )
 
     def set_runtime_acceptable_price(self, value: float) -> None:
         """Set the runtime acceptable price without triggering config reload."""
@@ -114,15 +99,15 @@ class CheapHoursDataUpdateCoordinator(DataUpdateCoordinator):
 
     async def _async_update_data(self) -> Any:
         """Update cheap price data based on main coordinator data."""
-        try:
-            # Get data from main coordinator
-            main_data = self.main_coordinator.data
-            if not main_data:
-                _LOGGER.debug(
-                    "No data available from main coordinator for cheap price calculation - waiting for API data"
-                )
-                return None
+        # Get data from main coordinator
+        main_data = self.main_coordinator.data
+        if not main_data:
+            _LOGGER.debug(
+                "No data available from main coordinator for cheap price calculation - waiting for API data"
+            )
+            return self.data  # Preserve previous data if available
 
+        try:
             # Extract cheap price analysis data
             cheap_data = self._analyze_cheap_prices(main_data)
 
@@ -135,9 +120,10 @@ class CheapHoursDataUpdateCoordinator(DataUpdateCoordinator):
             )
             return cheap_data
 
-        except Exception as e:
-            _LOGGER.error("Error updating cheap price data: %s", e, exc_info=True)
-            return None
+        except Exception as exception:
+            raise UpdateFailed(
+                f"Error updating cheap price data: {exception}"
+            ) from exception
 
 
     def _analyze_cheap_prices(self, main_data: dict) -> dict[str, Any]:
@@ -221,7 +207,10 @@ class CheapHoursDataUpdateCoordinator(DataUpdateCoordinator):
                 }
 
             # Group consecutive hours into ranges
-            cheap_ranges = self._group_consecutive_hours(cheap_prices)
+            cheap_ranges = group_consecutive_price_entries(
+                cheap_prices,
+                include_first_price_field=True,
+            )
 
             # Calculate analysis period based on actual future data analyzed
             analysis_period_hours = len(future_prices)
@@ -246,17 +235,6 @@ class CheapHoursDataUpdateCoordinator(DataUpdateCoordinator):
         except Exception as e:
             _LOGGER.error("Error analyzing cheap prices: %s", e, exc_info=True)
             return {"cheap_ranges": [], "analysis_info": {}}
-
-    def _group_consecutive_hours(
-        self, cheap_prices: list[dict]
-    ) -> list[dict[str, Any]]:
-        """Group consecutive cheap hours into time ranges."""
-        if not cheap_prices:
-            return []
-        return group_consecutive_price_entries(
-            cheap_prices,
-            include_first_price_field=True,
-        )
 
     def get_current_cheap_price(self) -> float | None:
         """Get the current cheap price value if we're in a cheap price period."""

@@ -13,7 +13,7 @@ DEFAULT_BASE_URL = "https://dataportal-api.nordpoolgroup.com/api/DayAheadPrices"
 
 # Default provider configurations
 GRID_DEFAULT = "Elektrilevi"
-SUPPLIER_DEFAULT = "Enefit"
+SUPPLIER_DEFAULT = "Alexela"
 COUNTRY_CODE_DEFAULT = "EE"
 
 # Default pricing values (EUR/kWh) without VAT
@@ -22,7 +22,7 @@ GRID_RENEWABLE_ENERGY_CHARGE_DEFAULT = 0.0084
 GRID_ELECTRICITY_TRANSMISSION_PRICE_NIGHT_DEFAULT = 0.021
 GRID_ELECTRICITY_TRANSMISSION_PRICE_DAY_DEFAULT = 0.0369
 SUPPLIER_RENEWABLE_ENERGY_CHARGE_DEFAULT = 0.00
-SUPPLIER_MARGIN_DEFAULT = 0.00403
+SUPPLIER_MARGIN_DEFAULT = 0.00
 GRID_SUPPLY_SECURITY_FEE_DEFAULT = 0.00758
 SUPPLIER_BALANCING_CAPACITY_FEE_DEFAULT = 0.00373
 
@@ -47,12 +47,13 @@ PRICE_DECIMAL_PRECISION = 6  # Number of decimal places for all price calculatio
 # Feature toggles
 CALCULATE_CHEAP_HOURS_DEFAULT = True
 
-# Chart color defaults
-CHART_COLOR_PAST_HOURS_DEFAULT = {"r": 30, "g": 58, "b": 138, "a": 1}  # Deep blue
-CHART_COLOR_CURRENT_HOUR_DEFAULT = {"r": 59, "g": 130, "b": 246, "a": 1}  # Bright blue
-CHART_COLOR_FUTURE_HOURS_DEFAULT = {"r": 147, "g": 197, "b": 253, "a": 1}  # Light blue
-CHART_COLOR_CHEAP_HOURS_DEFAULT = {"r": 134, "g": 239, "b": 172, "a": 1}  # Light green
-CHART_COLOR_CHEAP_CURRENT_HOUR_DEFAULT = {"r": 34, "g": 197, "b": 94, "a": 1}  # Green
+# Chart color defaults (Tailwind CSS color wheel: blue family for non-cheap, green for cheap)
+CHART_COLOR_PAST_HOURS_DEFAULT = {"r": 191, "g": 219, "b": 254, "a": 1}  # Very light blue (blue-200)
+CHART_COLOR_CURRENT_HOUR_DEFAULT = {"r": 59, "g": 130, "b": 246, "a": 1}  # Blue (blue-500)
+CHART_COLOR_FUTURE_HOURS_DEFAULT = {"r": 147, "g": 197, "b": 253, "a": 1}  # Lighter blue (blue-300)
+CHART_COLOR_CHEAP_PAST_HOURS_DEFAULT = {"r": 187, "g": 247, "b": 208, "a": 1}  # Very light green (green-200)
+CHART_COLOR_CHEAP_HOURS_DEFAULT = {"r": 134, "g": 239, "b": 172, "a": 1}  # Lighter green (green-300)
+CHART_COLOR_CHEAP_CURRENT_HOUR_DEFAULT = {"r": 34, "g": 197, "b": 94, "a": 1}  # Green (green-500)
 
 # Tariff state constants
 TARIFF_OFF_PEAK = "off_peak"
@@ -114,6 +115,7 @@ CONF_CALCULATE_CHEAP_HOURS = "calculate_cheap_hours"
 CONF_CHART_COLOR_PAST_HOURS = "chart_color_past_hours"
 CONF_CHART_COLOR_CURRENT_HOUR = "chart_color_current_hour"
 CONF_CHART_COLOR_FUTURE_HOURS = "chart_color_future_hours"
+CONF_CHART_COLOR_CHEAP_PAST_HOURS = "chart_color_cheap_past_hours"
 CONF_CHART_COLOR_CHEAP_HOURS = "chart_color_cheap_hours"
 CONF_CHART_COLOR_CHEAP_CURRENT_HOUR = "chart_color_cheap_current_hour"
 
@@ -191,18 +193,3 @@ def parse_time_string(time_str: str) -> tuple[int, int, int]:
         raise ValueError(msg)
 
     return hour, minute, second
-
-
-def time_string_to_hour(time_str: str) -> float:
-    """
-    Convert time string to hour as float.
-
-    Args:
-        time_str: Time string in HH:MM or HH:MM:SS format
-
-    Returns:
-        float: Hour as decimal (e.g., "14:30" -> 14.5)
-
-    """
-    hour, minute, second = parse_time_string(time_str)
-    return hour + minute / 60.0 + second / 3600.0

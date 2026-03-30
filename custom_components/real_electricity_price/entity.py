@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from homeassistant.const import CONF_NAME
 from homeassistant.helpers.device_registry import DeviceEntryType
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -17,16 +16,12 @@ class RealElectricityPriceEntity(
     """Base entity class for the integration."""
 
     _attr_attribution = ATTRIBUTION
+    _attr_has_entity_name = True
 
     def __init__(self, coordinator: RealElectricityPriceDataUpdateCoordinator) -> None:
         """Initialize."""
         super().__init__(coordinator)
         self._attr_unique_id = coordinator.config_entry.entry_id
-
-        # Register a single service-like device per config entry so entities
-        # are grouped under the integration device in the UI.
-        config = {**coordinator.config_entry.data, **coordinator.config_entry.options}
-        device_name = config.get(CONF_NAME, "Real Electricity Price")
 
         version = getattr(
             coordinator.config_entry.runtime_data.integration, "version", None
@@ -38,7 +33,7 @@ class RealElectricityPriceEntity(
         )
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, coordinator.config_entry.entry_id)},
-            name=device_name,
+            name=coordinator.config_entry.title or "Real Electricity Price",
             manufacturer="bitosome",
             model=model_name,
             sw_version=None,

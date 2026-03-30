@@ -45,7 +45,8 @@
                     "chart_color_current_hour": "Current Hour Color (for the current hour when not cheap)",
                     "chart_color_future_hours": "Future Hours Color (for upcoming hours)",
                     "chart_color_cheap_hours": "Cheap Hours Color (for identified cheap hours)",
-                    "chart_color_cheap_current_hour": "Cheap Current Hour Color (for current hour when it's also cheap)"
+                    "chart_color_cheap_current_hour": "Cheap Current Hour Color (for current hour when it's also cheap)",
+                    "chart_color_cheap_past_hours": "Cheap Past Hours Color (for past hours that were cheap)"
                 }
             }
             ,
@@ -92,7 +93,8 @@
                     "chart_color_current_hour": "Current Hour Color",
                     "chart_color_future_hours": "Future Hours Color", 
                     "chart_color_cheap_hours": "Cheap Hours Color",
-                    "chart_color_cheap_current_hour": "Cheap Current Hour Color"
+                    "chart_color_cheap_current_hour": "Cheap Current Hour Color",
+                    "chart_color_cheap_past_hours": "Cheap Past Hours Color"
                 }
             }
         },
@@ -196,7 +198,8 @@
                     "chart_color_current_hour": "Current Hour Color (for the current hour when not cheap)",
                     "chart_color_future_hours": "Future Hours Color (for upcoming hours)",
                     "chart_color_cheap_hours": "Cheap Hours Color (for identified cheap hours)",
-                    "chart_color_cheap_current_hour": "Cheap Current Hour Color (for current hour when it's also cheap)"
+                    "chart_color_cheap_current_hour": "Cheap Current Hour Color (for current hour when it's also cheap)",
+                    "chart_color_cheap_past_hours": "Cheap Past Hours Color (for past hours that were cheap)"
                 }
             }
         }
@@ -204,10 +207,10 @@
     "entity": {
         "sensor": {
             "current_price": {
-                "name": "Current Price"
+                "name": "Current price"
             },
             "current_tariff": {
-                "name": "Current Tariff",
+                "name": "Current tariff",
                 "state": {
                     "peak": "Peak",
                     "off_peak": "Off-peak",
@@ -215,44 +218,47 @@
                 }
             },
             "last_sync": {
-                "name": "Last Sync"
+                "name": "Last sync"
             },
             "last_cheap_calculation": {
-                "name": "Last Cheap Hours Calculation"
+                "name": "Last cheap hours calculation"
             },
             "hourly_prices_yesterday": {
-                "name": "Hourly Prices Yesterday"
+                "name": "Hourly prices yesterday"
             },
             "hourly_prices_today": {
-                "name": "Hourly Prices Today"
+                "name": "Hourly prices today"
             },
             "hourly_prices_tomorrow": {
-                "name": "Hourly Prices Tomorrow"
+                "name": "Hourly prices tomorrow"
             },
             "cheap_hours": {
-                "name": "Cheap Hours"
+                "name": "Cheap hours"
             },
             "next_cheap_hours_end": {
-                "name": "Next Cheap Hours End"
+                "name": "Next cheap hours end"
             },
             "next_cheap_hours_start": {
-                "name": "Next Cheap Hours Start"
+                "name": "Next cheap hours start"
             },
             "chart_data": {
-                "name": "Chart Data",
+                "name": "Chart data",
                 "state_attributes": {
                     "chart_data": {
-                        "name": "Chart Data"
+                        "name": "Chart data"
                     },
                     "last_update": {
-                        "name": "Last Update"
+                        "name": "Last update"
                     }
                 }
             }
         },
         "button": {
+            "sync_data": {
+                "name": "Sync data"
+            },
             "calculate_cheap_hours": {
-                "name": "Calculate Cheap Hours"
+                "name": "Calculate cheap hours"
             }
         },
         "number": {

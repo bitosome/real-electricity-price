@@ -5,22 +5,15 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
-import holidays
 from homeassistant.util import dt as dt_util
 
 from ..const import (
     CONF_HAS_NIGHT_TARIFF,
     CONF_NIGHT_PRICE_END_TIME,
     CONF_NIGHT_PRICE_START_TIME,
-    CONF_NIGHT_TARIFF_PUBLIC_HOLIDAY,
-    CONF_NIGHT_TARIFF_SATURDAY,
-    CONF_NIGHT_TARIFF_SUNDAY,
     HAS_NIGHT_TARIFF_DEFAULT,
     NIGHT_PRICE_END_TIME_DEFAULT,
     NIGHT_PRICE_START_TIME_DEFAULT,
-    NIGHT_TARIFF_PUBLIC_HOLIDAY_DEFAULT,
-    NIGHT_TARIFF_SATURDAY_DEFAULT,
-    NIGHT_TARIFF_SUNDAY_DEFAULT,
     TARIFF_FIXED,
     TARIFF_OFF_PEAK,
     TARIFF_PEAK,
@@ -42,6 +35,70 @@ except Exception:
     # Should never happen with hardcoded values, but just in case
     _DEFAULT_NIGHT_START_HOUR = 22
     _DEFAULT_NIGHT_END_HOUR = 7
+
+
+def _read_current_hour_tariff(coordinator) -> str | None:
+    """Read tariff from current hour's pre-computed data."""
+    if not coordinator.data:
+        return None
+    now = dt_util.now().replace(minute=0, second=0, microsecond=0)
+    for data_key in ["today", "yesterday", "tomorrow"]:
+        day_data = coordinator.data.get(data_key)
+        if not isinstance(day_data, dict):
+            continue
+        for price_entry in day_data.get("hourly_prices", []):
+            try:
+                start_time = dt_util.parse_datetime(price_entry["start_time"])
+                end_time = dt_util.parse_datetime(price_entry["end_time"])
+                if start_time and end_time and start_time <= now < end_time:
+                    tariff = price_entry.get("tariff")
+                    if tariff:
+                        return tariff
+            except (ValueError, KeyError):
+                continue
+    return None
+
+
+def _determine_tariff_from_config(coordinator) -> str:
+    """Determine current tariff from config without holiday lookup (fallback)."""
+    config_data = {
+        **coordinator.config_entry.data,
+        **coordinator.config_entry.options,
+    }
+    has_night_tariff = config_data.get(CONF_HAS_NIGHT_TARIFF, HAS_NIGHT_TARIFF_DEFAULT)
+    if not has_night_tariff:
+        return TARIFF_FIXED
+
+    start_val = config_data.get(
+        CONF_NIGHT_PRICE_START_TIME, NIGHT_PRICE_START_TIME_DEFAULT
+    )
+    end_val = config_data.get(
+        CONF_NIGHT_PRICE_END_TIME, NIGHT_PRICE_END_TIME_DEFAULT
+    )
+    night_start = (
+        int(start_val["hour"])
+        if isinstance(start_val, dict) and "hour" in start_val
+        else _DEFAULT_NIGHT_START_HOUR
+    )
+    night_end = (
+        int(end_val["hour"])
+        if isinstance(end_val, dict) and "hour" in end_val
+        else _DEFAULT_NIGHT_END_HOUR
+    )
+    local_hour = dt_util.now().hour
+    if night_start > night_end:
+        is_night_time = local_hour >= night_start or local_hour < night_end
+    else:
+        is_night_time = night_start <= local_hour < night_end
+    return TARIFF_OFF_PEAK if is_night_time else TARIFF_PEAK
+
+
+def _get_current_tariff(coordinator) -> str:
+    """Get current tariff from pre-computed hourly data, with config fallback."""
+    tariff = _read_current_hour_tariff(coordinator)
+    if tariff is not None:
+        return tariff
+    return _determine_tariff_from_config(coordinator)
 
 
 class CurrentPriceSensor(RealElectricityPriceBaseSensor):
@@ -99,7 +156,7 @@ class CurrentPriceSensor(RealElectricityPriceBaseSensor):
         nord_pool_price = self._get_current_nord_pool_price()
 
         # Get current tariff to determine transmission price
-        current_tariff = self._get_current_tariff()
+        current_tariff = _get_current_tariff(self.coordinator)
         if current_tariff == TARIFF_FIXED:
             # Use day price as default for fixed tariff
             transmission_price = config.grid_transmission_price_day
@@ -148,7 +205,7 @@ class CurrentPriceSensor(RealElectricityPriceBaseSensor):
             return {"error": "Nord Pool price not available"}
 
         # Get current tariff
-        current_tariff = self._get_current_tariff()
+        current_tariff = _get_current_tariff(self.coordinator)
         if current_tariff == TARIFF_FIXED:
             # Use day price as default for fixed tariff
             transmission_price = config.grid_transmission_price_day
@@ -302,107 +359,6 @@ class CurrentPriceSensor(RealElectricityPriceBaseSensor):
 
         return None
 
-    def _get_current_tariff(self) -> str:
-        """Get current tariff (day/night) for transmission price selection."""
-        config = self.get_config()
-
-        # Get time configuration
-        config_data = {
-            **self.coordinator.config_entry.data,
-            **self.coordinator.config_entry.options,
-        }
-
-        # Check if night tariff is enabled
-        has_night_tariff = config_data.get(CONF_HAS_NIGHT_TARIFF, HAS_NIGHT_TARIFF_DEFAULT)
-        if not has_night_tariff:
-            return TARIFF_FIXED
-
-        start_val = config_data.get(
-            CONF_NIGHT_PRICE_START_TIME, NIGHT_PRICE_START_TIME_DEFAULT
-        )
-        end_val = config_data.get(
-            CONF_NIGHT_PRICE_END_TIME, NIGHT_PRICE_END_TIME_DEFAULT
-        )
-
-        # Extract hours from TimeSelector format
-        if isinstance(start_val, dict) and "hour" in start_val:
-            night_start = int(start_val["hour"])
-        else:
-            night_start = _DEFAULT_NIGHT_START_HOUR
-            
-        if isinstance(end_val, dict) and "hour" in end_val:
-            night_end = int(end_val["hour"])
-        else:
-            night_end = _DEFAULT_NIGHT_END_HOUR
-
-        # Get current local time in the configured country
-        tz_name = self._get_timezone_for_country(config.country_code)
-        # Use Home Assistant's timezone utilities for consistent handling
-        try:
-            local_tz = dt_util.get_time_zone(tz_name)
-            local_time = dt_util.now(local_tz)
-            local_hour = local_time.hour
-        except Exception:
-            local_time = dt_util.now()
-            local_hour = local_time.hour
-
-        # Weekend/holiday detection: configurable night tariff for whole day
-        base_country = (
-            config.country_code[:2]
-            if len(config.country_code) > 2
-            else config.country_code
-        )
-        try:
-            country_holidays = holidays.country_holidays(
-                base_country, years=local_time.year
-            )
-        except Exception:
-            country_holidays = {}
-        # Read rules from config (merge data+options)
-        config_data = {
-            **self.coordinator.config_entry.data,
-            **self.coordinator.config_entry.options,
-        }
-        use_sat = config_data.get(
-            CONF_NIGHT_TARIFF_SATURDAY, NIGHT_TARIFF_SATURDAY_DEFAULT
-        )
-        use_sun = config_data.get(
-            CONF_NIGHT_TARIFF_SUNDAY, NIGHT_TARIFF_SUNDAY_DEFAULT
-        )
-        use_holiday = config_data.get(
-            CONF_NIGHT_TARIFF_PUBLIC_HOLIDAY, NIGHT_TARIFF_PUBLIC_HOLIDAY_DEFAULT
-        )
-        dow = local_time.weekday()
-        is_sat = dow == 5
-        is_sun = dow == 6
-        is_holiday = local_time.date() in country_holidays
-        if (is_sat and use_sat) or (is_sun and use_sun) or (is_holiday and use_holiday):
-            return TARIFF_OFF_PEAK
-
-        # Determine if it's night time
-        if night_start > night_end:  # Crosses midnight (e.g., 22:00 to 07:00)
-            is_night_time = local_hour >= night_start or local_hour < night_end
-        else:  # Does not cross midnight (unusual case)
-            is_night_time = night_start <= local_hour < night_end
-
-        return TARIFF_OFF_PEAK if is_night_time else TARIFF_PEAK
-
-    def _get_timezone_for_country(self, country_code: str) -> str:
-        """Get timezone for country code."""
-        country_timezones = {
-            "EE": "Europe/Tallinn",  # Estonia
-            "FI": "Europe/Helsinki",  # Finland
-            "LV": "Europe/Riga",  # Latvia
-            "LT": "Europe/Vilnius",  # Lithuania
-            "SE": "Europe/Stockholm",  # Sweden (all SE regions)
-            "NO": "Europe/Oslo",  # Norway (all NO regions)
-            "DK": "Europe/Copenhagen",  # Denmark (all DK regions)
-        }
-
-        # Extract base country code (e.g., SE1 -> SE)
-        base_country = country_code[:2] if len(country_code) > 2 else country_code
-        return country_timezones.get(base_country, "Europe/Tallinn")
-
     def _get_current_price_value(self) -> float | None:
         """Get current price from all available hourly prices data."""
         if not self.coordinator.data:
@@ -469,110 +425,5 @@ class CurrentTariffSensor(RealElectricityPriceBaseSensor):
         return "mdi:weather-sunny"
 
     def _get_current_tariff_value(self) -> str:
-        """Determine the current tariff based on local time."""
-        config = self.get_config()
-
-        # Get time configuration
-        config_data = {
-            **self.coordinator.config_entry.data,
-            **self.coordinator.config_entry.options,
-        }
-
-        # Check if night tariff is enabled
-        has_night_tariff = config_data.get(CONF_HAS_NIGHT_TARIFF, HAS_NIGHT_TARIFF_DEFAULT)
-        if not has_night_tariff:
-            return TARIFF_FIXED
-
-        start_val = config_data.get(
-            CONF_NIGHT_PRICE_START_TIME, NIGHT_PRICE_START_TIME_DEFAULT
-        )
-        end_val = config_data.get(
-            CONF_NIGHT_PRICE_END_TIME, NIGHT_PRICE_END_TIME_DEFAULT
-        )
-
-        # Extract hours from TimeSelector format
-        if isinstance(start_val, dict) and "hour" in start_val:
-            night_start = int(start_val["hour"])
-        else:
-            night_start = _DEFAULT_NIGHT_START_HOUR
-            
-        if isinstance(end_val, dict) and "hour" in end_val:
-            night_end = int(end_val["hour"])
-        else:
-            night_end = _DEFAULT_NIGHT_END_HOUR
-
-        # Get current local time in the configured country
-        tz_name = self._get_timezone_for_country(config.country_code)
-        # Use Home Assistant's timezone utilities for consistent handling
-        try:
-            local_tz = dt_util.get_time_zone(tz_name)
-            local_time = dt_util.now(local_tz)
-            local_hour = local_time.hour
-        except Exception as e:
-            _LOGGER.warning("Could not determine local time for %s: %s", tz_name, e)
-            local_time = dt_util.now()
-            local_hour = local_time.hour
-
-        # Weekend/holiday detection: configurable night tariff for whole day
-        base_country = (
-            config.country_code[:2]
-            if len(config.country_code) > 2
-            else config.country_code
-        )
-        try:
-            country_holidays = holidays.country_holidays(
-                base_country, years=local_time.year
-            )
-        except Exception:
-            country_holidays = {}
-        config_data = {
-            **self.coordinator.config_entry.data,
-            **self.coordinator.config_entry.options,
-        }
-        use_sat = config_data.get(
-            CONF_NIGHT_TARIFF_SATURDAY, NIGHT_TARIFF_SATURDAY_DEFAULT
-        )
-        use_sun = config_data.get(
-            CONF_NIGHT_TARIFF_SUNDAY, NIGHT_TARIFF_SUNDAY_DEFAULT
-        )
-        use_holiday = config_data.get(
-            CONF_NIGHT_TARIFF_PUBLIC_HOLIDAY, NIGHT_TARIFF_PUBLIC_HOLIDAY_DEFAULT
-        )
-        dow = local_time.weekday()
-        is_sat = dow == 5
-        is_sun = dow == 6
-        is_holiday = local_time.date() in country_holidays
-        if (is_sat and use_sat) or (is_sun and use_sun) or (is_holiday and use_holiday):
-            return TARIFF_OFF_PEAK
-
-        _LOGGER.debug(
-            "Tariff calculation: night_start=%s, night_end=%s, tz=%s, local_hour=%s",
-            night_start,
-            night_end,
-            tz_name,
-            local_hour,
-        )
-
-        # Determine if it's night time
-        if night_start > night_end:  # Crosses midnight (e.g., 22:00 to 07:00)
-            is_night_time = local_hour >= night_start or local_hour < night_end
-        else:  # Does not cross midnight (unusual case)
-            is_night_time = night_start <= local_hour < night_end
-
-        return TARIFF_OFF_PEAK if is_night_time else TARIFF_PEAK
-
-    def _get_timezone_for_country(self, country_code: str) -> str:
-        """Get timezone for country code."""
-        country_timezones = {
-            "EE": "Europe/Tallinn",  # Estonia
-            "FI": "Europe/Helsinki",  # Finland
-            "LV": "Europe/Riga",  # Latvia
-            "LT": "Europe/Vilnius",  # Lithuania
-            "SE": "Europe/Stockholm",  # Sweden (all SE regions)
-            "NO": "Europe/Oslo",  # Norway (all NO regions)
-            "DK": "Europe/Copenhagen",  # Denmark (all DK regions)
-        }
-
-        # Extract base country code (e.g., SE1 -> SE)
-        base_country = country_code[:2] if len(country_code) > 2 else country_code
-        return country_timezones.get(base_country, "Europe/Tallinn")
+        """Determine the current tariff from pre-computed hourly data."""
+        return _get_current_tariff(self.coordinator)

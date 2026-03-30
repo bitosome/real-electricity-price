@@ -10,7 +10,6 @@ import socket
 from typing import Any
 
 import aiohttp
-import async_timeout
 import holidays
 from homeassistant.util import dt as dt_util
 
@@ -829,7 +828,7 @@ class RealElectricityPriceApiClient:
     ) -> Any:
         """Get information from the API."""
         try:
-            async with async_timeout.timeout(20):
+            async with asyncio.timeout(API_TIMEOUT):
                 response = await self._session.request(
                     method=method,
                     url=url,

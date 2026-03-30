@@ -7,15 +7,17 @@ from datetime import time as dt_time
 from typing import Any
 
 import voluptuous as vol
-from homeassistant import config_entries, data_entry_flow
+from homeassistant import config_entries
 from homeassistant.const import CONF_NAME
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import selector
 
 from .const import (
     ACCEPTABLE_PRICE_DEFAULT,
     CHART_COLOR_CHEAP_CURRENT_HOUR_DEFAULT,
     CHART_COLOR_CHEAP_HOURS_DEFAULT,
+    CHART_COLOR_CHEAP_PAST_HOURS_DEFAULT,
     CHART_COLOR_CURRENT_HOUR_DEFAULT,
     CHART_COLOR_FUTURE_HOURS_DEFAULT,
     CHART_COLOR_PAST_HOURS_DEFAULT,
@@ -23,6 +25,7 @@ from .const import (
     CONF_CALCULATE_CHEAP_HOURS,
     CONF_CHART_COLOR_CHEAP_CURRENT_HOUR,
     CONF_CHART_COLOR_CHEAP_HOURS,
+    CONF_CHART_COLOR_CHEAP_PAST_HOURS,
     CONF_CHART_COLOR_CURRENT_HOUR,
     CONF_CHART_COLOR_FUTURE_HOURS,
     CONF_CHART_COLOR_PAST_HOURS,
@@ -99,7 +102,6 @@ from .const import (
 )
 
 _LOGGER = logging.getLogger(__name__)
-_LOGGER.setLevel(logging.DEBUG)
 _LOGGER.debug("Config flow module loaded")
 
 # Valid Nord Pool area codes
@@ -261,10 +263,12 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
         color_fields.extend([
             CONF_CHART_COLOR_CHEAP_HOURS,
             CONF_CHART_COLOR_CHEAP_CURRENT_HOUR,
+            CONF_CHART_COLOR_CHEAP_PAST_HOURS,
         ])
         color_defaults.update({
             CONF_CHART_COLOR_CHEAP_HOURS: CHART_COLOR_CHEAP_HOURS_DEFAULT,
             CONF_CHART_COLOR_CHEAP_CURRENT_HOUR: CHART_COLOR_CHEAP_CURRENT_HOUR_DEFAULT,
+            CONF_CHART_COLOR_CHEAP_PAST_HOURS: CHART_COLOR_CHEAP_PAST_HOURS_DEFAULT,
         })
     
     # Validate acceptable price if present
@@ -351,29 +355,6 @@ def _time_selector_default(value: Any, fallback: str) -> str:
     hour, minute, second = parse_time_string(fallback)
     return f"{hour:02d}:{minute:02d}:{second:02d}"
 
-
-def _validate_time_string(time_val: Any) -> bool:
-    """Validate time from HA TimeSelector: supports dict or "HH:MM[:SS]" string."""
-    # Dict format {"hour": int, "minute": int}
-    if isinstance(time_val, dict):
-        if "hour" in time_val and "minute" in time_val:
-            hour = time_val["hour"]
-            minute = time_val["minute"]
-            return (
-                isinstance(hour, int)
-                and isinstance(minute, int)
-                and 0 <= hour <= 23
-                and 0 <= minute <= 59
-            )
-        return False
-    # String format "HH:MM" or "HH:MM:SS"
-    if isinstance(time_val, str):
-        try:
-            hour, minute, _ = parse_time_string(time_val)
-            return 0 <= hour <= 23 and 0 <= minute <= 59
-        except Exception:
-            return False
-    return False
 
 
 class RealElectricityPriceFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
@@ -753,7 +734,7 @@ class RealElectricityPriceFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                 ),
         }
 
-        _LOGGER.debug(f"Final schema has {len(schema_dict)} fields")
+        _LOGGER.debug("Final schema has %d fields", len(schema_dict))
         return vol.Schema(schema_dict)
 
     async def async_step_night_times(
@@ -907,6 +888,13 @@ class RealElectricityPriceFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                     default=_color_selector_default(
                         self._user_data.get(CONF_CHART_COLOR_CHEAP_CURRENT_HOUR),
                         CHART_COLOR_CHEAP_CURRENT_HOUR_DEFAULT,
+                    ),
+                ): selector.ColorRGBSelector(),
+                vol.Optional(
+                    CONF_CHART_COLOR_CHEAP_PAST_HOURS,
+                    default=_color_selector_default(
+                        self._user_data.get(CONF_CHART_COLOR_CHEAP_PAST_HOURS),
+                        CHART_COLOR_CHEAP_PAST_HOURS_DEFAULT,
                     ),
                 ): selector.ColorRGBSelector(),
             })
@@ -1498,71 +1486,48 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                         CHART_COLOR_CHEAP_CURRENT_HOUR_DEFAULT,
                     ),
                 ): selector.ColorRGBSelector(),
+                vol.Optional(
+                    CONF_CHART_COLOR_CHEAP_PAST_HOURS,
+                    default=_color_selector_default(
+                        options_data.get(
+                            CONF_CHART_COLOR_CHEAP_PAST_HOURS,
+                            current_data.get(
+                                CONF_CHART_COLOR_CHEAP_PAST_HOURS,
+                                CHART_COLOR_CHEAP_PAST_HOURS_DEFAULT,
+                            ),
+                        ),
+                        CHART_COLOR_CHEAP_PAST_HOURS_DEFAULT,
+                    ),
+                ): selector.ColorRGBSelector(),
             }
             schema_dict = vol.Schema(schema_dict)
 
         return schema_dict
 
 
-class CannotConnect(data_entry_flow.AbortFlow):
+class CannotConnect(HomeAssistantError):
     """Error to indicate we cannot connect."""
 
-    def __init__(self, message: str = "cannot_connect") -> None:
-        super().__init__(message)
 
-
-class InvalidCountryCode(data_entry_flow.AbortFlow):
+class InvalidCountryCode(HomeAssistantError):
     """Error to indicate invalid country code."""
 
-    def __init__(
-        self,
-        message: str = (
-            "Country code must be one of: EE, FI, LV, LT, SE1, SE2, SE3, SE4, "
-            "NO1, NO2, NO3, NO4, NO5, DK1, DK2, DE-LU, NL, BE, FR, AT, PL, GB"
-        ),
-    ) -> None:
-        super().__init__(message)
 
-
-class InvalidVatRate(data_entry_flow.AbortFlow):
+class InvalidVatRate(HomeAssistantError):
     """Error to indicate invalid VAT rate."""
 
-    def __init__(self, message: str = "VAT rate must be between 0% and 100%") -> None:
-        super().__init__(message)
 
-
-class InvalidScanInterval(data_entry_flow.AbortFlow):
+class InvalidScanInterval(HomeAssistantError):
     """Error to indicate invalid scan interval."""
 
-    def __init__(
-        self,
-        message: str = "Scan interval must be between 5 minutes (300 seconds) and 24 hours (86400 seconds)",
-    ) -> None:
-        super().__init__(message)
 
-
-class InvalidHourRange(data_entry_flow.AbortFlow):
+class InvalidHourRange(HomeAssistantError):
     """Error to indicate invalid hour range."""
 
-    def __init__(
-        self, message: str = "Night price hours must be between 00 and 23"
-    ) -> None:
-        super().__init__(message)
 
-
-class InvalidNightHours(data_entry_flow.AbortFlow):
+class InvalidNightHours(HomeAssistantError):
     """Error to indicate invalid night hour configuration."""
 
-    def __init__(
-        self, message: str = "Night price start and end times cannot be the same"
-    ) -> None:
-        super().__init__(message)
 
-
-class InvalidTimeFormat(data_entry_flow.AbortFlow):
+class InvalidTimeFormat(HomeAssistantError):
     """Error to indicate invalid time format."""
-
-    def __init__(
-        self, message: str = "Time must be a valid time in HH:MM format"
-    ) -> None:
-        super().__init__(message)

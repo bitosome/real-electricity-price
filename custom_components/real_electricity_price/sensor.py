@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
+from .const import CONF_CALCULATE_CHEAP_HOURS
 from .entity_descriptions import SENSOR_DESCRIPTIONS
 from .sensors import (
     CheapHoursSensor,
@@ -27,7 +28,6 @@ if TYPE_CHECKING:
     from .data import RealElectricityPriceConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
-from .const import CONF_CALCULATE_CHEAP_HOURS
 
 # Sensor type constants
 SENSOR_TYPE_CURRENT_PRICE = "current_price"

@@ -17,7 +17,7 @@ from .const import PRICE_DECIMAL_PRECISION
 # Price sensors
 SENSOR_CURRENT_PRICE = SensorEntityDescription(
     key="real_electricity_price_current_price",
-    name="Current Price",
+    translation_key="current_price",
     icon="mdi:currency-eur",
     device_class=SensorDeviceClass.MONETARY,
     native_unit_of_measurement=f"{CURRENCY_EURO}/{UnitOfEnergy.KILO_WATT_HOUR}",
@@ -26,14 +26,13 @@ SENSOR_CURRENT_PRICE = SensorEntityDescription(
 
 SENSOR_CURRENT_TARIFF = SensorEntityDescription(
     key="real_electricity_price_current_tariff",
-    name="Current Tariff",
-    icon="mdi:timeline-clock",
     translation_key="current_tariff",
+    icon="mdi:timeline-clock",
 )
 
 SENSOR_LAST_SYNC = SensorEntityDescription(
     key="real_electricity_price_last_sync",
-    name="Last Sync",
+    translation_key="last_sync",
     icon="mdi:cloud-refresh-outline",
     device_class=SensorDeviceClass.TIMESTAMP,
     entity_category=EntityCategory.DIAGNOSTIC,
@@ -41,7 +40,7 @@ SENSOR_LAST_SYNC = SensorEntityDescription(
 
 SENSOR_LAST_CHEAP_CALCULATION = SensorEntityDescription(
     key="real_electricity_price_last_cheap_calculation",
-    name="Last Cheap Hours Calculation",
+    translation_key="last_cheap_calculation",
     icon="mdi:calculator-variant-outline",
     device_class=SensorDeviceClass.TIMESTAMP,
     entity_category=EntityCategory.DIAGNOSTIC,
@@ -49,7 +48,7 @@ SENSOR_LAST_CHEAP_CALCULATION = SensorEntityDescription(
 
 SENSOR_HOURLY_PRICES_YESTERDAY = SensorEntityDescription(
     key="real_electricity_price_hourly_prices_yesterday",
-    name="Hourly Prices Yesterday",
+    translation_key="hourly_prices_yesterday",
     icon="mdi:chart-line",
     device_class=SensorDeviceClass.MONETARY,
     native_unit_of_measurement="€/kWh",
@@ -58,7 +57,7 @@ SENSOR_HOURLY_PRICES_YESTERDAY = SensorEntityDescription(
 
 SENSOR_HOURLY_PRICES_TODAY = SensorEntityDescription(
     key="real_electricity_price_hourly_prices_today",
-    name="Hourly Prices Today",
+    translation_key="hourly_prices_today",
     icon="mdi:chart-line",
     device_class=SensorDeviceClass.MONETARY,
     native_unit_of_measurement="€/kWh",
@@ -67,7 +66,7 @@ SENSOR_HOURLY_PRICES_TODAY = SensorEntityDescription(
 
 SENSOR_HOURLY_PRICES_TOMORROW = SensorEntityDescription(
     key="real_electricity_price_hourly_prices_tomorrow",
-    name="Hourly Prices Tomorrow",
+    translation_key="hourly_prices_tomorrow",
     icon="mdi:chart-line",
     device_class=SensorDeviceClass.MONETARY,
     native_unit_of_measurement="€/kWh",
@@ -76,7 +75,7 @@ SENSOR_HOURLY_PRICES_TOMORROW = SensorEntityDescription(
 
 SENSOR_CHEAP_HOURS = SensorEntityDescription(
     key="real_electricity_price_cheap_hours",
-    name="Cheap Hours",
+    translation_key="cheap_hours",
     icon="mdi:timelapse",
     native_unit_of_measurement="h",
     state_class=SensorStateClass.MEASUREMENT,
@@ -84,21 +83,21 @@ SENSOR_CHEAP_HOURS = SensorEntityDescription(
 
 SENSOR_NEXT_CHEAP_HOURS_END = SensorEntityDescription(
     key="real_electricity_price_next_cheap_hours_end",
-    name="Next Cheap Hours End",
+    translation_key="next_cheap_hours_end",
     icon="mdi:clock-end",
     device_class=SensorDeviceClass.TIMESTAMP,
 )
 
 SENSOR_NEXT_CHEAP_HOURS_START = SensorEntityDescription(
     key="real_electricity_price_next_cheap_hours_start",
-    name="Next Cheap Hours Start",
+    translation_key="next_cheap_hours_start",
     icon="mdi:clock-start",
     device_class=SensorDeviceClass.TIMESTAMP,
 )
 
 SENSOR_CHART_DATA = SensorEntityDescription(
     key="real_electricity_price_chart_data",
-    name="Chart Data",
+    translation_key="chart_data",
     icon="mdi:chart-bar",
     entity_category=EntityCategory.DIAGNOSTIC,
 )

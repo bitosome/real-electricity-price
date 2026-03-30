@@ -22,7 +22,7 @@ class DailyHourlyPricesSensor(RealElectricityPriceBaseSensor):
         """Initialize the daily hourly prices sensor."""
         super().__init__(coordinator, description)
         self._day_key = day_key
-        _LOGGER.info(
+        _LOGGER.debug(
             "DAILY SENSOR CREATED: %s with day_key: %s", description.key, day_key
         )
 

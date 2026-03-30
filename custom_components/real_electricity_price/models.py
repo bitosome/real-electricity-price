@@ -68,7 +68,6 @@ class IntegrationConfig:
     """Configuration data for the integration."""
 
     # Basic settings
-    name: str
     grid: str
     supplier: str
     country_code: str

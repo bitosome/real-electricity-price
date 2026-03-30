@@ -6,7 +6,6 @@ import logging
 from typing import TYPE_CHECKING
 
 from homeassistant.components.button import ButtonEntity
-from homeassistant.const import CONF_NAME
 
 from .const import CONF_CALCULATE_CHEAP_HOURS
 from .entity import RealElectricityPriceEntity
@@ -52,12 +51,7 @@ class RealElectricityPriceRefreshButton(RealElectricityPriceEntity, ButtonEntity
     def __init__(self, coordinator: RealElectricityPriceDataUpdateCoordinator) -> None:
         """Initialize the button."""
         super().__init__(coordinator)
-
-        # Get device name from config (options override data)
-        config = {**coordinator.config_entry.data, **coordinator.config_entry.options}
-        device_name = config.get(CONF_NAME, "Real Electricity Price")
-
-        self._attr_name = f"{device_name} Sync data"
+        self._attr_translation_key = "sync_data"
         self._attr_unique_id = f"{coordinator.config_entry.entry_id}_refresh_button"
         self._attr_icon = "mdi:cloud-refresh-outline"
 
@@ -81,12 +75,8 @@ class RealElectricityPriceCalculateCheapHoursButton(
         """Initialize the button."""
         super().__init__(coordinator)
 
-        # Get device name from config (options override data)
-        config = {**coordinator.config_entry.data, **coordinator.config_entry.options}
-        device_name = config.get(CONF_NAME, "Real Electricity Price")
-
         self.cheap_coordinator = cheap_coordinator
-        self._attr_name = f"{device_name} Calculate Cheap Hours"
+        self._attr_translation_key = "calculate_cheap_hours"
         self._attr_unique_id = (
             f"{coordinator.config_entry.entry_id}_calculate_cheap_hours_button"
         )

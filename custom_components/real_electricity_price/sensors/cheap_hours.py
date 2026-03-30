@@ -166,18 +166,6 @@ def _get_next_cheap_period_start_time(
     return None
 
 
-def _get_current_cheap_avg_price(
-    cheap_ranges: list[dict[str, Any]],
-    now: datetime,
-) -> float | None:
-    """Return average price for the currently active cheap range."""
-    for range_data, start_time, end_time in _iter_valid_cheap_ranges(cheap_ranges):
-        if start_time <= now < end_time:
-            avg_price = range_data.get("avg_price")
-            return avg_price if isinstance(avg_price, (int, float)) else None
-    return None
-
-
 def _summarize_cheap_ranges(
     cheap_ranges: list[dict[str, Any]],
     *,
@@ -250,36 +238,6 @@ class CheapHoursSensor(RealElectricityPriceBaseSensor):
             range_data.get("hour_count", 1) for range_data in cheap_ranges
         )
 
-    def _get_next_cheap_period_from_coordinator(self) -> datetime | None:
-        """Get next cheap period timestamp from cheap price coordinator."""
-        if not (hasattr(self.coordinator, "data") and self.coordinator.data):
-            return None
-
-        cheap_data = self.coordinator.data
-        cheap_ranges = cheap_data.get("cheap_ranges", [])
-
-        if not cheap_ranges:
-            return None
-
-        now = dt_util.now()
-
-        return _get_current_or_next_cheap_period_time(
-            cheap_ranges, now, return_future="start"
-        )
-
-    def _get_next_cheap_period_from_ranges(self) -> datetime | None:
-        """Get next cheap period timestamp by checking ranges manually."""
-        cheap_ranges = self._analyze_cheap_prices()
-
-        if not cheap_ranges:
-            return None
-
-        now = dt_util.now()
-
-        return _get_current_or_next_cheap_period_time(
-            cheap_ranges, now, return_future="start"
-        )
-
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         """Return cheap price analysis as attributes."""
@@ -350,7 +308,7 @@ class CheapHoursSensor(RealElectricityPriceBaseSensor):
         cheap_ranges = self._analyze_cheap_prices()
 
         # Get analysis info
-        analysis_info = self._get_price_analysis_info()
+        analysis_info = _get_price_analysis_info_for_entity(self)
 
         # Build status info similar to coordinator-backed sensor
         now = dt_util.now()
@@ -373,30 +331,9 @@ class CheapHoursSensor(RealElectricityPriceBaseSensor):
             "analysis_info": analysis_info,
         }
 
-    def _get_current_cheap_price_from_ranges(self) -> float | None:
-        """Get current cheap price by checking ranges manually."""
-        cheap_ranges = self._analyze_cheap_prices()
-        now = dt_util.now()
-        return _get_current_cheap_avg_price(cheap_ranges, now)
-
     def _analyze_cheap_prices(self) -> list[dict[str, Any]]:
         """Analyze price data to find cheap price ranges from NOW onwards."""
         return _analyze_cheap_prices_for_entity(self)
-
-    def _group_consecutive_hours(
-        self, cheap_prices: list[dict[str, Any]]
-    ) -> list[dict[str, Any]]:
-        """Group consecutive cheap price hours into ranges."""
-        if not cheap_prices:
-            return []
-        return group_consecutive_price_entries(
-            cheap_prices,
-            round_price=self._round_price,
-        )
-
-    def _get_price_analysis_info(self) -> dict[str, Any]:
-        """Get price analysis information."""
-        return _get_price_analysis_info_for_entity(self)
 
 
 class NextCheapHoursEndSensor(RealElectricityPriceBaseSensor):

@@ -16,6 +16,7 @@ from ..const import (
     ACCEPTABLE_PRICE_DEFAULT,
     CHART_COLOR_CHEAP_CURRENT_HOUR_DEFAULT,
     CHART_COLOR_CHEAP_HOURS_DEFAULT,
+    CHART_COLOR_CHEAP_PAST_HOURS_DEFAULT,
     CHART_COLOR_CURRENT_HOUR_DEFAULT,
     CHART_COLOR_FUTURE_HOURS_DEFAULT,
     CHART_COLOR_PAST_HOURS_DEFAULT,
@@ -23,6 +24,7 @@ from ..const import (
     CONF_CALCULATE_CHEAP_HOURS,
     CONF_CHART_COLOR_CHEAP_CURRENT_HOUR,
     CONF_CHART_COLOR_CHEAP_HOURS,
+    CONF_CHART_COLOR_CHEAP_PAST_HOURS,
     CONF_CHART_COLOR_CURRENT_HOUR,
     CONF_CHART_COLOR_FUTURE_HOURS,
     CONF_CHART_COLOR_PAST_HOURS,
@@ -138,7 +140,7 @@ class ChartDataSensor(RealElectricityPriceBaseSensor):
         
         # Debug logging for the first few data points
         if all_data:
-            _LOGGER.debug(f"Chart data generated: {len(all_data)} points. Sample: {all_data[:3]}")
+            _LOGGER.debug("Chart data generated: %d points", len(all_data))
 
     def _get_cheap_hour_ranges(self) -> list[dict]:
         """Get cheap hour ranges from the cheap hours sensor."""
@@ -224,16 +226,18 @@ class ChartDataSensor(RealElectricityPriceBaseSensor):
             # Get colors with fallbacks to defaults
             color_cheap = self._convert_color_to_hex(config_data.get(CONF_CHART_COLOR_CHEAP_HOURS, CHART_COLOR_CHEAP_HOURS_DEFAULT))
             color_cheap_current = self._convert_color_to_hex(config_data.get(CONF_CHART_COLOR_CHEAP_CURRENT_HOUR, CHART_COLOR_CHEAP_CURRENT_HOUR_DEFAULT))
+            color_cheap_past = self._convert_color_to_hex(config_data.get(CONF_CHART_COLOR_CHEAP_PAST_HOURS, CHART_COLOR_CHEAP_PAST_HOURS_DEFAULT))
             color_current = self._convert_color_to_hex(config_data.get(CONF_CHART_COLOR_CURRENT_HOUR, CHART_COLOR_CURRENT_HOUR_DEFAULT))
             color_future = self._convert_color_to_hex(config_data.get(CONF_CHART_COLOR_FUTURE_HOURS, CHART_COLOR_FUTURE_HOURS_DEFAULT))
             color_past = self._convert_color_to_hex(config_data.get(CONF_CHART_COLOR_PAST_HOURS, CHART_COLOR_PAST_HOURS_DEFAULT))
         except Exception as e:
-            _LOGGER.error(f"Error getting color configuration: {e}")
+            _LOGGER.error("Error getting color configuration: %s", e)
             # Use all defaults if config fails
             color_cheap = self._convert_color_to_hex(CHART_COLOR_CHEAP_HOURS_DEFAULT)
             color_cheap_current = self._convert_color_to_hex(
                 CHART_COLOR_CHEAP_CURRENT_HOUR_DEFAULT
             )
+            color_cheap_past = self._convert_color_to_hex(CHART_COLOR_CHEAP_PAST_HOURS_DEFAULT)
             color_current = self._convert_color_to_hex(CHART_COLOR_CURRENT_HOUR_DEFAULT)
             color_future = self._convert_color_to_hex(CHART_COLOR_FUTURE_HOURS_DEFAULT)
             color_past = self._convert_color_to_hex(CHART_COLOR_PAST_HOURS_DEFAULT)
@@ -270,8 +274,8 @@ class ChartDataSensor(RealElectricityPriceBaseSensor):
 
         # Determine color based on time and cheap hour status
         if timestamp < current_hour_ts:
-            # Past hour: use past hour color
-            return color_past
+            # Past hour: use past cheap color if cheap, otherwise past hour color
+            return color_cheap_past if is_cheap_hour else color_past
         elif timestamp == current_hour_ts:
             # Current hour: use cheap current hour color if it's cheap, otherwise current hour color
             return color_cheap_current if is_cheap_hour else color_current
@@ -314,20 +318,14 @@ class ChartDataSensor(RealElectricityPriceBaseSensor):
                 return []
 
             # Group consecutive hours into ranges
-            return self._group_consecutive_hours(cheap_prices)
+            return group_consecutive_price_entries(
+                cheap_prices,
+                round_price=self._round_price,
+            )
 
         except Exception:
             _LOGGER.exception("Error analyzing cheap prices")
             return []
-
-    def _group_consecutive_hours(self, cheap_prices: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        """Group consecutive cheap price hours into ranges."""
-        if not cheap_prices:
-            return []
-        return group_consecutive_price_entries(
-            cheap_prices,
-            round_price=self._round_price,
-        )
 
     def _convert_color_to_hex(self, color) -> str:
         """Convert color from various formats to hex string."""
@@ -341,7 +339,7 @@ class ChartDataSensor(RealElectricityPriceBaseSensor):
                 if color.startswith("#") and len(color) in [4, 7]:
                     return color
                 else:
-                    _LOGGER.warning(f"Invalid hex color format: {color}")
+                    _LOGGER.warning("Invalid hex color format: %s", color)
                     return DEFAULT_CHART_HEX_FALLBACK
             
             elif isinstance(color, (list, tuple)) and len(color) >= 3:
@@ -354,7 +352,7 @@ class ChartDataSensor(RealElectricityPriceBaseSensor):
                     b = max(0, min(255, int(b)))
                     return f"#{r:02x}{g:02x}{b:02x}"
                 except (ValueError, TypeError, IndexError) as e:
-                    _LOGGER.warning(f"Invalid RGB color values: {color}, error: {e}")
+                    _LOGGER.warning("Invalid RGB color values: %s, error: %s", color, e)
                     return DEFAULT_CHART_HEX_FALLBACK
             
             elif isinstance(color, dict):
@@ -366,16 +364,16 @@ class ChartDataSensor(RealElectricityPriceBaseSensor):
                         b = max(0, min(255, int(float(color["b"]))))
                         return f"#{r:02x}{g:02x}{b:02x}"
                     except (ValueError, TypeError, KeyError) as e:
-                        _LOGGER.warning(f"Invalid RGB dict color values: {color}, error: {e}")
+                        _LOGGER.warning("Invalid RGB dict color values: %s, error: %s", color, e)
                         return DEFAULT_CHART_HEX_FALLBACK
             
             else:
                 # Unknown format
-                _LOGGER.warning(f"Unknown color format: {type(color)} = {color}")
+                _LOGGER.warning("Unknown color format: %s = %s", type(color), color)
                 return DEFAULT_CHART_HEX_FALLBACK
 
         except Exception as e:
-            _LOGGER.error(f"Error converting color {color}: {e}")
+            _LOGGER.error("Error converting color %s: %s", color, e)
             return DEFAULT_CHART_HEX_FALLBACK
 
     async def async_update(self) -> None:
