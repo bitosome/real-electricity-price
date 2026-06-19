@@ -26,4 +26,4 @@ async def async_setup_entry(
     entities = [
         AcceptablePriceEntity(entry.runtime_data.coordinator),
     ]
-    async_add_entities(entities, update_before_add=True)
+    async_add_entities(entities)

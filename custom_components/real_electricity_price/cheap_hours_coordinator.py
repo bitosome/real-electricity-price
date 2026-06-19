@@ -144,8 +144,14 @@ class CheapHoursDataUpdateCoordinator(DataUpdateCoordinator):
                 _LOGGER.debug("No valid price data available for cheap price analysis")
                 return {"cheap_ranges": [], "analysis_info": {}}
 
-            # Filter for future prices only (NOW onwards)
-            current_time = datetime.datetime.now(datetime.UTC)
+            # Include the current started hour. Hourly prices are keyed by their
+            # start time, so filtering by exact "now" would drop the active hour
+            # for the rest of that hour.
+            current_time = datetime.datetime.now(datetime.UTC).replace(
+                minute=0,
+                second=0,
+                microsecond=0,
+            )
             future_prices = [
                 p for p in all_prices if p["start_time_dt"] >= current_time
             ]
@@ -214,10 +220,13 @@ class CheapHoursDataUpdateCoordinator(DataUpdateCoordinator):
 
             # Calculate analysis period based on actual future data analyzed
             analysis_period_hours = len(future_prices)
+            total_cheap_hours = sum(
+                range_data.get("hour_count", 1) for range_data in cheap_ranges
+            )
 
             analysis_info = {
                 "acceptable_price": round(acceptable_price, PRICE_DECIMAL_PRECISION),
-                "total_cheap_hours": len(cheap_ranges),
+                "total_cheap_hours": total_cheap_hours,
                 "analysis_period_hours": analysis_period_hours,
             }
 

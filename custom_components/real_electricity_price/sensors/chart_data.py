@@ -45,6 +45,8 @@ class ChartDataSensor(RealElectricityPriceBaseSensor):
         super().__init__(coordinator, description)
         self._chart_data = []
         self._last_update_iso: str | None = None
+        if self.coordinator.data:
+            self._update_chart_data()
 
     @property
     def native_value(self) -> int:

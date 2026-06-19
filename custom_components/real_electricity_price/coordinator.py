@@ -136,6 +136,8 @@ class RealElectricityPriceDataUpdateCoordinator(DataUpdateCoordinator):
                     _LOGGER.error("No current data available and no previous data to preserve")
                 return None
 
+            data = self._preserve_missing_day_data(data, current_date)
+
             # Add the current timestamp and configuration to the data
             if data is not None:
                 data["last_sync"] = datetime.datetime.now(datetime.UTC)
@@ -266,6 +268,71 @@ class RealElectricityPriceDataUpdateCoordinator(DataUpdateCoordinator):
                     "Invalid date format in tomorrow data: %s",
                     tomorrow_data.get("date"),
                 )
+
+    def _preserve_missing_day_data(
+        self, data: dict, current_date: datetime.date
+    ) -> dict:
+        """Preserve recent per-day data when a partial API refresh misses a day."""
+        if not isinstance(self.data, dict):
+            return data
+
+        last_sync = self.data.get("last_sync")
+        if not isinstance(last_sync, datetime.datetime):
+            return data
+
+        time_since_sync = datetime.datetime.now(datetime.UTC) - last_sync
+        if time_since_sync.total_seconds() >= 6 * 3600:
+            return data
+
+        expected_dates = {
+            "yesterday": current_date - datetime.timedelta(days=1),
+            "today": current_date,
+            "tomorrow": current_date + datetime.timedelta(days=1),
+        }
+
+        for day_key, expected_date in expected_dates.items():
+            previous_day = self.data.get(day_key)
+            if not self._is_preservable_day(previous_day, expected_date):
+                continue
+
+            current_day = data.get(day_key)
+            should_preserve = current_day is None or (
+                isinstance(current_day, dict)
+                and not current_day.get("data_available", False)
+                and previous_day.get("data_available", False)
+            )
+            if not should_preserve:
+                continue
+
+            _LOGGER.warning(
+                "Preserving recent %s data for %s after partial API refresh",
+                day_key,
+                expected_date,
+            )
+            data[day_key] = previous_day
+
+        return data
+
+    def _is_preservable_day(
+        self, day_data: Any, expected_date: datetime.date
+    ) -> bool:
+        """Return True when day data can be reused for the expected date."""
+        if not isinstance(day_data, dict):
+            return False
+
+        if not day_data.get("data_available", False):
+            return False
+
+        try:
+            day_date = datetime.datetime.fromisoformat(day_data["date"]).date()
+        except (KeyError, TypeError, ValueError):
+            return False
+
+        if day_date != expected_date:
+            return False
+
+        hourly_prices = day_data.get("hourly_prices", [])
+        return any(entry.get("actual_price") is not None for entry in hourly_prices)
 
     def set_cheap_price_coordinator(self, coordinator) -> None:
         """Set the cheap price coordinator for automatic updates."""

@@ -160,4 +160,4 @@ async def async_setup_entry(
                 )
 
     _LOGGER.debug("Adding %d sensor entities", len(entities))
-    async_add_entities(entities, update_before_add=True)
+    async_add_entities(entities)

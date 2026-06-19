@@ -331,17 +331,26 @@ class RealElectricityPriceApiClient:
         is_holiday = date in country_holidays
         is_weekend = date.weekday() >= 5  # Saturday = 5, Sunday = 6
 
-        # Create 24 hourly time slots for the day
+        # Nord Pool delivery dates are CET/CEST market days. Build the
+        # placeholder in that zone, then present it in the configured local zone
+        # just like real API entries after deliveryStart/deliveryEnd conversion.
+        delivery_tz = dt_util.get_time_zone("Europe/Oslo") or tzinfo
+        delivery_start = datetime.datetime.combine(
+            date, datetime.time(hour=0), tzinfo=delivery_tz
+        )
+
+        # Create 24 hourly time slots for the delivery day
         hourly_prices = []
 
         for hour in range(24):
-            # Create timezone-aware timestamps in local timezone
-            start_time = datetime.datetime.combine(date, datetime.time(hour=hour))
-            start_time = start_time.replace(tzinfo=tzinfo)
-            end_time = start_time + datetime.timedelta(hours=1)
+            start_time_market = delivery_start + datetime.timedelta(hours=hour)
+            end_time_market = start_time_market + datetime.timedelta(hours=1)
+
+            start_time = start_time_market.astimezone(tzinfo)
+            end_time = end_time_market.astimezone(tzinfo)
 
             # Convert to local time for tariff calculation
-            local_hour = start_time.astimezone(tzinfo).hour
+            local_hour = start_time.hour
 
             # Determine tariff based on configuration
             if not has_night_tariff:
