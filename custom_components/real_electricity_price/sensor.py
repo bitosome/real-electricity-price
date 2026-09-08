@@ -9,7 +9,6 @@ from .const import CONF_CALCULATE_CHEAP_HOURS
 from .entity_descriptions import SENSOR_DESCRIPTIONS
 from .sensors import (
     CheapHoursSensor,
-    ChartDataSensor,
     CurrentPriceSensor,
     CurrentTariffSensor,
     HourlyPricesTodaySensor,
@@ -40,7 +39,6 @@ SENSOR_TYPE_LAST_CHEAP_CALCULATION = "last_cheap_calculation"
 SENSOR_TYPE_CHEAP_HOURS = "cheap_hours"
 SENSOR_TYPE_NEXT_CHEAP_HOURS_START = "next_cheap_hours_start"
 SENSOR_TYPE_NEXT_CHEAP_HOURS_END = "next_cheap_hours_end"
-SENSOR_TYPE_CHART_DATA = "chart_data"
 
 # Sensor registry mapping sensor keys to their types and classes
 SENSOR_REGISTRY = {
@@ -83,10 +81,6 @@ SENSOR_REGISTRY = {
     "real_electricity_price_next_cheap_hours_start": (
         SENSOR_TYPE_NEXT_CHEAP_HOURS_START,
         NextCheapHoursStartSensor,
-    ),
-    "real_electricity_price_chart_data": (
-        SENSOR_TYPE_CHART_DATA,
-        ChartDataSensor,
     ),
 }
 

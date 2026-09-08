@@ -95,13 +95,6 @@ SENSOR_NEXT_CHEAP_HOURS_START = SensorEntityDescription(
     device_class=SensorDeviceClass.TIMESTAMP,
 )
 
-SENSOR_CHART_DATA = SensorEntityDescription(
-    key="real_electricity_price_chart_data",
-    translation_key="chart_data",
-    icon="mdi:chart-bar",
-    entity_category=EntityCategory.DIAGNOSTIC,
-)
-
 # All sensor entity descriptions
 SENSOR_DESCRIPTIONS = (
     SENSOR_CURRENT_PRICE,
@@ -114,5 +107,4 @@ SENSOR_DESCRIPTIONS = (
     SENSOR_CHEAP_HOURS,
     SENSOR_NEXT_CHEAP_HOURS_END,
     SENSOR_NEXT_CHEAP_HOURS_START,
-    SENSOR_CHART_DATA,
 )

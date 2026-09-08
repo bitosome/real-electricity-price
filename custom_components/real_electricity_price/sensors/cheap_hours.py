@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from homeassistant.util import dt as dt_util
 
@@ -12,7 +12,6 @@ from ..cheap_hours_analysis import (
     collect_hourly_price_entries,
     group_consecutive_price_entries,
 )
-
 from .base import RealElectricityPriceBaseSensor
 
 _LOGGER = logging.getLogger(__name__)
@@ -141,28 +140,13 @@ def _get_current_or_next_cheap_period_time(
     cheap_ranges: list[dict[str, Any]],
     now: datetime,
     *,
-    return_future: str,
+    boundary: Literal["start", "end"],
 ) -> datetime | None:
-    """Return current cheap period end or the next cheap period boundary."""
+    """Return one boundary from the same current or next cheap period."""
     for _, start_time, end_time in _iter_valid_cheap_ranges(cheap_ranges):
-        if start_time <= now < end_time:
-            return dt_util.as_local(end_time)
-        if start_time > now:
-            target_time = start_time if return_future == "start" else end_time
+        if start_time <= now < end_time or start_time > now:
+            target_time = start_time if boundary == "start" else end_time
             return dt_util.as_local(target_time)
-    return None
-
-
-def _get_next_cheap_period_start_time(
-    cheap_ranges: list[dict[str, Any]],
-    now: datetime,
-) -> datetime | None:
-    """Return the next future cheap period start time (skip active period)."""
-    for _, start_time, end_time in _iter_valid_cheap_ranges(cheap_ranges):
-        if start_time > now:
-            return dt_util.as_local(start_time)
-        if start_time <= now < end_time:
-            continue
     return None
 
 
@@ -337,7 +321,7 @@ class CheapHoursSensor(RealElectricityPriceBaseSensor):
 
 
 class NextCheapHoursEndSensor(RealElectricityPriceBaseSensor):
-    """Sensor for the end time of the next cheap hours period."""
+    """Sensor for the end of the active or next cheap period."""
 
     def __init__(self, coordinator, description) -> None:
         """Initialize the next cheap hours end sensor."""
@@ -347,7 +331,7 @@ class NextCheapHoursEndSensor(RealElectricityPriceBaseSensor):
 
     @property
     def native_value(self) -> datetime | None:
-        """Return the end timestamp of the next cheap price period."""
+        """Return the end timestamp of the active or next cheap period."""
         if self._use_cheap_coordinator:
             return self._get_next_cheap_period_end_from_coordinator()
 
@@ -373,7 +357,7 @@ class NextCheapHoursEndSensor(RealElectricityPriceBaseSensor):
         now = dt_util.now()
 
         return _get_current_or_next_cheap_period_time(
-            cheap_ranges, now, return_future="end"
+            cheap_ranges, now, boundary="end"
         )
 
     def _get_next_cheap_period_end_from_ranges(self) -> datetime | None:
@@ -386,7 +370,7 @@ class NextCheapHoursEndSensor(RealElectricityPriceBaseSensor):
         now = dt_util.now()
 
         return _get_current_or_next_cheap_period_time(
-            cheap_ranges, now, return_future="end"
+            cheap_ranges, now, boundary="end"
         )
 
     def _analyze_cheap_prices(self) -> list[dict[str, Any]]:
@@ -395,7 +379,7 @@ class NextCheapHoursEndSensor(RealElectricityPriceBaseSensor):
 
 
 class NextCheapHoursStartSensor(RealElectricityPriceBaseSensor):
-    """Sensor for next cheap electricity hours period start."""
+    """Sensor for the start of the active or next cheap period."""
 
     def __init__(self, coordinator, description) -> None:
         """Initialize the next cheap hours start sensor."""
@@ -405,7 +389,7 @@ class NextCheapHoursStartSensor(RealElectricityPriceBaseSensor):
 
     @property
     def native_value(self) -> datetime | None:
-        """Return the timestamp when the next cheap price period starts."""
+        """Return the start timestamp of the active or next cheap period."""
         if self._use_cheap_coordinator:
             return self._get_next_cheap_period_start_from_coordinator()
 
@@ -430,7 +414,9 @@ class NextCheapHoursStartSensor(RealElectricityPriceBaseSensor):
 
         now = dt_util.now()
 
-        return _get_next_cheap_period_start_time(cheap_ranges, now)
+        return _get_current_or_next_cheap_period_time(
+            cheap_ranges, now, boundary="start"
+        )
 
     def _get_next_cheap_period_start_from_ranges(self) -> datetime | None:
         """Get next cheap period start timestamp by checking ranges manually."""
@@ -441,7 +427,9 @@ class NextCheapHoursStartSensor(RealElectricityPriceBaseSensor):
 
         now = dt_util.now()
 
-        return _get_next_cheap_period_start_time(cheap_ranges, now)
+        return _get_current_or_next_cheap_period_time(
+            cheap_ranges, now, boundary="start"
+        )
 
     def _analyze_cheap_prices(self) -> list[dict[str, Any]]:
         """Reuse the analysis from CheapHoursSensor."""

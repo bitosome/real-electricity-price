@@ -40,13 +40,7 @@
                     "regional_holiday_code": "Regional Holiday Code (optional - Germany: BW, BY, BE | France: GP, RE | Norway: 03, 11)",
                     "scan_interval": "Scan Interval (seconds)",
                     "acceptable_price": "Acceptable Price (€/kWh)",
-                    "calculate_cheap_hours": "Calculate Cheap Hours",
-                    "chart_color_past_hours": "Past Hours Color (for hours that have already passed)",
-                    "chart_color_current_hour": "Current Hour Color (for the current hour when not cheap)",
-                    "chart_color_future_hours": "Future Hours Color (for upcoming hours)",
-                    "chart_color_cheap_hours": "Cheap Hours Color (for identified cheap hours)",
-                    "chart_color_cheap_current_hour": "Cheap Current Hour Color (for current hour when it's also cheap)",
-                    "chart_color_cheap_past_hours": "Cheap Past Hours Color (for past hours that were cheap)"
+                    "calculate_cheap_hours": "Calculate Cheap Hours"
                 }
             }
             ,
@@ -82,19 +76,6 @@
                     "night_tariff_sunday": "Use off-peak all day on Sundays",
                     "night_tariff_public_holiday": "Use off-peak all day on public holidays",
                     "regional_holiday_code": "Regional Holiday Code (optional - Germany: BW, BY, BE | France: GP, RE | Norway: 03, 11)"
-                }
-            }
-            ,
-            "chart_colors": {
-                "title": "Chart Colors",
-                "description": "Customize colors for ApexCharts dashboard displays. These colors will be used to distinguish different types of hours in your electricity price charts.",
-                "data": {
-                    "chart_color_past_hours": "Past Hours Color",
-                    "chart_color_current_hour": "Current Hour Color",
-                    "chart_color_future_hours": "Future Hours Color", 
-                    "chart_color_cheap_hours": "Cheap Hours Color",
-                    "chart_color_cheap_current_hour": "Cheap Current Hour Color",
-                    "chart_color_cheap_past_hours": "Cheap Past Hours Color"
                 }
             }
         },
@@ -193,13 +174,7 @@
                     "grid_electricity_transmission_price_offpeak1": "Transmission Price - Off-peak 1 (€/kWh)",
                     "grid_electricity_transmission_price_peak": "Transmission Price - Peak (€/kWh)",
                     "grid_electricity_transmission_price_offpeak2": "Transmission Price - Off-peak 2 (€/kWh)",
-                    "regional_holiday_code": "Regional Holiday Code (optional - Germany: BW, BY, BE | France: GP, RE | Norway: 03, 11)",
-                    "chart_color_past_hours": "Past Hours Color (for hours that have already passed)",
-                    "chart_color_current_hour": "Current Hour Color (for the current hour when not cheap)",
-                    "chart_color_future_hours": "Future Hours Color (for upcoming hours)",
-                    "chart_color_cheap_hours": "Cheap Hours Color (for identified cheap hours)",
-                    "chart_color_cheap_current_hour": "Cheap Current Hour Color (for current hour when it's also cheap)",
-                    "chart_color_cheap_past_hours": "Cheap Past Hours Color (for past hours that were cheap)"
+                    "regional_holiday_code": "Regional Holiday Code (optional - Germany: BW, BY, BE | France: GP, RE | Norway: 03, 11)"
                 }
             }
         }
@@ -236,21 +211,10 @@
                 "name": "Cheap hours"
             },
             "next_cheap_hours_end": {
-                "name": "Next cheap hours end"
+                "name": "Cheap period end"
             },
             "next_cheap_hours_start": {
-                "name": "Next cheap hours start"
-            },
-            "chart_data": {
-                "name": "Chart data",
-                "state_attributes": {
-                    "chart_data": {
-                        "name": "Chart data"
-                    },
-                    "last_update": {
-                        "name": "Last update"
-                    }
-                }
+                "name": "Cheap period start"
             }
         },
         "button": {

@@ -47,14 +47,6 @@ PRICE_DECIMAL_PRECISION = 6  # Number of decimal places for all price calculatio
 # Feature toggles
 CALCULATE_CHEAP_HOURS_DEFAULT = True
 
-# Chart color defaults (Tailwind CSS color wheel: blue family for non-cheap, green for cheap)
-CHART_COLOR_PAST_HOURS_DEFAULT = {"r": 191, "g": 219, "b": 254, "a": 1}  # Very light blue (blue-200)
-CHART_COLOR_CURRENT_HOUR_DEFAULT = {"r": 59, "g": 130, "b": 246, "a": 1}  # Blue (blue-500)
-CHART_COLOR_FUTURE_HOURS_DEFAULT = {"r": 147, "g": 197, "b": 253, "a": 1}  # Lighter blue (blue-300)
-CHART_COLOR_CHEAP_PAST_HOURS_DEFAULT = {"r": 187, "g": 247, "b": 208, "a": 1}  # Very light green (green-200)
-CHART_COLOR_CHEAP_HOURS_DEFAULT = {"r": 134, "g": 239, "b": 172, "a": 1}  # Lighter green (green-300)
-CHART_COLOR_CHEAP_CURRENT_HOUR_DEFAULT = {"r": 34, "g": 197, "b": 94, "a": 1}  # Green (green-500)
-
 # Tariff state constants
 TARIFF_OFF_PEAK = "off_peak"
 TARIFF_PEAK = "peak"
@@ -110,14 +102,6 @@ CONF_NIGHT_TARIFF_PUBLIC_HOLIDAY = "night_tariff_public_holiday"
 CONF_SCAN_INTERVAL = "scan_interval"
 CONF_ACCEPTABLE_PRICE = "acceptable_price"
 CONF_CALCULATE_CHEAP_HOURS = "calculate_cheap_hours"
-
-## Chart color configuration
-CONF_CHART_COLOR_PAST_HOURS = "chart_color_past_hours"
-CONF_CHART_COLOR_CURRENT_HOUR = "chart_color_current_hour"
-CONF_CHART_COLOR_FUTURE_HOURS = "chart_color_future_hours"
-CONF_CHART_COLOR_CHEAP_PAST_HOURS = "chart_color_cheap_past_hours"
-CONF_CHART_COLOR_CHEAP_HOURS = "chart_color_cheap_hours"
-CONF_CHART_COLOR_CHEAP_CURRENT_HOUR = "chart_color_cheap_current_hour"
 
 ## API configuration
 CONF_DATE = "date"

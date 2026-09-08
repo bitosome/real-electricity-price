@@ -15,20 +15,8 @@ from homeassistant.helpers import selector
 
 from .const import (
     ACCEPTABLE_PRICE_DEFAULT,
-    CHART_COLOR_CHEAP_CURRENT_HOUR_DEFAULT,
-    CHART_COLOR_CHEAP_HOURS_DEFAULT,
-    CHART_COLOR_CHEAP_PAST_HOURS_DEFAULT,
-    CHART_COLOR_CURRENT_HOUR_DEFAULT,
-    CHART_COLOR_FUTURE_HOURS_DEFAULT,
-    CHART_COLOR_PAST_HOURS_DEFAULT,
     CONF_ACCEPTABLE_PRICE,
     CONF_CALCULATE_CHEAP_HOURS,
-    CONF_CHART_COLOR_CHEAP_CURRENT_HOUR,
-    CONF_CHART_COLOR_CHEAP_HOURS,
-    CONF_CHART_COLOR_CHEAP_PAST_HOURS,
-    CONF_CHART_COLOR_CURRENT_HOUR,
-    CONF_CHART_COLOR_FUTURE_HOURS,
-    CONF_CHART_COLOR_PAST_HOURS,
     CONF_COUNTRY_CODE,
     CONF_GRID,
     CONF_GRID_ELECTRICITY_EXCISE_DUTY,
@@ -84,10 +72,10 @@ from .const import (
     SCAN_INTERVAL_MAX,
     SCAN_INTERVAL_MIN,
     SCAN_INTERVAL_STEP,
+    SUPPLIER_BALANCING_CAPACITY_FEE_DEFAULT,
     SUPPLIER_DEFAULT,
     SUPPLIER_MARGIN_DEFAULT,
     SUPPLIER_RENEWABLE_ENERGY_CHARGE_DEFAULT,
-    SUPPLIER_BALANCING_CAPACITY_FEE_DEFAULT,
     VAT_DEFAULT,
     VAT_GRID_ELECTRICITY_EXCISE_DUTY_DEFAULT,
     VAT_GRID_RENEWABLE_ENERGY_CHARGE_DEFAULT,
@@ -245,32 +233,6 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
             if norm is not None:
                 data[CONF_NIGHT_PRICE_END_TIME] = norm
 
-    # Normalize color values if present
-    color_fields = [
-        CONF_CHART_COLOR_PAST_HOURS,
-        CONF_CHART_COLOR_CURRENT_HOUR,
-        CONF_CHART_COLOR_FUTURE_HOURS,
-    ]
-    
-    color_defaults = {
-        CONF_CHART_COLOR_PAST_HOURS: CHART_COLOR_PAST_HOURS_DEFAULT,
-        CONF_CHART_COLOR_CURRENT_HOUR: CHART_COLOR_CURRENT_HOUR_DEFAULT,
-        CONF_CHART_COLOR_FUTURE_HOURS: CHART_COLOR_FUTURE_HOURS_DEFAULT,
-    }
-    
-    # Add cheap hours colors only if cheap hours calculation is enabled
-    if data.get(CONF_CALCULATE_CHEAP_HOURS, False):
-        color_fields.extend([
-            CONF_CHART_COLOR_CHEAP_HOURS,
-            CONF_CHART_COLOR_CHEAP_CURRENT_HOUR,
-            CONF_CHART_COLOR_CHEAP_PAST_HOURS,
-        ])
-        color_defaults.update({
-            CONF_CHART_COLOR_CHEAP_HOURS: CHART_COLOR_CHEAP_HOURS_DEFAULT,
-            CONF_CHART_COLOR_CHEAP_CURRENT_HOUR: CHART_COLOR_CHEAP_CURRENT_HOUR_DEFAULT,
-            CONF_CHART_COLOR_CHEAP_PAST_HOURS: CHART_COLOR_CHEAP_PAST_HOURS_DEFAULT,
-        })
-    
     # Validate acceptable price if present
     if CONF_ACCEPTABLE_PRICE in data:
         acceptable_price = data[CONF_ACCEPTABLE_PRICE]
@@ -283,10 +245,6 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
             msg = "Acceptable price must be a valid number"
             raise InvalidTimeFormat(msg)
     
-    for field in color_fields:
-        if field in data:
-            data[field] = _ensure_color_dict(data[field], color_defaults[field])
-
     # Test connection to Nord Pool API
     try:
         # This would normally test actual API connectivity
@@ -296,40 +254,6 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
         _LOGGER.exception("Unexpected exception: %s", exc)
         raise CannotConnect from exc
 
-
-
-def _ensure_color_dict(
-    color_value: Any, default_color: dict[str, int]
-) -> dict[str, int]:
-    """Normalize selector color values into the stored RGB dict format."""
-
-    if isinstance(color_value, dict) and {"r", "g", "b"}.issubset(color_value):
-        result = {
-            "r": int(color_value["r"]),
-            "g": int(color_value["g"]),
-            "b": int(color_value["b"]),
-        }
-        if "a" in color_value:
-            result["a"] = float(color_value["a"])
-        return result
-
-    if isinstance(color_value, (list, tuple)) and len(color_value) >= 3:
-        return {
-            "r": int(color_value[0]),
-            "g": int(color_value[1]),
-            "b": int(color_value[2]),
-        }
-
-    return dict(default_color)
-
-
-def _color_selector_default(
-    color_value: Any, fallback: dict[str, int]
-) -> list[int]:
-    """Return the RGB list format expected by ColorRGBSelector."""
-
-    color_dict = _ensure_color_dict(color_value, fallback)
-    return [color_dict["r"], color_dict["g"], color_dict["b"]]
 
 
 def _time_selector_default(value: Any, fallback: str) -> str:
@@ -360,7 +284,7 @@ def _time_selector_default(value: Any, fallback: str) -> str:
 class RealElectricityPriceFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     """Config flow for Real Electricity Price."""
 
-    VERSION = 1
+    VERSION = 2
 
     def __init__(self) -> None:
         """Initialize the config flow."""
@@ -389,14 +313,8 @@ class RealElectricityPriceFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                 self._user_data = user_input
                 return await self.async_step_offpeak_strategy()
 
-            # Night tariff disabled; if cheap hours is enabled, go to chart colors step
-            if user_input.get(CONF_CALCULATE_CHEAP_HOURS, False):
-                self._user_data = user_input
-                return await self.async_step_chart_colors()
-
-            # No additional config steps required, go to chart colors step
             self._user_data = user_input
-            return await self.async_step_chart_colors()
+            return await self.async_step_finish()
 
         return self.async_show_form(
             step_id="user",
@@ -468,13 +386,8 @@ class RealElectricityPriceFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                 _LOGGER.exception("Unexpected exception")
                 self._errors["base"] = "unknown"
             else:
-                # Proceed to cheap hours step if enabled, otherwise go to chart colors
-                if merged.get(CONF_CALCULATE_CHEAP_HOURS, False):
-                    self._user_data = merged
-                    return await self.async_step_chart_colors()
-                else:
-                    self._user_data = merged
-                    return await self.async_step_chart_colors()
+                self._user_data = merged
+                return await self.async_step_finish()
 
         schema = vol.Schema(
             {
@@ -747,13 +660,8 @@ class RealElectricityPriceFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             # Merge with previously collected data
             merged = {**self._user_data, **user_input}
-            # If cheap hours are enabled, go to cheap_hours step, otherwise go to chart_colors
-            if merged.get(CONF_CALCULATE_CHEAP_HOURS, False):
-                self._user_data = merged
-                return await self.async_step_chart_colors()
-            else:
-                self._user_data = merged
-                return await self.async_step_chart_colors()
+            self._user_data = merged
+            return await self.async_step_finish()
 
         # Show time selectors
         schema = vol.Schema(
@@ -806,106 +714,26 @@ class RealElectricityPriceFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             errors=self._errors,
         )
 
-    async def async_step_chart_colors(
-        self, user_input: dict | None = None
-    ) -> config_entries.ConfigFlowResult:
-        """Configure chart colors for ApexCharts display."""
-        _LOGGER.debug("async_step_chart_colors called with user_input: %s", user_input)
+    async def async_step_finish(self) -> config_entries.ConfigFlowResult:
+        """Validate the collected settings and create the config entry."""
         self._errors = {}
+        merged = self._user_data
+        info = await validate_input(self.hass, merged)
 
-        if user_input is not None:
-            merged = {**self._user_data, **user_input}
-            try:
-                info = await validate_input(self.hass, merged)
-            except InvalidCountryCode:
-                self._errors["country_code"] = "invalid_country_code"
-            except InvalidVatRate:
-                self._errors["vat"] = "invalid_vat_rate"
-            except InvalidScanInterval:
-                self._errors["scan_interval"] = "invalid_scan_interval"
-            except InvalidHourRange:
-                self._errors["base"] = "invalid_hour_range"
-            except InvalidNightHours:
-                self._errors["base"] = "invalid_night_hours"
-            except InvalidTimeFormat:
-                self._errors["base"] = "invalid_time_format"
-            except CannotConnect:
-                self._errors["base"] = "cannot_connect"
-            except Exception:  # pylint: disable=broad-except
-                _LOGGER.exception("Unexpected exception")
-                self._errors["base"] = "unknown"
-            else:
-                name = merged.get(CONF_NAME, "Real Electricity Price")
-                grid = merged.get(CONF_GRID, GRID_DEFAULT)
-                supplier = merged.get(CONF_SUPPLIER, SUPPLIER_DEFAULT)
-                country = merged.get(CONF_COUNTRY_CODE, COUNTRY_CODE_DEFAULT)
+        name = merged.get(CONF_NAME, "Real Electricity Price")
+        grid = merged.get(CONF_GRID, GRID_DEFAULT)
+        supplier = merged.get(CONF_SUPPLIER, SUPPLIER_DEFAULT)
+        country = merged.get(CONF_COUNTRY_CODE, COUNTRY_CODE_DEFAULT)
 
-                unique_id = f"real_electricity_price_{name}_{grid}_{supplier}_{country}".lower().replace(
-                    " ", "_"
-                )
-                await self.async_set_unique_id(unique_id)
-                self._abort_if_unique_id_configured()
-
-                return self.async_create_entry(title=info["title"], data=merged)
-
-        # Create base schema with always-present colors
-        schema_dict = {
-                vol.Optional(
-                    CONF_CHART_COLOR_PAST_HOURS,
-                    default=_color_selector_default(
-                        self._user_data.get(CONF_CHART_COLOR_PAST_HOURS),
-                        CHART_COLOR_PAST_HOURS_DEFAULT,
-                    ),
-                ): selector.ColorRGBSelector(),
-                vol.Optional(
-                    CONF_CHART_COLOR_CURRENT_HOUR,
-                    default=_color_selector_default(
-                        self._user_data.get(CONF_CHART_COLOR_CURRENT_HOUR),
-                        CHART_COLOR_CURRENT_HOUR_DEFAULT,
-                    ),
-                ): selector.ColorRGBSelector(),
-                vol.Optional(
-                    CONF_CHART_COLOR_FUTURE_HOURS,
-                    default=_color_selector_default(
-                        self._user_data.get(CONF_CHART_COLOR_FUTURE_HOURS),
-                        CHART_COLOR_FUTURE_HOURS_DEFAULT,
-                    ),
-                ): selector.ColorRGBSelector(),
-        }
-
-        # Only add cheap hours colors if cheap hours calculation is enabled
-        if self._user_data.get(CONF_CALCULATE_CHEAP_HOURS, False):
-            schema_dict.update({
-                vol.Optional(
-                    CONF_CHART_COLOR_CHEAP_HOURS,
-                    default=_color_selector_default(
-                        self._user_data.get(CONF_CHART_COLOR_CHEAP_HOURS),
-                        CHART_COLOR_CHEAP_HOURS_DEFAULT,
-                    ),
-                ): selector.ColorRGBSelector(),
-                vol.Optional(
-                    CONF_CHART_COLOR_CHEAP_CURRENT_HOUR,
-                    default=_color_selector_default(
-                        self._user_data.get(CONF_CHART_COLOR_CHEAP_CURRENT_HOUR),
-                        CHART_COLOR_CHEAP_CURRENT_HOUR_DEFAULT,
-                    ),
-                ): selector.ColorRGBSelector(),
-                vol.Optional(
-                    CONF_CHART_COLOR_CHEAP_PAST_HOURS,
-                    default=_color_selector_default(
-                        self._user_data.get(CONF_CHART_COLOR_CHEAP_PAST_HOURS),
-                        CHART_COLOR_CHEAP_PAST_HOURS_DEFAULT,
-                    ),
-                ): selector.ColorRGBSelector(),
-            })
-        
-        schema = vol.Schema(schema_dict)
-
-        return self.async_show_form(
-            step_id="chart_colors",
-            data_schema=schema,
-            errors=self._errors,
+        unique_id = (
+            f"real_electricity_price_{name}_{grid}_{supplier}_{country}"
+            .lower()
+            .replace(" ", "_")
         )
+        await self.async_set_unique_id(unique_id)
+        self._abort_if_unique_id_configured()
+
+        return self.async_create_entry(title=info["title"], data=merged)
 
 
 class OptionsFlowHandler(config_entries.OptionsFlow):
@@ -1411,98 +1239,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 }
             )
 
-        # Always add chart color options
-        schema_dict.update(
-            {
-                vol.Optional(
-                    CONF_CHART_COLOR_PAST_HOURS,
-                    default=_color_selector_default(
-                        options_data.get(
-                            CONF_CHART_COLOR_PAST_HOURS,
-                            current_data.get(
-                                CONF_CHART_COLOR_PAST_HOURS,
-                                CHART_COLOR_PAST_HOURS_DEFAULT,
-                            ),
-                        ),
-                        CHART_COLOR_PAST_HOURS_DEFAULT,
-                    ),
-                ): selector.ColorRGBSelector(),
-                vol.Optional(
-                    CONF_CHART_COLOR_CURRENT_HOUR,
-                    default=_color_selector_default(
-                        options_data.get(
-                            CONF_CHART_COLOR_CURRENT_HOUR,
-                            current_data.get(
-                                CONF_CHART_COLOR_CURRENT_HOUR,
-                                CHART_COLOR_CURRENT_HOUR_DEFAULT,
-                            ),
-                        ),
-                        CHART_COLOR_CURRENT_HOUR_DEFAULT,
-                    ),
-                ): selector.ColorRGBSelector(),
-                vol.Optional(
-                    CONF_CHART_COLOR_FUTURE_HOURS,
-                    default=_color_selector_default(
-                        options_data.get(
-                            CONF_CHART_COLOR_FUTURE_HOURS,
-                            current_data.get(
-                                CONF_CHART_COLOR_FUTURE_HOURS,
-                                CHART_COLOR_FUTURE_HOURS_DEFAULT,
-                            ),
-                        ),
-                        CHART_COLOR_FUTURE_HOURS_DEFAULT,
-                    ),
-                ): selector.ColorRGBSelector(),
-            }
-        )
-
-        # Add cheap-hour colors only when cheap-hour calculation is enabled
-        if calculate_cheap:
-            schema_dict = {
-                **schema_dict,  # extract underlying dict for update
-                vol.Optional(
-                    CONF_CHART_COLOR_CHEAP_HOURS,
-                    default=_color_selector_default(
-                        options_data.get(
-                            CONF_CHART_COLOR_CHEAP_HOURS,
-                            current_data.get(
-                                CONF_CHART_COLOR_CHEAP_HOURS,
-                                CHART_COLOR_CHEAP_HOURS_DEFAULT,
-                            ),
-                        ),
-                        CHART_COLOR_CHEAP_HOURS_DEFAULT,
-                    ),
-                ): selector.ColorRGBSelector(),
-                vol.Optional(
-                    CONF_CHART_COLOR_CHEAP_CURRENT_HOUR,
-                    default=_color_selector_default(
-                        options_data.get(
-                            CONF_CHART_COLOR_CHEAP_CURRENT_HOUR,
-                            current_data.get(
-                                CONF_CHART_COLOR_CHEAP_CURRENT_HOUR,
-                                CHART_COLOR_CHEAP_CURRENT_HOUR_DEFAULT,
-                            ),
-                        ),
-                        CHART_COLOR_CHEAP_CURRENT_HOUR_DEFAULT,
-                    ),
-                ): selector.ColorRGBSelector(),
-                vol.Optional(
-                    CONF_CHART_COLOR_CHEAP_PAST_HOURS,
-                    default=_color_selector_default(
-                        options_data.get(
-                            CONF_CHART_COLOR_CHEAP_PAST_HOURS,
-                            current_data.get(
-                                CONF_CHART_COLOR_CHEAP_PAST_HOURS,
-                                CHART_COLOR_CHEAP_PAST_HOURS_DEFAULT,
-                            ),
-                        ),
-                        CHART_COLOR_CHEAP_PAST_HOURS_DEFAULT,
-                    ),
-                ): selector.ColorRGBSelector(),
-            }
-            schema_dict = vol.Schema(schema_dict)
-
-        return schema_dict
+        return vol.Schema(schema_dict)
 
 
 class CannotConnect(HomeAssistantError):

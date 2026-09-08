@@ -1,7 +1,6 @@
 """Sensors package for Real Electricity Price integration."""
 
 from .base import RealElectricityPriceBaseSensor
-from .chart_data import ChartDataSensor
 from .cheap_hours import (
     CheapHoursSensor,
     NextCheapHoursEndSensor,
@@ -17,7 +16,6 @@ from .timestamp import LastCheapCalculationSensor, LastSyncSensor
 
 __all__ = [
     "CheapHoursSensor",
-    "ChartDataSensor",
     "CurrentPriceSensor",
     "CurrentTariffSensor",
     "HourlyPricesTodaySensor",

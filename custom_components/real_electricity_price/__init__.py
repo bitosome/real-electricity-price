@@ -11,6 +11,7 @@ from datetime import timedelta
 from typing import TYPE_CHECKING
 
 from homeassistant.const import Platform
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.loader import async_get_loaded_integration
 
@@ -38,6 +39,54 @@ PLATFORMS: list[Platform] = [
 
 SERVICE_REFRESH_DATA = "refresh_data"
 SERVICE_RECALCULATE_CHEAP_PRICES = "recalculate_cheap_prices"
+REMOVED_CHART_SENSOR_UNIQUE_ID_SUFFIX = "real_electricity_price_chart_data"
+REMOVED_CHART_CONFIG_KEYS = {
+    "chart_color_past_hours",
+    "chart_color_current_hour",
+    "chart_color_future_hours",
+    "chart_color_cheap_past_hours",
+    "chart_color_cheap_hours",
+    "chart_color_cheap_current_hour",
+}
+
+
+def _remove_retired_entities(
+    hass: HomeAssistant,
+    entry: RealElectricityPriceConfigEntry,
+) -> None:
+    """Remove registry entries for entities no longer provided."""
+    entity_registry = er.async_get(hass)
+    for entity in er.async_entries_for_config_entry(entity_registry, entry.entry_id):
+        if entity.unique_id.endswith(REMOVED_CHART_SENSOR_UNIQUE_ID_SUFFIX):
+            entity_registry.async_remove(entity.entity_id)
+
+
+async def async_migrate_entry(
+    hass: HomeAssistant,
+    entry: RealElectricityPriceConfigEntry,
+) -> bool:
+    """Migrate config entries and remove entities retired by the integration."""
+    if entry.version == 1:
+        _remove_retired_entities(hass, entry)
+
+        data = {
+            key: value
+            for key, value in entry.data.items()
+            if key not in REMOVED_CHART_CONFIG_KEYS
+        }
+        options = {
+            key: value
+            for key, value in entry.options.items()
+            if key not in REMOVED_CHART_CONFIG_KEYS
+        }
+        hass.config_entries.async_update_entry(
+            entry,
+            data=data,
+            options=options,
+            version=2,
+        )
+
+    return True
 
 
 # https://developers.home-assistant.io/docs/config_entries_index/#setting-up-an-entry
@@ -46,6 +95,8 @@ async def async_setup_entry(
     entry: RealElectricityPriceConfigEntry,
 ) -> bool:
     """Set up this integration using UI."""
+    _remove_retired_entities(hass, entry)
+
     # Merge entry data with options (options override data)
     config = {**entry.data, **entry.options}
     # Ensure time zone from Home Assistant is available to downstream components

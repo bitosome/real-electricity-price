@@ -98,23 +98,6 @@ Choose how off-peak periods are determined:
   2. **Manual trigger** (button press or service call)  
   3. **Scheduled time** (daily at configured time, default: 15:00)
 
-### Chart Color Configuration
-Customize the colors used in ApexCharts dashboard displays:
-- **Past Hours Color**: Color for hours that have already passed (default: deep blue `#1E3A8A`)
-- **Current Hour Color**: Color for the current hour (default: bright blue `#3B82F6`) 
-- **Future Hours Color**: Color for upcoming hours (default: light blue `#93C5FD`)
-- **Cheap Hours Color**: Color for identified cheap hours (default: light green `#86EFAC`)
-- **Cheap Current Hour Color**: Color for the current hour when it's also a cheap hour (default: green `#22C55E`)
-
-Colors can be configured using the Home Assistant color picker during setup or through the integration options.
-
-**To configure colors after setup**:
-1. Go to **Settings** → **Devices & Services** → **Real Electricity Price**
-2. Click **Configure** on your integration
-3. Navigate through the setup steps to reach the cheap hours configuration
-4. Use the color picker for each chart color option
-5. Save your changes - colors will apply immediately to chart data
-
 ## 🔧 Sensors & Entities
 
 The integration provides comprehensive sensor data:
@@ -126,11 +109,9 @@ The integration provides comprehensive sensor data:
 
 ### Analysis Sensors  
 - **Cheap Hours**: Number of cheap hours in upcoming periods
-- **Next Cheap Hours Start/End**: When the next cheap period begins/ends
+- **Cheap Period Start/End**: Boundaries of the active cheap period, or the next
+  cheap period when no cheap period is active
 - **Last Sync**: When price data was last updated
-
-### Chart Sensors
-- **Chart Data**: Pre-processed data for ApexCharts with configurable colors and time-based styling
 
 ### Control Entities
 - **Acceptable Price**: Adjustable maximum price for cheap hour identification
@@ -155,117 +136,21 @@ All price components are clearly separated and configurable:
 Total Price = Nord Pool + Grid Costs + Supplier Costs + VAT
 ```
 
-### Recommended ApexCharts Configuration
+### Recommended Price Card
 
-Use this ApexCharts configuration for clean 48-hour price display with color-coded hour types:
+Use the companion
+[Real Electricity Price Card](https://github.com/bitosome/real-electricity-price-card)
+to render the hourly data exposed by the yesterday, today, and tomorrow sensors.
+The card reads their `hourly_prices` attributes directly, so no intermediate chart
+sensor is required.
 
 ```yaml
-type: custom:apexcharts-card
-header:
-  show: true
-  show_states: true
-  colorize_states: true
-graph_span: 48h
-span:
-  start: day
-apex_config:
-  chart:
-    height: 200
-    stacked: false
-    toolbar:
-      show: false
-  legend:
-    show: false
-  grid:
-    show: true
-    borderColor: "#404040"
-  tooltip:
-    fixed:
-      enabled: true
-      position: topLeft
-    offsetX: -10
-    offsetY: -10
-    shared: false
-    x:
-      format: MMM dd, HH:mm
-    "y":
-      formatter: |
-        EVAL:function(value) {
-          if (value === null || typeof value === 'undefined' || Number.isNaN(Number(value))) 
-            return '';
-          return Number(value).toFixed(4) + ' €/kWh';
-        }
-  xaxis:
-    type: datetime
-    tickAmount: 48
-    labels:
-      format: HH:mm
-      datetimeUTC: false
-      rotate: -45
-    min: |
-      EVAL:function() { 
-        var start = new Date();
-        start.setHours(0, 0, 0, 0);
-        return start.getTime();
-      }
-    max: |
-      EVAL:function() { 
-        var end = new Date();
-        end.setDate(end.getDate() + 2);
-        end.setHours(0, 0, 0, 0);
-        return end.getTime();
-      }
-  yaxis:
-    - title:
-        text: Price (€/kWh)
-      labels:
-        formatter: |
-          EVAL:function(value) {
-            if (value === null || typeof value === 'undefined' || Number.isNaN(Number(value))) 
-              return '';
-            return Number(value).toFixed(4) + ' €';
-          }
-      min: 0
-  plotOptions:
-    bar:
-      columnWidth: 80%
-      endingShape: round
-      borderRadius: 3
-      distributed: true
-  dataLabels:
-    enabled: false
-  stroke:
-    width: 0
-  fill:
-    opacity: 1
-series:
-  - entity: sensor.real_electricity_price_current_price
-    name: Current price
-    type: line
-    stroke_width: 2
-    float_precision: 4
-    unit: €/kWh
-    show:
-      in_header: true
-      in_chart: false
-      in_legend: false
-    data_generator: >
-      var out = []; var nowts = new Date().getTime(); var v = null; if (entity
-      && entity.state && entity.state !== 'unknown' && entity.state !==
-      'unavailable') {
-        v = Number(entity.state);
-      } out.push([nowts, v]); return out;
-  - entity: sensor.real_electricity_price_chart_data
-    type: column
-    name: Electricity Prices
-    float_precision: 4
-    unit: €/kWh
-    show:
-      in_header: false
-      in_chart: true
-      in_legend: false
-    data_generator: |
-      return entity?.attributes?.chart_data || [];
+type: custom:real-electricity-price-card
+yesterday_entity: sensor.real_electricity_price_hourly_prices_yesterday
+today_entity: sensor.real_electricity_price_hourly_prices_today
+tomorrow_entity: sensor.real_electricity_price_hourly_prices_tomorrow
+current_price_entity: sensor.real_electricity_price_current_price
+cheap_price_entity: number.real_electricity_price_acceptable_price
 ```
 
 ## 🤝 Contributing
